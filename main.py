@@ -36,7 +36,7 @@ def main():
 
     for word in words:
         thes_word = thesaurus.find(word.wordfrom)
-        print(printer(word, thes_word))
+        print(printer(word, thes_word).encode('utf-8'))
 
 
 if __name__ == '__main__':
