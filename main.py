@@ -3,17 +3,12 @@
 from sys import exit
 from argparse import ArgumentParser
 
-# from yatetradki.utils import enable_debug
 from yatetradki.slovari import YandexSlovari
+from yatetradki.thesaurus import Thesaurus
+from yatetradki.pretty import FancyWordPrinter
 
 
 COOKIE_JAR = 'cookiejar.dat'
-
-
-def print_words(words):
-    for word in words:
-        print(u'{0} -> {1} | {2:20} {3}'
-              .format(word.langfrom, word.langto, word.wordfrom, word.wordto))
 
 
 def main():
@@ -27,7 +22,14 @@ def main():
         return 1
 
     slovari = YandexSlovari(args.login, args.password, COOKIE_JAR)
-    print_words(slovari.get_words()[-10:])
+    words = slovari.get_words()[-5:]
+
+    thesaurus = Thesaurus(COOKIE_JAR)
+    printer = FancyWordPrinter()
+
+    for word in words:
+        thes_word = thesaurus.find(word.wordfrom)
+        print(printer(word, thes_word))
 
 
 if __name__ == '__main__':
@@ -40,10 +42,11 @@ Things to implement
 Usage:
     http://bnc.bl.uk/saraWeb.php?qy=gruesome
 
-Thesaurus:
+Thesaurus (synonims, antonims):
     http://www.thesaurus.com/browse/intact?s=ts
 
-http://www.thefreedictionary.com/gruesome
+Many useful stuff:
+    http://www.thefreedictionary.com/gruesome
 
 No results from thesaurus: "no thesaurus results"
 

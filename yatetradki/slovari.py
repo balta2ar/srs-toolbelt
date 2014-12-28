@@ -16,7 +16,8 @@ URL_PART_PASSPORT = 'passport.yandex.ru/passport?mode=auth'
 URL_PASSPORT = 'https://passport.yandex.ru/passport'
 
 
-Word = namedtuple('Word', 'langfrom langto hash wordfrom wordto dictionary')
+TetradkiWord = namedtuple('TetradkiWord',
+                          'langfrom langto hash wordfrom wordto dictionary')
 
 
 class YandexSlovari(object):
@@ -72,7 +73,7 @@ class YandexSlovari(object):
         return filter(lambda line: len(line[4]) < 200, words)
 
     def _export(self, words):
-        return [Word(*parts)
+        return [TetradkiWord(*parts)
                 for parts in words]
 
     def get_words(self):

@@ -1,3 +1,4 @@
+from os import popen
 from codecs import open as codecs_open
 
 
@@ -25,3 +26,8 @@ def enable_debug():
 def save(reply):
     with codecs_open('reply.html', encoding='utf-8', mode='w') as f:
         f.write(reply)
+
+
+def get_terminal_width():
+    rows, columns = popen('stty size', 'r').read().split()
+    return int(rows), int(columns)
