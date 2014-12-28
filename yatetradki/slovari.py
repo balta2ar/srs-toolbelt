@@ -73,8 +73,7 @@ class YandexSlovari(object):
         return filter(lambda line: len(line[4]) < 200, words)
 
     def _export(self, words):
-        return [TetradkiWord(*parts)
-                for parts in words]
+        return [TetradkiWord(*parts) for parts in words]
 
     def get_words(self):
         page = self._get_words_page()
@@ -82,5 +81,4 @@ class YandexSlovari(object):
         dirty_words = filter(None,
                              [x.get('data-words')
                               for x in soup.find_all('div')])[0]
-        # save(dirty_words)
         return self._export(self._clear_words(loads(dirty_words)))

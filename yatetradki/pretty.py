@@ -1,10 +1,19 @@
 from yatetradki.utils import get_terminal_width
 
 
+DEFUALT_WIDTH = 100
+
+
 class FancyWordPrinter(object):
-    def __init__(self):
-        _, w = get_terminal_width()
-        self._term_width = w
+    def __init__(self, width=0):
+        self._term_width = width
+        if not width:
+            _, width = get_terminal_width()
+            self._term_width = width
+            if not width:
+                #print('Could not determine terminal size, using default {0}'
+                #      .format(DEFUALT_WIDTH))
+                self._term_width = DEFUALT_WIDTH
 
     def _clip(self, words, max_length):
         xs = filter(lambda x: len(x) < max_length,

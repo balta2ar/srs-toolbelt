@@ -12,9 +12,16 @@ COOKIE_JAR = 'cookiejar.dat'
 
 
 def main():
-    parser = ArgumentParser(description='Yandex.Slovari/Tetradki words extractor.')
-    parser.add_argument('--login', type=str, default=None, help='Login to Yandex')
-    parser.add_argument('--password', type=str, default=None, help='Password')
+    parser = ArgumentParser(
+        description='Yandex.Slovari/Tetradki words extractor.')
+    parser.add_argument('--login', type=str, default=None,
+                        help='Login to Yandex')
+    parser.add_argument('--password', type=str, default=None,
+                        help='Password')
+    parser.add_argument('--num-words', type=int, default=10,
+                        help='Number of last words to print')
+    parser.add_argument('--width', type=int, default=0,
+                        help='Width of the output in characters')
     args = parser.parse_args()
 
     if None in (args.login, args.password):
@@ -22,10 +29,10 @@ def main():
         return 1
 
     slovari = YandexSlovari(args.login, args.password, COOKIE_JAR)
-    words = slovari.get_words()[-5:]
+    words = slovari.get_words()[-args.num_words:]
 
     thesaurus = Thesaurus(COOKIE_JAR)
-    printer = FancyWordPrinter()
+    printer = FancyWordPrinter(args.width)
 
     for word in words:
         thes_word = thesaurus.find(word.wordfrom)

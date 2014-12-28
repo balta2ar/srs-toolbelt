@@ -29,5 +29,8 @@ def save(reply):
 
 
 def get_terminal_width():
-    rows, columns = popen('stty size', 'r').read().split()
-    return int(rows), int(columns)
+    try:
+        rows, columns = popen('stty size', 'r').read().split()
+        return int(rows), int(columns)
+    except ValueError:
+        return 0, 0
