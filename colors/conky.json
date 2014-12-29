@@ -1,0 +1,15 @@
+{
+    "langfrom": "{{color ff0000}}{0}{{endcolor}}",
+    "langto": "{{color 00ff00}}{0}{{endcolor}}",
+    "wordfrom": "{{color 001100}}{0}{{endcolor}}",
+    "wordto": "{{color 002200}}{0}{{endcolor}}",
+    "synonym-1": "{{color 010101}}{0}{{endcolor}}",
+    "synonym-2": "{{color 020202}}{0}{{endcolor}}",
+    "synonym-3": "{{color 030303}}{0}{{endcolor}}",
+    "antonym-1": "{{color 101010}}{0}{{endcolor}}",
+    "antonym-2": "{{color 202020}}{0}{{endcolor}}",
+    "antonym-3": "{{color 303030}}{0}{{endcolor}}",
+    "arrow": "{{color 1144ff}}{0}{{endcolor}}",
+    "delimeter_first_line": "{{color aabb00}}{0}{{endcolor}}"
+}
+

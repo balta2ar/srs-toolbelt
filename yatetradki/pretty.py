@@ -27,35 +27,6 @@ DEFUALT_WIDTH = 100
 TOKEN_LANGFROM = 'langfrom'
 
 
-COLORSCHEME = {
-    'langfrom': '{{color ff0000}}{0}{{endcolor}}',
-    'langto': '{{color 00ff00}}{0}{{endcolor}}',
-    'wordfrom': '{{color 001100}}{0}{{endcolor}}',
-    'wordto': '{{color 002200}}{0}{{endcolor}}',
-    'synonym-1': '{{color 010101}}{0}{{endcolor}}',
-    'synonym-2': '{{color 020202}}{0}{{endcolor}}',
-    'synonym-3': '{{color 030303}}{0}{{endcolor}}',
-    'antonym-1': '{{color 101010}}{0}{{endcolor}}',
-    'antonym-2': '{{color 202020}}{0}{{endcolor}}',
-    'antonym-3': '{{color 303030}}{0}{{endcolor}}',
-    'arrow': '{{color 1144ff}}{0}{{endcolor}}',
-    'delimeter_first_line': '{{color aabb00}}{0}{{endcolor}}'
-}
-
-CONSOLE = {
-    'langfrom': '\033[93m{0}\033[0m',
-    'langto': '\033[94m{0}\033[0m',
-    'wordfrom': '\033[38;5;136m{0}\033[0m',
-    'wordto': '\033[38;5;111m{0}\033[0m',
-    'synonym-1': '\033[38;5;172m{0}\033[0m',
-    'synonym-2': '\033[38;5;214m{0}\033[0m',
-    'synonym-3': '\033[38;5;226m{0}\033[0m',
-    'antonym-1': '\033[38;5;116m{0}\033[0m',
-    'antonym-2': '\033[38;5;80m{0}\033[0m',
-    'antonym-3': '\033[38;5;50m{0}\033[0m',
-}
-
-
 class Printer(object):
     """
     Has ref to:
@@ -119,7 +90,9 @@ class ColoredPrinter(Printer):
         color = self._colorscheme.get(token)
         if color is None:
             return result
-        return unicode(color).format(result)
+        # On how to process escape sequences in strings, see:
+        # http://stackoverflow.com/a/4020824/258421
+        return unicode(color.decode('string_escape')).format(result)
 
 
 class Producer(object):
@@ -198,7 +171,8 @@ class Producer(object):
 
 
 class FancyWordPrinter(object):
-    def __init__(self, width=0):
+    def __init__(self, colorscheme, width=0):
+        self._colorscheme = colorscheme
         self._term_width = width
         if not width:
             _, width = get_terminal_width()
@@ -218,7 +192,8 @@ class FancyWordPrinter(object):
         #printer = Printer(COLORSCHEME)
 
         #printer = ColoredPrinter(COLORSCHEME)
-        printer = ColoredPrinter(CONSOLE)
+        printer = ColoredPrinter if self._colorscheme else Printer
+        printer = printer(self._colorscheme)
         producer = Producer(printer, self._term_width)
         r = producer(tetradki_word, thesaurus_word)
         return r

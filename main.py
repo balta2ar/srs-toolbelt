@@ -1,6 +1,7 @@
 # vim: set fileencoding=utf-8 :
 
 from sys import exit
+from json import loads as json_loads
 from argparse import ArgumentParser
 
 from yatetradki.slovari import YandexSlovari
@@ -11,6 +12,13 @@ from yatetradki.pretty import FancyWordPrinter
 COOKIE_JAR = 'cookiejar.dat'
 
 
+def load_colorscheme(path):
+    if not path:
+        return None
+    with open(path) as f:
+        return json_loads(f.read())
+
+
 def main():
     parser = ArgumentParser(
         description='Yandex.Slovari/Tetradki words extractor.')
@@ -18,6 +26,8 @@ def main():
                         help='Login to Yandex')
     parser.add_argument('--password', type=str, default=None,
                         help='Password')
+    parser.add_argument('--colorscheme', type=str, default=None,
+                        help='Path to colorscheme json')
     parser.add_argument('--num-words', type=int, default=10,
                         help='Number of last words to print')
     parser.add_argument('--width', type=int, default=0,
@@ -32,7 +42,8 @@ def main():
     words = slovari.get_words()[-args.num_words:]
 
     thesaurus = Thesaurus(COOKIE_JAR)
-    printer = FancyWordPrinter(args.width)
+    printer = FancyWordPrinter(load_colorscheme(args.colorscheme),
+                               args.width)
 
     for word in words:
         thes_word = thesaurus.find(word.wordfrom)
