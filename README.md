@@ -31,3 +31,7 @@ en -> ru | brd                  правление, тесьма
      syn : <NA>
      ant : <NA>
 ```
+
+## Screenshot
+
+![Colors](http://i.imgur.com/VbO8REc.png)
