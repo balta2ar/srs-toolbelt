@@ -9,6 +9,7 @@ URL_THESAURUS = 'http://www.thesaurus.com/browse/{0}'
 
 
 ThesaurusWord = namedtuple('ThesaurusWord', 'synonyms antonyms')
+RelevantWord = namedtuple('RelevantWord', 'word relevance')
 
 
 class Thesaurus(object):
@@ -21,13 +22,15 @@ class Thesaurus(object):
             return ['<NA>']
 
         def _relevance(item):
-            return int(''.join(
+            result = int(''.join(
                 x for x in loads(item['data-category'])['name']
                 if x.isdigit()))
+            # print(item, result)
+            return result
 
         items = [x for x in block.find_all('a') if x.has_attr('data-length')]
         items = [(item.span.text, _relevance(item)) for item in items]
-        items = map(itemgetter(0),
+        items = map(lambda args: RelevantWord(*args),
                     sorted(items, key=itemgetter(1), reverse=True))
         return items if items else ['<NA>']
 

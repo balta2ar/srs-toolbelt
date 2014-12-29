@@ -43,8 +43,16 @@ COLORSCHEME = {
 }
 
 CONSOLE = {
-    'langfrom': '\033[95m{0}\033[0m',
-    'langto': '\033[94m{0}\033[0m'
+    'langfrom': '\033[93m{0}\033[0m',
+    'langto': '\033[94m{0}\033[0m',
+    'wordfrom': '\033[38;5;136m{0}\033[0m',
+    'wordto': '\033[38;5;111m{0}\033[0m',
+    'synonym-1': '\033[38;5;172m{0}\033[0m',
+    'synonym-2': '\033[38;5;214m{0}\033[0m',
+    'synonym-3': '\033[38;5;226m{0}\033[0m',
+    'antonym-1': '\033[38;5;116m{0}\033[0m',
+    'antonym-2': '\033[38;5;80m{0}\033[0m',
+    'antonym-3': '\033[38;5;50m{0}\033[0m',
 }
 
 
@@ -86,16 +94,19 @@ class Printer(object):
         return self._buffer.getvalue()
 
     def _get_position(self):
+        """TEMPORARILY NOT USED"""
         lines = self.getvalue().splitlines()
         if not len(lines):
             return 0, 0
         return len(lines), len(lines[-1])
 
     def get_column(self):
+        """TEMPORARILY NOT USED"""
         _, col = self._get_position()
         return col
 
     def get_row(self):
+        """TEMPORARILY NOT USED"""
         # TODO: this gets broken when colored printer is on
         row, _ = self._get_position()
         return row
@@ -108,12 +119,13 @@ class ColoredPrinter(Printer):
         color = self._colorscheme.get(token)
         if color is None:
             return result
-        return unicode(color.format(result))
+        return unicode(color).format(result)
 
 
 class Producer(object):
-    def __init__(self, printer):
+    def __init__(self, printer, width=0):
         self._printer = printer
+        self._term_width = width
 
     def _build_token_table(self, tetradki_word, thesaurus_word):
         return {
@@ -130,6 +142,16 @@ class Producer(object):
             'newline': '\n'
         }
 
+    def _clip(self, relevant_words, max_length):
+        # yeah, well... this method is a little bit complicated
+        def _words():
+            return [x.word for x in relevant_words]
+
+        xs = filter(lambda (n, word): n < max_length,
+                    [(len(u', '.join(_words()[:i + 1])), i + 1)
+                     for i in range(len(relevant_words))])
+        return relevant_words[:xs[-1][1]] if xs else [relevant_words[0]]
+
     def __call__(self, tetradki_word, thesaurus_word):
         token_table = self._build_token_table(tetradki_word, thesaurus_word)
 
@@ -145,34 +167,31 @@ class Producer(object):
         p.spew('space')
         p.spew('delimeter_first_line')
         p.spew('space')
-        # left = p.get_column()
-        # row = p.get_row()
-        # print(left, row)
-        # print(self._printer.getvalue())
         p.spew('wordfrom', fmt=u'{0:20}')
         p.spew('wordto')
         p.spew('newline')
 
         spacing = '     '
-        #syn_ant_width = 50 - len(spacing) - len('syn : ')
+        syn_ant_width = self._term_width - len(spacing) - len('syn : ')
+        syns = self._clip(thesaurus_word.synonyms, syn_ant_width)
+        ants = self._clip(thesaurus_word.antonyms, syn_ant_width)
+
         p.spew('text', spacing)
         p.spew('synonym')
         p.spew('space')
         p.spew('delimeter_next_line')
         p.spew('space')
-        p.swallow(u', '.join([p.produce('synonym-1', word)
-                              for word in thesaurus_word.synonyms[:5]]))
+        p.swallow(u', '.join([p.produce('synonym-{0}'.format(relevance), word)
+                              for word, relevance in syns]))
         p.spew('newline')
 
-        #spacing = '     '
-        #syn_ant_width = 50 - len(spacing) - len('syn : ')
         p.spew('text', spacing)
         p.spew('antonym')
         p.spew('space')
         p.spew('delimeter_next_line')
         p.spew('space')
-        p.swallow(u', '.join([p.produce('antonym-1', word)
-                              for word in thesaurus_word.antonyms[:5]]))
+        p.swallow(u', '.join([p.produce('antonym-{0}'.format(relevance), word)
+                              for word, relevance in ants]))
         p.spew('newline')
 
         return self._printer.getvalue()
@@ -200,7 +219,7 @@ class FancyWordPrinter(object):
 
         #printer = ColoredPrinter(COLORSCHEME)
         printer = ColoredPrinter(CONSOLE)
-        producer = Producer(printer)
+        producer = Producer(printer, self._term_width)
         r = producer(tetradki_word, thesaurus_word)
         return r
 
