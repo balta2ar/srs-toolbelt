@@ -62,4 +62,12 @@ Sample output:
 en -> ru | scrotum       мошонка       flawless perfect unblemished unbroken unharmed unhurt unscathed untouched
                                        broken damaged flawed harmed hurt imperfect injured
 
+TODO:
+    - caching
+        - download new words to file
+        - download new syn&ant, usages, explanations to file
+    - colorization (color tables)
+    - usage (sample sentences, http://bnc.bl.uk/saraWeb.php?qy=gruesome)
+    - explanation in English (http://www.thefreedictionary.com/gruesome)
+    - all syn&ant groups (http://www.thesaurus.com/browse/intact?s=ts)
 '''
