@@ -19,7 +19,7 @@ class Thesaurus(object):
 
     def _parse_block(self, block):
         if not block:
-            return ['<NA>']
+            return [RelevantWord('<NA>', 0)]
 
         def _relevance(item):
             result = int(''.join(
@@ -32,7 +32,7 @@ class Thesaurus(object):
         items = [(item.span.text, _relevance(item)) for item in items]
         items = map(lambda args: RelevantWord(*args),
                     sorted(items, key=itemgetter(1), reverse=True))
-        return items if items else ['<NA>']
+        return items if items else [RelevantWord('<NA>', 0)]
 
     def find(self, word):
         responce = self._session.get(URL_THESAURUS.format(word))
