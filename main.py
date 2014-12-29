@@ -6,10 +6,24 @@ from argparse import ArgumentParser
 
 from yatetradki.slovari import YandexSlovari
 from yatetradki.thesaurus import Thesaurus
-from yatetradki.pretty import FancyWordPrinter
+from yatetradki.pretty import Prettifier
+from yatetradki.utils import get_terminal_width
 
 
 COOKIE_JAR = 'cookiejar.dat'
+DEFUALT_WIDTH = 100
+
+
+def get_terminal_width_fallback(width):
+    term_width = width
+    if not width:
+        _, width = get_terminal_width()
+        term_width = width
+        if not width:
+            #print('Could not determine terminal size, using default {0}'
+            #      .format(DEFUALT_WIDTH))
+            term_width = DEFUALT_WIDTH
+    return term_width
 
 
 def load_colorscheme(path):
@@ -42,12 +56,12 @@ def main():
     words = slovari.get_words()[-args.num_words:]
 
     thesaurus = Thesaurus(COOKIE_JAR)
-    printer = FancyWordPrinter(load_colorscheme(args.colorscheme),
-                               args.width)
+    prettifier = Prettifier(load_colorscheme(args.colorscheme),
+                            get_terminal_width_fallback(args.width))
 
     for word in words:
         thes_word = thesaurus.find(word.wordfrom)
-        print(printer(word, thes_word).encode('utf-8'))
+        print(prettifier(word, thes_word).encode('utf-8'))
 
 
 if __name__ == '__main__':
