@@ -1,6 +1,6 @@
 from yatetradki.printer import Printer
 from yatetradki.printer import ColoredPrinter
-from yatetradki.producer import Producer
+from yatetradki.producer import LayoutProducer
 
 
 # Tokens:
@@ -32,5 +32,5 @@ class Prettifier(object):
     def __call__(self, tetradki_word, thesaurus_word):
         printer = ColoredPrinter if self._colorscheme else Printer
         printer = printer(self._colorscheme)
-        producer = Producer(printer, self._term_width)
+        producer = LayoutProducer(printer, self._term_width)
         return producer(tetradki_word, thesaurus_word)

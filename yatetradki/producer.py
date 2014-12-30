@@ -1,4 +1,4 @@
-class Producer(object):
+class LayoutProducer(object):
     """Knows the outline of the output, how to lay it out.
     Does not know about colors.
     """

@@ -1,5 +1,9 @@
 from os import popen
+from json import loads as json_loads
 from codecs import open as codecs_open
+
+
+DEFUALT_WIDTH = 100
 
 
 def enable_debug():
@@ -23,8 +27,8 @@ def enable_debug():
     requests_log.propagate = True
 
 
-def save(reply):
-    with codecs_open('reply.html', encoding='utf-8', mode='w') as f:
+def save(reply, filename='reply.html'):
+    with codecs_open(filename, encoding='utf-8', mode='w') as f:
         f.write(reply)
 
 
@@ -34,3 +38,22 @@ def get_terminal_width():
         return int(rows), int(columns)
     except ValueError:
         return 0, 0
+
+
+def get_terminal_width_fallback(width):
+    term_width = width
+    if not width:
+        _, width = get_terminal_width()
+        term_width = width
+        if not width:
+            #print('Could not determine terminal size, using default {0}'
+            #      .format(DEFUALT_WIDTH))
+            term_width = DEFUALT_WIDTH
+    return term_width
+
+
+def load_colorscheme(path):
+    if not path:
+        return None
+    with open(path) as f:
+        return json_loads(f.read())

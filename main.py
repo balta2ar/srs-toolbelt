@@ -1,36 +1,16 @@
 # vim: set fileencoding=utf-8 :
 
 from sys import exit
-from json import loads as json_loads
 from argparse import ArgumentParser
 
 from yatetradki.slovari import YandexSlovari
 from yatetradki.thesaurus import Thesaurus
 from yatetradki.pretty import Prettifier
-from yatetradki.utils import get_terminal_width
+from yatetradki.utils import load_colorscheme
+from yatetradki.utils import get_terminal_width_fallback
 
 
 COOKIE_JAR = 'cookiejar.dat'
-DEFUALT_WIDTH = 100
-
-
-def get_terminal_width_fallback(width):
-    term_width = width
-    if not width:
-        _, width = get_terminal_width()
-        term_width = width
-        if not width:
-            #print('Could not determine terminal size, using default {0}'
-            #      .format(DEFUALT_WIDTH))
-            term_width = DEFUALT_WIDTH
-    return term_width
-
-
-def load_colorscheme(path):
-    if not path:
-        return None
-    with open(path) as f:
-        return json_loads(f.read())
 
 
 def main():
@@ -40,7 +20,7 @@ def main():
                         help='Login to Yandex')
     parser.add_argument('--password', type=str, default=None,
                         help='Password')
-    parser.add_argument('--colorscheme', type=str, default=None,
+    parser.add_argument('--colors', type=str, default=None,
                         help='Path to colorscheme json')
     parser.add_argument('--num-words', type=int, default=10,
                         help='Number of last words to print')
@@ -56,7 +36,7 @@ def main():
     words = slovari.get_words()[-args.num_words:]
 
     thesaurus = Thesaurus(COOKIE_JAR)
-    prettifier = Prettifier(load_colorscheme(args.colorscheme),
+    prettifier = Prettifier(load_colorscheme(args.colors),
                             get_terminal_width_fallback(args.width))
 
     for word in words:
@@ -88,6 +68,7 @@ en -> ru | scrotum       мошонка       flawless perfect unblemished unbro
                                        broken damaged flawed harmed hurt imperfect injured
 
 TODO:
+    - read credentials from netrc
     - caching
         - download new words to file
         - download new syn&ant, usages, explanations to file
