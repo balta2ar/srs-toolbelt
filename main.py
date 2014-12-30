@@ -14,7 +14,6 @@ from yatetradki.utils import get_terminal_width_fallback
 from yatetradki.utils import load_credentials_from_netrc
 
 
-CACHE_FILE = 'cache.dat'
 COOKIE_JAR = 'cookiejar.dat'
 NETRC_HOST = 'YandexSlovari'
 
@@ -32,6 +31,8 @@ def main():
                         help='Password')
     parser.add_argument('--colors', type=str, default=None,
                         help='Path to colorscheme json')
+    parser.add_argument('--cache', type=str, default=None,
+                        help='Path to cache file (reduce network requests)')
     parser.add_argument('--num-words', type=int, default=10,
                         help='Number of last words to print')
     parser.add_argument('--width', type=int, default=0,
@@ -53,7 +54,7 @@ def main():
     prettifier = Prettifier(load_colorscheme(args.colors),
                             get_terminal_width_fallback(args.width))
 
-    cache = Cache(CACHE_FILE)
+    cache = Cache(args.cache)
     actual_words = words[-args.num_words:]
 
     for word in actual_words:

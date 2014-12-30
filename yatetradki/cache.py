@@ -8,6 +8,8 @@ class Cache(object):
         self._cache = self._load()
 
     def _load(self):
+        if not self._cache_filename:
+            return {}
         try:
             with open(self._cache_filename) as f:
                 return pickle_load(f)
@@ -17,6 +19,8 @@ class Cache(object):
             return {}
 
     def flush(self):
+        if not self._cache_filename:
+            return
         with open(self._cache_filename, 'w') as f:
             pickle_dump(self._cache, f)
 
