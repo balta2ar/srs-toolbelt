@@ -13,8 +13,7 @@ RelevantWord = namedtuple('RelevantWord', 'word relevance')
 
 
 class Thesaurus(object):
-    def __init__(self, cookies=None):
-        self.__cookies = cookies
+    def __init__(self):
         self._session = Session()
 
     def _parse_block(self, block):

@@ -2,10 +2,12 @@
 
 from sys import exit
 from argparse import ArgumentParser
+from collections import namedtuple
 
 from yatetradki.slovari import YandexSlovari
 from yatetradki.thesaurus import Thesaurus
 from yatetradki.pretty import Prettifier
+from yatetradki.cache import Cache
 from yatetradki.utils import load_colorscheme
 from yatetradki.utils import get_terminal_width_fallback
 from yatetradki.utils import load_credentials_from_netrc
@@ -13,6 +15,10 @@ from yatetradki.utils import load_credentials_from_netrc
 
 COOKIE_JAR = 'cookiejar.dat'
 NETRC_HOST = 'YandexSlovari'
+CACHE_FILE = 'cache.dat'
+
+
+CachedWord = namedtuple('CachedWord', 'tetradki_word thesaurus_word')
 
 
 def main():
@@ -38,15 +44,25 @@ def main():
         args.login, args.password = login, password
 
     slovari = YandexSlovari(args.login, args.password, COOKIE_JAR)
-    words = slovari.get_words()[-args.num_words:]
+    words = slovari.get_words()
 
-    thesaurus = Thesaurus(COOKIE_JAR)
+    thesaurus = Thesaurus()
     prettifier = Prettifier(load_colorscheme(args.colors),
                             get_terminal_width_fallback(args.width))
 
-    for word in words:
-        thes_word = thesaurus.find(word.wordfrom)
-        print(prettifier(word, thes_word).encode('utf-8'))
+    cache = Cache(CACHE_FILE)
+    actual_words = words[-args.num_words:]
+
+    for word in actual_words:
+        if not cache.contains(word.wordfrom):
+            thes_word = thesaurus.find(word.wordfrom)
+            cache.save(word.wordfrom, CachedWord(word, thes_word))
+
+        cached_word = cache.load(word.wordfrom)
+        print(prettifier(cached_word.tetradki_word,
+                         cached_word.thesaurus_word).encode('utf-8'))
+
+    cache.flush()
 
 
 if __name__ == '__main__':
