@@ -1,3 +1,6 @@
+from textwrap import wrap
+
+
 class LayoutProducer(object):
     """Knows the outline of the output, how to lay it out.
     Does not know about colors.
@@ -31,7 +34,7 @@ class LayoutProducer(object):
                      for i in range(len(relevant_words))])
         return relevant_words[:xs[-1][1]] if xs else [relevant_words[0]]
 
-    def __call__(self, tetradki_word, thesaurus_word):
+    def __call__(self, tetradki_word, thesaurus_word, freedict_word):
         token_table = self._build_token_table(tetradki_word, thesaurus_word)
 
         self._printer.reset()
@@ -51,9 +54,9 @@ class LayoutProducer(object):
         p.spew('newline')
 
         spacing = '     '
-        syn_ant_width = self._term_width - len(spacing) - len('syn : ')
-        syns = self._clip(thesaurus_word.synonyms, syn_ant_width)
-        ants = self._clip(thesaurus_word.antonyms, syn_ant_width)
+        room = self._term_width - len(spacing) - len('syn : ')
+        syns = self._clip(thesaurus_word.synonyms, room)
+        ants = self._clip(thesaurus_word.antonyms, room)
 
         p.spew('text', spacing)
         p.spew('synonym')
@@ -71,6 +74,15 @@ class LayoutProducer(object):
         p.spew('space')
         p.swallow(u', '.join([p.produce('antonym-{0}'.format(relevance), word)
                               for word, relevance in ants]))
+        p.spew('newline')
+
+        defs = [wrap(x, room) for x in freedict_word.definitions]
+        defs = sum(defs, []) # flatten list: http://stackoverflow.com/a/952946/258421
+        defs = [p.produce('definition', x) for x in defs]
+        pads = ['     def : '] + ['           '] * len(defs)
+        defs = u'\n'.join([u''.join([pad, defn])
+                           for pad, defn in zip(pads, defs)])
+        [p.swallow(x) for x in defs]
         p.spew('newline')
 
         return self._printer.getvalue()

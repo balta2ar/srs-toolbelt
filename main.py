@@ -6,6 +6,7 @@ from collections import namedtuple
 
 from yatetradki.slovari import YandexSlovari
 from yatetradki.thesaurus import Thesaurus
+from yatetradki.freedict import TheFreeDictionary
 from yatetradki.pretty import Prettifier
 from yatetradki.cache import Cache
 from yatetradki.utils import load_colorscheme
@@ -13,12 +14,13 @@ from yatetradki.utils import get_terminal_width_fallback
 from yatetradki.utils import load_credentials_from_netrc
 
 
+CACHE_FILE = 'cache.dat'
 COOKIE_JAR = 'cookiejar.dat'
 NETRC_HOST = 'YandexSlovari'
-CACHE_FILE = 'cache.dat'
 
 
-CachedWord = namedtuple('CachedWord', 'tetradki_word thesaurus_word')
+CachedWord = namedtuple('CachedWord',
+                        'tetradki_word thesaurus_word freedict_word')
 
 
 def main():
@@ -47,6 +49,7 @@ def main():
     words = slovari.get_words()
 
     thesaurus = Thesaurus()
+    freedict = TheFreeDictionary()
     prettifier = Prettifier(load_colorscheme(args.colors),
                             get_terminal_width_fallback(args.width))
 
@@ -55,12 +58,16 @@ def main():
 
     for word in actual_words:
         if not cache.contains(word.wordfrom):
-            thes_word = thesaurus.find(word.wordfrom)
-            cache.save(word.wordfrom, CachedWord(word, thes_word))
+            thesaurus_word = thesaurus.find(word.wordfrom)
+            freedict_word = freedict.find(word.wordfrom)
+            cache.save(word.wordfrom, CachedWord(word,
+                                                 thesaurus_word,
+                                                 freedict_word))
 
         cached_word = cache.load(word.wordfrom)
         print(prettifier(cached_word.tetradki_word,
-                         cached_word.thesaurus_word).encode('utf-8'))
+                         cached_word.thesaurus_word,
+                         cached_word.freedict_word).encode('utf-8'))
 
     cache.flush()
 
@@ -89,12 +96,13 @@ en -> ru | scrotum       мошонка       flawless perfect unblemished unbro
                                        broken damaged flawed harmed hurt imperfect injured
 
 TODO:
-    - read credentials from netrc
+    + read credentials from netrc
     - caching
         - download new words to file
-        - download new syn&ant, usages, explanations to file
-    - colorization (color tables)
+        + download new syn&ant, usages, explanations to file
+    + colorization (color tables)
     - usage (sample sentences, http://bnc.bl.uk/saraWeb.php?qy=gruesome)
     - explanation in English (http://www.thefreedictionary.com/gruesome)
     - all syn&ant groups (http://www.thesaurus.com/browse/intact?s=ts)
+    - network timeouts
 '''

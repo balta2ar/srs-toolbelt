@@ -29,8 +29,8 @@ class Prettifier(object):
         self._colorscheme = colorscheme
         self._term_width = width
 
-    def __call__(self, tetradki_word, thesaurus_word):
+    def __call__(self, tetradki_word, thesaurus_word, freedict_word):
         printer = ColoredPrinter if self._colorscheme else Printer
         printer = printer(self._colorscheme)
         producer = LayoutProducer(printer, self._term_width)
-        return producer(tetradki_word, thesaurus_word)
+        return producer(tetradki_word, thesaurus_word, freedict_word)
