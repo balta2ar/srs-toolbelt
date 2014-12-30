@@ -8,9 +8,11 @@ from yatetradki.thesaurus import Thesaurus
 from yatetradki.pretty import Prettifier
 from yatetradki.utils import load_colorscheme
 from yatetradki.utils import get_terminal_width_fallback
+from yatetradki.utils import load_credentials_from_netrc
 
 
 COOKIE_JAR = 'cookiejar.dat'
+NETRC_HOST = 'YandexSlovari'
 
 
 def main():
@@ -29,8 +31,11 @@ def main():
     args = parser.parse_args()
 
     if None in (args.login, args.password):
-        print('Please specify login and password')
-        return 1
+        login, password = load_credentials_from_netrc(NETRC_HOST)
+        if None in (login, password):
+            print('Please specify login and password')
+            return 1
+        args.login, args.password = login, password
 
     slovari = YandexSlovari(args.login, args.password, COOKIE_JAR)
     words = slovari.get_words()[-args.num_words:]

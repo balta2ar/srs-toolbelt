@@ -1,6 +1,7 @@
 from os import popen
 from json import loads as json_loads
 from codecs import open as codecs_open
+from netrc import netrc
 
 
 DEFUALT_WIDTH = 100
@@ -57,3 +58,16 @@ def load_colorscheme(path):
         return None
     with open(path) as f:
         return json_loads(f.read())
+
+
+def load_credentials_from_netrc(host):
+    try:
+        rc = netrc()
+    except IOError:
+        # could not open ~/.netrc
+        return None, None
+    auth = rc.authenticators(host)
+    if not auth:
+        return None, None
+    login, account, password = auth
+    return login, password
