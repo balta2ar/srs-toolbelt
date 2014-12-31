@@ -113,4 +113,6 @@ TODO:
     + explanation in English (http://www.thefreedictionary.com/gruesome)
     - all syn&ant groups (http://www.thesaurus.com/browse/intact?s=ts)
     - network timeouts
+    - break long output into columns
+    - limit number of columns
 '''
