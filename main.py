@@ -4,10 +4,11 @@ from sys import exit
 from argparse import ArgumentParser
 from collections import namedtuple
 
-from yatetradki.slovari import YandexSlovari
-from yatetradki.thesaurus import Thesaurus
-from yatetradki.freedict import TheFreeDictionary
-from yatetradki.bnc import BncSimpleSearch
+from yatetradki.sites.slovari import YandexSlovari
+from yatetradki.sites.thesaurus import Thesaurus
+from yatetradki.sites.freedict import TheFreeDictionary
+from yatetradki.sites.bnc import BncSimpleSearch
+
 from yatetradki.pretty import Prettifier
 from yatetradki.cache import Cache
 from yatetradki.utils import load_colorscheme

@@ -1,6 +1,6 @@
 from yatetradki.printer import Printer
 from yatetradki.printer import ColoredPrinter
-from yatetradki.producer import LayoutProducer
+from yatetradki.layout import LayoutProducer
 
 
 # Tokens:
