@@ -75,6 +75,8 @@ def show(args):
                              cached_word.thesaurus_word,
                              cached_word.freedict_word,
                              cached_word.bnc_word).encode('utf-8'))
+            if i != len(words) - 1:
+                print('')
         else:
             words_missing += 1
 

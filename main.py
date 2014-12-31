@@ -100,4 +100,9 @@ TODO:
     - draw from different sources depending on the language of wordfrom
     - timeout per command
     - logging system
+    - shape up tokens:
+        - def -> def (token)
+        - usage -> usage (token)
+        - usage-1 -> usage color
+        - definition-1 -> definition color
 '''

@@ -84,7 +84,11 @@ class LayoutProducer(object):
         pads = ['   usage : ', '           ']
         usages = self._wrap(bnc_word.usages, room)
         self._produce_join_swallow('usage', pads, usages)
-        p.spew('newline')
+
+        # we don't have information whether this word is the last,
+        # so we don't know whether we sould print newline or not.
+        # show command is suppose to know that info.
+        # p.spew('newline')
 
         return self._printer.getvalue()
 
