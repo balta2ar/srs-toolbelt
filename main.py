@@ -7,6 +7,7 @@ from collections import namedtuple
 from yatetradki.slovari import YandexSlovari
 from yatetradki.thesaurus import Thesaurus
 from yatetradki.freedict import TheFreeDictionary
+from yatetradki.bnc import BncSimpleSearch
 from yatetradki.pretty import Prettifier
 from yatetradki.cache import Cache
 from yatetradki.utils import load_colorscheme
@@ -19,7 +20,8 @@ NETRC_HOST = 'YandexSlovari'
 
 
 CachedWord = namedtuple('CachedWord',
-                        'tetradki_word thesaurus_word freedict_word')
+                        'tetradki_word thesaurus_word '
+                        'freedict_word bnc_word')
 
 
 def main():
@@ -51,6 +53,7 @@ def main():
 
     thesaurus = Thesaurus()
     freedict = TheFreeDictionary()
+    bnc = BncSimpleSearch()
     prettifier = Prettifier(load_colorscheme(args.colors),
                             get_terminal_width_fallback(args.width))
 
@@ -61,14 +64,17 @@ def main():
         if not cache.contains(word.wordfrom):
             thesaurus_word = thesaurus.find(word.wordfrom)
             freedict_word = freedict.find(word.wordfrom)
+            bnc_word = bnc.find(word.wordfrom)
             cache.save(word.wordfrom, CachedWord(word,
                                                  thesaurus_word,
-                                                 freedict_word))
+                                                 freedict_word,
+                                                 bnc_word))
 
         cached_word = cache.load(word.wordfrom)
         print(prettifier(cached_word.tetradki_word,
                          cached_word.thesaurus_word,
-                         cached_word.freedict_word).encode('utf-8'))
+                         cached_word.freedict_word,
+                         cached_word.bnc_word).encode('utf-8'))
 
     cache.flush()
 
@@ -102,8 +108,8 @@ TODO:
         - download new words to file
         + download new syn&ant, usages, explanations to file
     + colorization (color tables)
-    - usage (sample sentences, http://bnc.bl.uk/saraWeb.php?qy=gruesome)
-    - explanation in English (http://www.thefreedictionary.com/gruesome)
+    + usage (sample sentences, http://bnc.bl.uk/saraWeb.php?qy=gruesome)
+    + explanation in English (http://www.thefreedictionary.com/gruesome)
     - all syn&ant groups (http://www.thesaurus.com/browse/intact?s=ts)
     - network timeouts
 '''

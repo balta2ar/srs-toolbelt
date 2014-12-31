@@ -75,4 +75,4 @@ def load_credentials_from_netrc(host):
 
 
 def text_cleanup(text):
-    return sub(' {2,}', ' ', text.strip())
+    return sub('\s{2,}', ' ', text.strip())

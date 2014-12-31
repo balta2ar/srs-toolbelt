@@ -34,7 +34,7 @@ class LayoutProducer(object):
                      for i in range(len(relevant_words))])
         return relevant_words[:xs[-1][1]] if xs else [relevant_words[0]]
 
-    def __call__(self, tetradki_word, thesaurus_word, freedict_word):
+    def __call__(self, tetradki_word, thesaurus_word, freedict_word, bnc_word):
         token_table = self._build_token_table(tetradki_word, thesaurus_word)
 
         self._printer.reset()
@@ -83,6 +83,15 @@ class LayoutProducer(object):
         defs = u'\n'.join([u''.join([pad, defn])
                            for pad, defn in zip(pads, defs)])
         [p.swallow(x) for x in defs]
+        p.spew('newline')
+
+        usages = [wrap(x, room) for x in bnc_word.usages]
+        usages = sum(usages, [])
+        usages = [p.produce('usage', x) for x in usages]
+        pads = ['   usage : '] + ['           '] * len(usages)
+        usages = u'\n'.join([u''.join([pad, usage])
+                             for pad, usage in zip(pads, usages)])
+        [p.swallow(x) for x in usages]
         p.spew('newline')
 
         return self._printer.getvalue()
