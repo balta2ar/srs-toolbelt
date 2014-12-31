@@ -7,6 +7,16 @@ memorize new words better. One way to do that is to always keep them in front
 of your eyes. This script is supposed to extract last N words and display them
 nicely in conky.
 
+## Features
+
+* Extracts and shows your words from Yandex.Slovari copybooks (![https://slovari.yandex.ru](https://slovari.yandex.ru/~%D1%82%D0%B5%D1%82%D1%80%D0%B0%D0%B4%D0%BA%D0%B8/0/))
+* Credentials are specified in command-line arguments or in netrc file
+* Shows synonyms and antonyms of the word (http://www.thesaurus.com/)
+* Shows word definitions (www.thefreedictionary.com)
+* Shows word usage (http://bnc.bl.uk/BLquery.php)
+* Color schemes are customized in JSON files
+* Request caching reduces number of network requests
+
 ## Usage
 
 ```
@@ -53,3 +63,7 @@ en -> ru | fraudulent          обманный, жульнический
 ### Defs
 
 ![Definitions](http://i.imgur.com/gePlqoU.png)
+
+## Author
+
+(c) 2014, 2015 Yuri Bochkarev
