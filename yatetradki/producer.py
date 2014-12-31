@@ -76,22 +76,32 @@ class LayoutProducer(object):
                               for word, relevance in ants]))
         p.spew('newline')
 
-        defs = [wrap(x, room) for x in freedict_word.definitions]
-        defs = sum(defs, []) # flatten list: http://stackoverflow.com/a/952946/258421
-        defs = [p.produce('definition', x) for x in defs]
-        pads = ['     def : '] + ['           '] * len(defs)
-        defs = u'\n'.join([u''.join([pad, defn])
-                           for pad, defn in zip(pads, defs)])
-        [p.swallow(x) for x in defs]
+        pads = ['     def : ', '           ']
+        defs = self._wrap(freedict_word.definitions, room)
+        self._produce_join_swallow('definition', pads, defs)
         p.spew('newline')
 
-        usages = [wrap(x, room) for x in bnc_word.usages]
-        usages = sum(usages, [])
-        usages = [p.produce('usage', x) for x in usages]
-        pads = ['   usage : '] + ['           '] * len(usages)
-        usages = u'\n'.join([u''.join([pad, usage])
-                             for pad, usage in zip(pads, usages)])
-        [p.swallow(x) for x in usages]
+        pads = ['   usage : ', '           ']
+        usages = self._wrap(bnc_word.usages, room)
+        self._produce_join_swallow('usage', pads, usages)
         p.spew('newline')
 
         return self._printer.getvalue()
+
+    def _wrap(self, lines, limit):
+        lines = [wrap(x, limit) for x in lines]
+        # flatten list: http://stackoverflow.com/a/952946/258421
+        return sum(lines, [])
+
+    def _join_two_columns(self, left_rows, right_rows):
+        # duplicate last item in left rows N times (N = len(right_rows)
+        left_rows = left_rows + [left_rows[-1]] * len(right_rows)
+        joined = u'\n'.join([u''.join([left, right])
+                             for left, right in zip(left_rows, right_rows)])
+        return joined
+
+    def _produce_join_swallow(self, token, pads, items):
+        p = self._printer
+        items = [p.produce(token, x) for x in items]
+        items = self._join_two_columns(pads, items)
+        p.swallow(items)

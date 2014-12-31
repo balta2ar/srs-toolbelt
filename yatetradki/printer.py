@@ -33,6 +33,8 @@ class Printer(object):
         return fmt.format(value) * num
 
     def swallow(self, text):
+        if isinstance(text, list):
+            return [self.swallow(x) for x in text]
         self._buffer.write(text)
 
     def spew(self, token, value=None, fmt=u'{0}', num=1):
