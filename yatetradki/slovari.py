@@ -49,7 +49,7 @@ class YandexSlovari(object):
         return responce
 
     def _auth(self, url):
-        print('needs authentication at: %s' % url)
+        print('Authorizing at: %s' % url)
         params = {'mode': 'auth',
                   'msg': 'slovari',
                   'retpath': URL_COPYBOOKS}

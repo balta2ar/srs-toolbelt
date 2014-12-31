@@ -1,3 +1,4 @@
+from re import sub
 from os import popen
 from json import loads as json_loads
 from codecs import open as codecs_open
@@ -71,3 +72,7 @@ def load_credentials_from_netrc(host):
         return None, None
     login, account, password = auth
     return login, password
+
+
+def text_cleanup(text):
+    return sub(' {2,}', ' ', text.strip())
