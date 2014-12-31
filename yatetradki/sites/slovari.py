@@ -81,4 +81,7 @@ class YandexSlovari(object):
         dirty_words = filter(None,
                              [x.get('data-words')
                               for x in soup.find_all('div')])[0]
-        return self._export(self._clear_words(loads(dirty_words)))
+        # in page words are ordered oldest to newest, but we return newest first
+        result = self._export(self._clear_words(loads(dirty_words)))
+        result.reverse()
+        return result

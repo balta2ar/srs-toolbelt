@@ -33,7 +33,7 @@ def fetch(args):
 
     slovari = YandexSlovari(args.login, args.password, COOKIE_JAR)
     words = slovari.get_words()
-    words = words[-args.num_words:] if args.num_words else words
+    words = words[:args.num_words] if args.num_words else words
 
     thesaurus = Thesaurus()
     freedict = TheFreeDictionary()
@@ -62,14 +62,21 @@ def fetch(args):
 def show(args):
     cache = Cache(args.cache)
     words = cache.order
-    words = words[-args.num_words:] if args.num_words else words
+    words = words[:args.num_words] if args.num_words else words
 
     prettifier = Prettifier(load_colorscheme(args.colors),
                             get_terminal_width_fallback(args.width))
 
+    words_missing = 0
     for i, word in enumerate(words):
         cached_word = cache.load(word)
-        print(prettifier(cached_word.tetradki_word,
-                         cached_word.thesaurus_word,
-                         cached_word.freedict_word,
-                         cached_word.bnc_word).encode('utf-8'))
+        if cached_word:
+            print(prettifier(cached_word.tetradki_word,
+                             cached_word.thesaurus_word,
+                             cached_word.freedict_word,
+                             cached_word.bnc_word).encode('utf-8'))
+        else:
+            words_missing += 1
+
+    if words_missing:
+        print('Could not load {0} words from cache'.format(words_missing))

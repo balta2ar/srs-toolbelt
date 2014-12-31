@@ -98,4 +98,6 @@ TODO:
           that could easily execute them both
 
     - draw from different sources depending on the language of wordfrom
+    - timeout per command
+    - logging system
 '''
