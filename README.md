@@ -64,6 +64,10 @@ en -> ru | fraudulent          обманный, жульнический
 
 ![Definitions](http://i.imgur.com/gePlqoU.png)
 
+### Usage
+
+![Usage](http://i.imgur.com/eiAk5or.png)
+
 ## Author
 
 (c) 2014, 2015 Yuri Bochkarev
