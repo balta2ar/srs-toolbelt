@@ -96,4 +96,6 @@ TODO:
         - print (pretty-print local storage into file)
         - make them chainable, so that there could be third script
           that could easily execute them both
+
+    - draw from different sources depending on the language of wordfrom
 '''

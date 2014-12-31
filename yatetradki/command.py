@@ -43,7 +43,7 @@ def fetch(args):
     words_fetched = 0
     for i, word in enumerate(words):
         if not cache.contains(word.wordfrom):
-            print('Fetching {0}/{1}: {2}'
+            print(u'Fetching {0}/{1}: {2}'
                   .format(i + 1, len(words), word.wordfrom))
             thesaurus_word = thesaurus.find(word.wordfrom)
             freedict_word = freedict.find(word.wordfrom)
@@ -53,8 +53,8 @@ def fetch(args):
                                                  freedict_word,
                                                  bnc_word))
             words_fetched += 1
+            cache.flush() # save early
 
-    cache.flush()
     if words_fetched:
         print('{0} new words fetched'.format(words_fetched))
 

@@ -5,7 +5,7 @@ from collections import namedtuple
 from operator import itemgetter
 
 
-URL_THESAURUS = 'http://www.thesaurus.com/browse/{0}'
+URL_THESAURUS = u'http://www.thesaurus.com/browse/{0}'
 
 
 ThesaurusWord = namedtuple('ThesaurusWord', 'synonyms antonyms')
@@ -13,12 +13,14 @@ RelevantWord = namedtuple('RelevantWord', 'word relevance')
 
 
 class Thesaurus(object):
+    _DUMMY = [RelevantWord('<NA>', 0)]
+
     def __init__(self):
         self._session = Session()
 
     def _parse_block(self, block):
         if not block:
-            return [RelevantWord('<NA>', 0)]
+            return self._DUMMY
 
         def _relevance(item):
             result = int(''.join(
@@ -31,15 +33,24 @@ class Thesaurus(object):
         items = [(item.span.text, _relevance(item)) for item in items]
         items = map(lambda args: RelevantWord(*args),
                     sorted(items, key=itemgetter(1), reverse=True))
-        return items if items else [RelevantWord('<NA>', 0)]
+        return items if items else self._DUMMY
 
     def find(self, word):
         responce = self._session.get(URL_THESAURUS.format(word))
         soup = BeautifulSoup(responce.content)
-        block = (soup.find('div', {'id': 'synonyms-0', 'class': 'synonyms'})
+
+        try:
+            block = (soup.find('div', {'id': 'synonyms-0', 'class': 'synonyms'})
                      .find('div', {'class': 'relevancy-list'}))
-        syn = self._parse_block(block)
-        block = (soup.find('div', {'id': 'synonyms-0', 'class': 'synonyms'})
+            syn = self._parse_block(block)
+        except AttributeError:
+            syn = self._DUMMY
+
+        try:
+            block = (soup.find('div', {'id': 'synonyms-0', 'class': 'synonyms'})
                      .find('section', {'class': 'antonyms'}))
-        ant = self._parse_block(block)
+            ant = self._parse_block(block)
+        except AttributeError:
+            ant = self._DUMMY
+
         return ThesaurusWord(syn, ant)
