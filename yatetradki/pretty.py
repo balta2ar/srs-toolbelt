@@ -1,6 +1,7 @@
 from yatetradki.printer import Printer
 from yatetradki.printer import ColoredPrinter
-from yatetradki.layout import LayoutProducer
+from yatetradki.layout import StraightLayout
+from yatetradki.layout import ColumnLayout
 
 
 # Tokens:
@@ -25,12 +26,33 @@ TOKEN_LANGFROM = 'langfrom'
 
 class Prettifier(object):
     """Compose printer and layour producer to get something pretty!"""
-    def __init__(self, colorscheme, width):
+    def __init__(self, colorscheme, width, height, delimiter):
         self._colorscheme = colorscheme
-        self._term_width = width
+        self._width = width
+        self._height = height
+        self._delimiter = delimiter
 
-    def __call__(self, tetradki_word, thesaurus_word, freedict_word, bnc_word):
-        printer = ColoredPrinter if self._colorscheme else Printer
-        printer = printer(self._colorscheme)
-        producer = LayoutProducer(printer, self._term_width)
-        return producer(tetradki_word, thesaurus_word, freedict_word, bnc_word)
+    def _print(self, colorscheme, cached_word):
+        colored_printer = ColoredPrinter if colorscheme else Printer
+        colored_printer = colored_printer(self._colorscheme)
+        raw_printer = Printer(None)
+
+        colored_producer = StraightLayout(colored_printer, self._width)
+        colored_word = colored_producer(cached_word.tetradki_word,
+                                        cached_word.thesaurus_word,
+                                        cached_word.freedict_word,
+                                        cached_word.bnc_word)
+
+        raw_producer = StraightLayout(raw_printer, self._width)
+        raw_word = raw_producer(cached_word.tetradki_word,
+                                cached_word.thesaurus_word,
+                                cached_word.freedict_word,
+                                cached_word.bnc_word)
+
+        return colored_word, raw_word
+
+    def __call__(self, cached_words):
+        column = ColumnLayout(self._width, self._height, self._delimiter)
+        [column(*self._print(self._colorscheme, cached_word))
+         for cached_word in cached_words]
+        return column.getvalue()

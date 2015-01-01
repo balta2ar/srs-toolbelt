@@ -42,6 +42,12 @@ def parse_args():
                              help='Path to colorscheme json')
     parser_show.add_argument('--width', type=int, default=0,
                              help='Width of the output in characters')
+    parser_show.add_argument('--height', type=int, default=0,
+                             help='Height of the output in characters')
+    parser_show.add_argument('--numbers', default=False, action='store_true',
+                             help='Show numbers on the left')
+    parser_show.add_argument('--delim', type=str, default=' . ',
+                             help='Columns delimiter')
 
     return parser.parse_args()
 
@@ -80,29 +86,41 @@ en -> ru | scrotum       мошонка       flawless perfect unblemished unbro
 
 TODO:
     + read credentials from netrc
-    - caching
-        - download new words to file
+    + caching
+        + download new words to file
         + download new syn&ant, usages, explanations to file
     + colorization (color tables)
     + usage (sample sentences, http://bnc.bl.uk/saraWeb.php?qy=gruesome)
     + explanation in English (http://www.thefreedictionary.com/gruesome)
     - all syn&ant groups (http://www.thesaurus.com/browse/intact?s=ts)
     - network timeouts
-    - break long output into columns
-    - limit number of columns
+    - columns
+        + break long output into columns
+        - limit number of columns (do I need that?)
+        + break by words, not by lines
+    - trim wordto
+    - draw N random definitions/usages, but save them all
 
-    - split into two separate scripts:
-        - fetch (download from everywhere to local storage)
-        - print (pretty-print local storage into file)
-        - make them chainable, so that there could be third script
-          that could easily execute them both
+    - split into commands:
+        + fetch (download from everywhere to local storage)
+        + show (pretty-print local storage)
+        - both: make them chainable, so that there could be third script
+          that could easily execute them both. do I really need that?
+        - words: print all words in the cache
+        - info <words> -- print specified words (retrieve, then load from cache)
 
     - draw from different sources depending on the language of wordfrom
     - timeout per command
-    - logging system
+    - logging system, timestamps
     - shape up tokens:
         - def -> def (token)
         - usage -> usage (token)
         - usage-1 -> usage color
         - definition-1 -> definition color
+    - do not print section if content is not available
+        - syn
+        - ant
+        - def
+        - usage
+    - redesign layout generation system, current one is awful
 '''

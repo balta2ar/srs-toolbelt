@@ -59,26 +59,27 @@ def fetch(args):
         print('{0} new words fetched'.format(words_fetched))
 
 
+def _add_numbers(text):
+    lines = text.splitlines()
+    lines = [u'{0:03} {1}'.format(i + 1, line) for i, line in enumerate(lines)]
+    return u'\n'.join(lines)
+
+
 def show(args):
     cache = Cache(args.cache)
     words = cache.order
     words = words[:args.num_words] if args.num_words else words
 
     prettifier = Prettifier(load_colorscheme(args.colors),
-                            get_terminal_width_fallback(args.width))
+                            get_terminal_width_fallback(args.width),
+                            args.height, args.delim)
 
-    words_missing = 0
-    for i, word in enumerate(words):
-        cached_word = cache.load(word)
-        if cached_word:
-            print(prettifier(cached_word.tetradki_word,
-                             cached_word.thesaurus_word,
-                             cached_word.freedict_word,
-                             cached_word.bnc_word).encode('utf-8'))
-            if i != len(words) - 1:
-                print('')
-        else:
-            words_missing += 1
+    cached_words = filter(None, map(cache.load, words))
+    result = prettifier(cached_words)
+    if args.numbers:
+        result = _add_numbers(result)
+    print(result.encode('utf-8'))
 
+    words_missing = len(words) - len(cached_words)
     if words_missing:
         print('Could not load {0} words from cache'.format(words_missing))
