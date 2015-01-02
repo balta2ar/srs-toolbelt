@@ -22,7 +22,7 @@ class StraightLayout(object):
             'langfrom': tetradki_word.langfrom,
             'langto': tetradki_word.langto,
             'wordfrom': tetradki_word.wordfrom,
-            'wordto': tetradki_word.wordto,
+            #'wordsto': u' | '.join(tetradki_word.wordsto),
             'synonym': 'syn',
             'antonym': 'ant',
             'space': ' ',
@@ -32,13 +32,20 @@ class StraightLayout(object):
             'newline': '\n'
         }
 
-    def _clip(self, relevant_words, max_length):
-        # yeah, well... this method is a little bit complicated
-        def _words():
-            return [x.word for x in relevant_words]
+    def _clip(self, relevant_words, max_length, convert=None):
+        """
+        Keep joining words until they exceed max_length. Return the numbers
+        of words that when joind is smaller than max_length.
+        """
+        def _words(words):
+            return [x.word for x in words]
 
+        if convert is None:
+            convert = _words
+
+        words = convert(relevant_words)
         xs = filter(lambda (n, word): n < max_length,
-                    [(len(u', '.join(_words()[:i + 1])), i + 1)
+                    [(len(u', '.join(words[:i + 1])), i + 1)
                      for i in range(len(relevant_words))])
         return relevant_words[:xs[-1][1]] if xs else [relevant_words[0]]
 
@@ -58,8 +65,11 @@ class StraightLayout(object):
         p.spew('space')
         p.spew('delimeter_first_line')
         p.spew('space')
-        p.spew('wordfrom', fmt=u'{0:20}')
-        p.spew('wordto')
+        p.spew('wordfrom', fmt=u'{0:15}')
+        room = self._term_width - len('en -> ru | {0:15}'
+                                      .format(tetradki_word.wordfrom))
+        wordsto = self._clip(tetradki_word.wordsto, room, convert=lambda x: x)
+        p.swallow(u', '.join([p.produce('wordsto', word) for word in wordsto]))
         p.spew('newline')
 
         spacing = '     '

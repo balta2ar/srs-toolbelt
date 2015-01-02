@@ -17,7 +17,7 @@ URL_PASSPORT = 'https://passport.yandex.ru/passport'
 
 
 TetradkiWord = namedtuple('TetradkiWord',
-                          'langfrom langto hash wordfrom wordto dictionary')
+                          'langfrom langto hash wordfrom wordsto dictionary')
 
 
 class YandexSlovari(object):
@@ -70,10 +70,19 @@ class YandexSlovari(object):
         return valid
 
     def _clear_words(self, words):
+        # 4 is wordsto
         return filter(lambda line: len(line[4]) < 200, words)
 
     def _export(self, words):
         return [TetradkiWord(*parts) for parts in words]
+
+    def _split(self, words):
+        """Split wordsto string into a list of words"""
+        def _translate(parts):
+            # 4 is wordsto
+            parts[4] = parts[4].split(', ')
+            return parts
+        return map(_translate, words)
 
     def get_words(self):
         page = self._get_words_page()
@@ -82,6 +91,7 @@ class YandexSlovari(object):
                              [x.get('data-words')
                               for x in soup.find_all('div')])[0]
         # in page words are ordered oldest to newest, but we return newest first
-        result = self._export(self._clear_words(loads(dirty_words)))
+        result = self._export(self._split(
+            self._clear_words(loads(dirty_words))))
         result.reverse()
         return result

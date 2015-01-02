@@ -2,7 +2,7 @@
     "langfrom": "${{color ff7f00}}{0}${{color}}",
     "langto": "${{color 00cdcd}}{0}${{color}}",
     "wordfrom": "${{color ff7f00}}{0}${{color}}",
-    "wordto": "${{color 00cdcd}}{0}${{color}}",
+    "wordsto": "${{color 00cdcd}}{0}${{color}}",
     "synonym-0": "${{color 8b7e66}}{0}${{color}}",
     "synonym-1": "${{color 8b5a2b}}{0}${{color}}",
     "synonym-2": "${{color cd853f}}{0}${{color}}",

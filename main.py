@@ -98,7 +98,7 @@ TODO:
         + break long output into columns
         - limit number of columns (do I need that?)
         + break by words, not by lines
-    - trim wordto
+    + trim wordsto
     - draw N random definitions/usages, but save them all
 
     - split into commands:

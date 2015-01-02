@@ -9,7 +9,7 @@ from yatetradki.layout import ColumnLayout
 # langfrom
 # langto
 # wordfrom
-# wordto
+# wordsto
 # synonyms (list of max of 3 items)
 # antonyms (list of max of 3 items)
 # arrow

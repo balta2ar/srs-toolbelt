@@ -16,6 +16,7 @@ nicely in conky.
 * Shows word usage (http://bnc.bl.uk/BLquery.php)
 * Color schemes are customized in JSON files
 * Request caching reduces number of network requests
+* Columned layout
 
 ## Usage
 
