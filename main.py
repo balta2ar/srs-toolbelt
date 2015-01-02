@@ -6,6 +6,8 @@ from argparse import ArgumentDefaultsHelpFormatter
 
 from yatetradki.command import fetch
 from yatetradki.command import show
+from yatetradki.command import words
+from yatetradki.command import word
 
 
 CACHE_FILE = 'cache.dat'
@@ -49,6 +51,32 @@ def parse_args():
     parser_show.add_argument('--delim', type=str, default=' . ',
                              help='Columns delimiter')
 
+    help = 'Show words in the cache'
+    parser_words = subparsers.add_parser(
+        'words', description=help, help=help,
+        formatter_class=ArgumentDefaultsHelpFormatter)
+    parser_words.add_argument('--cache', type=str, default=CACHE_FILE,
+                              help='Path to cache file')
+
+    help = 'Print only specified words'
+    parser_word = subparsers.add_parser(
+        'word', description=help, help=help,
+        formatter_class=ArgumentDefaultsHelpFormatter)
+    parser_word.add_argument('words', type=str, nargs='+',
+                             help='List of words to print')
+    parser_word.add_argument('--cache', type=str, default=CACHE_FILE,
+                             help='Path to cache file')
+    parser_word.add_argument('--colors', type=str, default=None,
+                             help='Path to colorscheme json')
+    parser_word.add_argument('--width', type=int, default=0,
+                             help='Width of the output in characters')
+    parser_word.add_argument('--height', type=int, default=0,
+                             help='Height of the output in characters')
+    parser_word.add_argument('--numbers', default=False, action='store_true',
+                             help='Show numbers on the left')
+    parser_word.add_argument('--delim', type=str, default=' . ',
+                             help='Columns delimiter')
+
     return parser.parse_args()
 
 
@@ -56,7 +84,9 @@ def main():
     args = parse_args()
     dispatch = {
         'fetch': fetch,
-        'show': show
+        'show': show,
+        'words': words,
+        'word': word
     }
     return dispatch[args.command](args)
 

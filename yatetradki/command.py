@@ -65,11 +65,7 @@ def _add_numbers(text):
     return u'\n'.join(lines)
 
 
-def show(args):
-    cache = Cache(args.cache)
-    words = cache.order
-    words = words[:args.num_words] if args.num_words else words
-
+def _show_words(args, cache, words):
     prettifier = Prettifier(load_colorscheme(args.colors),
                             get_terminal_width_fallback(args.width),
                             args.height, args.delim)
@@ -83,3 +79,23 @@ def show(args):
     words_missing = len(words) - len(cached_words)
     if words_missing:
         print('Could not load {0} words from cache'.format(words_missing))
+
+
+def show(args):
+    cache = Cache(args.cache)
+    words = cache.order
+    words = words[:args.num_words] if args.num_words else words
+    _show_words(args, cache, words)
+
+
+def words(args):
+    cache = Cache(args.cache)
+    words = cache.order
+    cached_words = filter(None, map(cache.load, words))
+    result = u'\n'.join([x.tetradki_word.wordfrom for x in cached_words])
+    print(result.encode('utf-8'))
+
+
+def word(args):
+    cache = Cache(args.cache)
+    _show_words(args, cache, args.words)
