@@ -1,3 +1,6 @@
+from random import getstate
+from random import setstate
+
 from yatetradki.printer import Printer
 from yatetradki.printer import ColoredPrinter
 from yatetradki.layout import StraightLayout
@@ -37,12 +40,17 @@ class Prettifier(object):
         colored_printer = colored_printer(self._colorscheme)
         raw_printer = Printer(None)
 
+        # getting and setting RNG state may look weird but hear me out.
+        # each printer below (colored and raw) will draw only a portion
+        # of all available usage. random portion. that's why setting state.
+        rng_state = getstate()
         colored_producer = StraightLayout(colored_printer, self._width)
         colored_word = colored_producer(cached_word.tetradki_word,
                                         cached_word.thesaurus_word,
                                         cached_word.freedict_word,
                                         cached_word.bnc_word)
 
+        setstate(rng_state)
         raw_producer = StraightLayout(raw_printer, self._width)
         raw_word = raw_producer(cached_word.tetradki_word,
                                 cached_word.thesaurus_word,

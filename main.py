@@ -129,7 +129,7 @@ TODO:
         - limit number of columns (do I need that?)
         + break by words, not by lines
     + trim wordsto
-    - draw N random definitions/usages, but save them all
+    + draw N random definitions/usages, but save them all
     - smart merge order from slovari, do not replace current one
 
     - split into commands:
@@ -146,11 +146,12 @@ TODO:
     - draw from different sources depending on the language of wordfrom
     - timeout per command
     - logging system, timestamps
-    - shape up tokens:
-        - def -> def (token)
-        - usage -> usage (token)
-        - usage-1 -> usage color
-        - definition-1 -> definition color
+    + shape up tokens:
+        + def -> def (token)
+        + usage -> usage (token)
+        + usage-1 -> usage color
+        + definition-1 -> definition color
+        - delimeters (screw that, though)
     + do not print section if content is not available
         + syn, ant, def, usage
     - redesign layout generation system, current one is awful

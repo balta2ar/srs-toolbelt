@@ -1,4 +1,5 @@
 from io import StringIO
+from random import sample
 from textwrap import wrap
 from itertools import izip
 from itertools import izip_longest
@@ -6,6 +7,7 @@ from itertools import izip_longest
 
 NUM_DEFINITIONS = 3
 NUM_USAGES = 3
+NUM_USAGES_LOWEST = 10
 
 
 class StraightLayout(object):
@@ -108,7 +110,9 @@ class StraightLayout(object):
             self._produce_join_swallow('definition-1', pads, defs)
             p.spew('newline')
 
-        usages = self._wrap(bnc_word.usages[:NUM_USAGES], room)
+        usages = bnc_word.usages[:NUM_USAGES_LOWEST]
+        usages = sample(usages, min(NUM_USAGES, len(usages)))
+        usages = self._wrap(usages, room)
         if usages:
             pads = ['   ' + p.produce('usage') + ' : ', '           ']
             self._produce_join_swallow('usage-1', pads, usages)
