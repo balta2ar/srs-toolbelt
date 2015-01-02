@@ -13,7 +13,7 @@ RelevantWord = namedtuple('RelevantWord', 'word relevance')
 
 
 class Thesaurus(object):
-    _DUMMY = [RelevantWord('<NA>', 0)]
+    _DUMMY = []
 
     def __init__(self):
         self._session = Session()
@@ -26,7 +26,6 @@ class Thesaurus(object):
             result = int(''.join(
                 x for x in loads(item['data-category'])['name']
                 if x.isdigit()))
-            # print(item, result)
             return result
 
         items = [x for x in block.find_all('a') if x.has_attr('data-length')]

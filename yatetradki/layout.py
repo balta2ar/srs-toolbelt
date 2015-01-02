@@ -37,6 +37,9 @@ class StraightLayout(object):
         Keep joining words until they exceed max_length. Return the numbers
         of words that when joind is smaller than max_length.
         """
+        if not relevant_words:
+            return []
+
         def _words(words):
             return [x.word for x in words]
 
@@ -77,32 +80,36 @@ class StraightLayout(object):
         syns = self._clip(thesaurus_word.synonyms, room)
         ants = self._clip(thesaurus_word.antonyms, room)
 
-        p.spew('text', spacing)
-        p.spew('synonym')
-        p.spew('space')
-        p.spew('delimeter_next_line')
-        p.spew('space')
-        p.swallow(u', '.join([p.produce('synonym-{0}'.format(relevance), word)
-                              for word, relevance in syns]))
-        p.spew('newline')
+        if ants:
+            p.spew('text', spacing)
+            p.spew('synonym')
+            p.spew('space')
+            p.spew('delimeter_next_line')
+            p.spew('space')
+            p.swallow(u', '.join([p.produce('synonym-{0}'.format(relevance), word)
+                                  for word, relevance in syns]))
+            p.spew('newline')
 
-        p.spew('text', spacing)
-        p.spew('antonym')
-        p.spew('space')
-        p.spew('delimeter_next_line')
-        p.spew('space')
-        p.swallow(u', '.join([p.produce('antonym-{0}'.format(relevance), word)
-                              for word, relevance in ants]))
-        p.spew('newline')
+        if syns:
+            p.spew('text', spacing)
+            p.spew('antonym')
+            p.spew('space')
+            p.spew('delimeter_next_line')
+            p.spew('space')
+            p.swallow(u', '.join([p.produce('antonym-{0}'.format(relevance), word)
+                                  for word, relevance in ants]))
+            p.spew('newline')
 
-        pads = ['     def : ', '           ']
         defs = self._wrap(freedict_word.definitions[:NUM_DEFINITIONS], room)
-        self._produce_join_swallow('definition', pads, defs)
-        p.spew('newline')
+        if defs:
+            pads = ['     def : ', '           ']
+            self._produce_join_swallow('definition', pads, defs)
+            p.spew('newline')
 
-        pads = ['   usage : ', '           ']
         usages = self._wrap(bnc_word.usages[:NUM_USAGES], room)
-        self._produce_join_swallow('usage', pads, usages)
+        if usages:
+            pads = ['   usage : ', '           ']
+            self._produce_join_swallow('usage', pads, usages)
 
         # we don't have information whether this word is the last,
         # so we don't know whether we sould print newline or not.

@@ -130,14 +130,18 @@ TODO:
         + break by words, not by lines
     + trim wordsto
     - draw N random definitions/usages, but save them all
+    - smart merge order from slovari, do not replace current one
 
     - split into commands:
         + fetch (download from everywhere to local storage)
         + show (pretty-print local storage)
         - both: make them chainable, so that there could be third script
           that could easily execute them both. do I really need that?
-        - words: print all words in the cache
-        - info <words> -- print specified words (retrieve, then load from cache)
+        + words: print all words in the cache
+        + word: print specified words
+        - remove: remove word from order and cache
+        - add: add word to order and cache
+        - random: print N random words from cache
 
     - draw from different sources depending on the language of wordfrom
     - timeout per command
@@ -147,10 +151,7 @@ TODO:
         - usage -> usage (token)
         - usage-1 -> usage color
         - definition-1 -> definition color
-    - do not print section if content is not available
-        - syn
-        - ant
-        - def
-        - usage
+    + do not print section if content is not available
+        + syn, ant, def, usage
     - redesign layout generation system, current one is awful
 '''

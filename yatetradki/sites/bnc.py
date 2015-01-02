@@ -12,7 +12,7 @@ BncWord = namedtuple('BncWord', 'usages')
 
 
 class BncSimpleSearch(object):
-    _DUMMY = BncWord(['<NA>'])
+    _DUMMY = BncWord([])
 
     def __init__(self):
         self._session = Session()

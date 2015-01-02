@@ -12,7 +12,7 @@ FreeDictWord = namedtuple('FreeDictWord', 'definitions')
 
 
 class TheFreeDictionary(object):
-    _DUMMY = FreeDictWord(['<NA>'])
+    _DUMMY = FreeDictWord([])
 
     def __init__(self):
         self._session = Session()
