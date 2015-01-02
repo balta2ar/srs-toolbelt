@@ -27,6 +27,8 @@ class StraightLayout(object):
             'antonym': 'ant',
             'space': ' ',
             'arrow': '->',
+            'def': 'def',
+            'usage': 'usage',
             'delimeter_first_line': '|',
             'delimeter_next_line': ':',
             'newline': '\n'
@@ -102,14 +104,14 @@ class StraightLayout(object):
 
         defs = self._wrap(freedict_word.definitions[:NUM_DEFINITIONS], room)
         if defs:
-            pads = ['     def : ', '           ']
-            self._produce_join_swallow('definition', pads, defs)
+            pads = ['     ' + p.produce('def') + ' : ', '           ']
+            self._produce_join_swallow('definition-1', pads, defs)
             p.spew('newline')
 
         usages = self._wrap(bnc_word.usages[:NUM_USAGES], room)
         if usages:
-            pads = ['   usage : ', '           ']
-            self._produce_join_swallow('usage', pads, usages)
+            pads = ['   ' + p.produce('usage') + ' : ', '           ']
+            self._produce_join_swallow('usage-1', pads, usages)
 
         # we don't have information whether this word is the last,
         # so we don't know whether we sould print newline or not.

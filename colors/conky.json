@@ -11,7 +11,7 @@
     "antonym-1": "${{color 4a708b}}{0}${{color}}",
     "antonym-2": "${{color 6ca6cd}}{0}${{color}}",
     "antonym-3": "${{color 7ec0ee}}{0}${{color}}",
-    "definition": "${{color 7ccd7c}}{0}${{color}}",
-    "usage": "${{color 96cdcd}}{0}${{color}}"
+    "definition-1": "${{color 7ccd7c}}{0}${{color}}",
+    "usage-1": "${{color 96cdcd}}{0}${{color}}"
 }
 
