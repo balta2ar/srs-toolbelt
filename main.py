@@ -126,7 +126,7 @@ TODO:
     - network timeouts
     - columns
         + break long output into columns
-        - limit number of columns (do I need that?)
+        - limit number of columns (--num-columns, conflicts with --num-words)
         + break by words, not by lines
     + trim wordsto
     + draw N random definitions/usages, but save them all
@@ -134,7 +134,9 @@ TODO:
 
     - split into commands:
         + fetch (download from everywhere to local storage)
+            - support word as arguments (what to do with order?)
         + show (pretty-print local storage)
+            - support word as arguments (basically word command)
         - both: make them chainable, so that there could be third script
           that could easily execute them both. do I really need that?
         + words: print all words in the cache

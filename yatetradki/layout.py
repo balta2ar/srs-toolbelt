@@ -84,7 +84,7 @@ class StraightLayout(object):
         syns = self._clip(thesaurus_word.synonyms, room)
         ants = self._clip(thesaurus_word.antonyms, room)
 
-        if ants:
+        if syns:
             p.spew('text', spacing)
             p.spew('synonym')
             p.spew('space')
@@ -94,7 +94,7 @@ class StraightLayout(object):
                                   for word, relevance in syns]))
             p.spew('newline')
 
-        if syns:
+        if ants:
             p.spew('text', spacing)
             p.spew('antonym')
             p.spew('space')
@@ -110,7 +110,7 @@ class StraightLayout(object):
             self._produce_join_swallow('definition-1', pads, defs)
             p.spew('newline')
 
-        usages = bnc_word.usages[:NUM_USAGES_LOWEST]
+        usages = set(bnc_word.usages[:NUM_USAGES_LOWEST])
         usages = sample(usages, min(NUM_USAGES, len(usages)))
         usages = self._wrap(usages, room)
         if usages:
