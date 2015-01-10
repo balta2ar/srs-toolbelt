@@ -156,6 +156,16 @@ class ColumnLayout(object):
         self._colored_columns = [StringIO()]
         self._raw_columns = [StringIO()]
 
+    @property
+    def num_columns(self):
+        return len(self._raw_columns)
+
+    def word_fits_column(self, word):
+        raw_column = self._raw_columns[-1]
+        word_height = self._get_height(word)
+        current_height = self._get_height(raw_column.getvalue())
+        return word_height + current_height + 1 <= self._height
+
     def _get_height(self, word):
         return len(word.splitlines())
 
@@ -166,6 +176,7 @@ class ColumnLayout(object):
 
         word_height = self._get_height(raw_word)
         current_height = self._get_height(raw_column.getvalue())
+        #                         VVV -- word fits column ---------------- VVV
         if (self._height > 0) and (word_height + current_height + 1 > self._height):
             # start new column
             self._raw_columns.append(StringIO())

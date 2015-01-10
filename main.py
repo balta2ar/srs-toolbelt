@@ -40,6 +40,8 @@ def parse_args():
                              help='Path to cache file')
     parser_show.add_argument('--num-words', type=int, default=NUM_WORDS,
                              help='Number of last words to print')
+    parser_show.add_argument('--num-columns', type=int, default=0,
+                             help='Number of columns (automatic fill)')
     parser_show.add_argument('--colors', type=str, default=None,
                              help='Path to colorscheme json')
     parser_show.add_argument('--width', type=int, default=0,

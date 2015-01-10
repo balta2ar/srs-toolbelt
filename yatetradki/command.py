@@ -68,7 +68,7 @@ def _add_numbers(text):
 def _show_words(args, cache, words):
     prettifier = Prettifier(load_colorscheme(args.colors),
                             get_terminal_width_fallback(args.width),
-                            args.height, args.delim)
+                            args.height, args.num_columns, args.delim)
 
     cached_words = filter(None, map(cache.load, words))
     result = prettifier(cached_words)
@@ -82,6 +82,9 @@ def _show_words(args, cache, words):
 
 
 def show(args):
+    if args.num_columns:
+        args.num_words = 0
+
     cache = Cache(args.cache)
     words = cache.order
     words = words[:args.num_words] if args.num_words else words

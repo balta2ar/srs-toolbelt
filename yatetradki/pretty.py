@@ -29,11 +29,14 @@ TOKEN_LANGFROM = 'langfrom'
 
 class Prettifier(object):
     """Compose printer and layour producer to get something pretty!"""
-    def __init__(self, colorscheme, width, height, delimiter):
+    def __init__(self, colorscheme, width, height, num_columns, delimiter):
         self._colorscheme = colorscheme
         self._width = width
         self._height = height
+        self._num_columns = num_columns
         self._delimiter = delimiter
+        self._filler = self._num_columns_filler \
+            if num_columns else self._num_words_filler
 
     def _print(self, colorscheme, cached_word):
         colored_printer = ColoredPrinter if colorscheme else Printer
@@ -59,8 +62,21 @@ class Prettifier(object):
 
         return colored_word, raw_word
 
-    def __call__(self, cached_words):
+    def _num_words_filler(self, cached_words):
         column = ColumnLayout(self._width, self._height, self._delimiter)
         [column(*self._print(self._colorscheme, cached_word))
          for cached_word in cached_words]
         return column.getvalue()
+
+    def _num_columns_filler(self, cached_words):
+        column = ColumnLayout(self._width, self._height, self._delimiter)
+        for cached_word in cached_words:
+            colored_word, raw_word = self._print(self._colorscheme, cached_word)
+            if (column.num_columns == self._num_columns and
+                not column.word_fits_column(raw_word)):
+                break
+            column(colored_word, raw_word)
+        return column.getvalue()
+
+    def __call__(self, cached_words):
+        return self._filler(cached_words)
