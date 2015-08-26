@@ -1,5 +1,6 @@
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
+from threading import Lock
 
 
 class Cache(object):
@@ -8,6 +9,7 @@ class Cache(object):
     def __init__(self, cache_filename):
         self._cache_filename = cache_filename
         self._cache = self._load()
+        self._lock = Lock()
 
     def _load(self):
         if not self._cache_filename:
@@ -29,16 +31,20 @@ class Cache(object):
         self._cache[self._ORDER] = value
 
     def flush(self):
-        if not self._cache_filename:
-            return
-        with open(self._cache_filename, 'w') as f:
-            pickle_dump(self._cache, f)
+        with self._lock:
+            if not self._cache_filename:
+                return
+            with open(self._cache_filename, 'w') as f:
+                pickle_dump(self._cache, f)
 
     def save(self, key, value):
-        self._cache[key] = value
+        with self._lock:
+            self._cache[key] = value
 
     def load(self, key):
-        return self._cache.get(key)
+        with self._lock:
+            return self._cache.get(key)
 
     def contains(self, key):
-        return key in self._cache
+        with self._lock:
+            return key in self._cache

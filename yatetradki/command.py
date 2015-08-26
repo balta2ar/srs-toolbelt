@@ -1,5 +1,6 @@
-from collections import namedtuple
 import logging
+from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from yatetradki.sites.slovari import YandexSlovari
 from yatetradki.sites.thesaurus import Thesaurus
@@ -44,23 +45,36 @@ def fetch(args):
     bnc = BncSimpleSearch()
 
     cache.order = [x.wordfrom for x in words]
-    words_fetched = 0
-    for i, word in enumerate(words):
-        if not cache.contains(word.wordfrom):
-            _logger.info(u'Fetching {0}/{1}: {2}'
-                         .format(i + 1, len(words), word.wordfrom))
-            thesaurus_word = thesaurus.find(word.wordfrom)
-            freedict_word = freedict.find(word.wordfrom)
-            bnc_word = bnc.find(word.wordfrom)
-            cache.save(word.wordfrom, CachedWord(word,
-                                                 thesaurus_word,
-                                                 freedict_word,
-                                                 bnc_word))
-            words_fetched += 1
-            cache.flush() # save early
+    words_fetched = [0]
 
-    if words_fetched:
-        _logger.info('{0} new words fetched'.format(words_fetched))
+    def process_word(i, word):
+        if cache.contains(word.wordfrom):
+            return
+
+        _logger.info(u'Fetching {0}/{1}: {2}'
+                     .format(i + 1, len(words), word.wordfrom))
+        thesaurus_word = thesaurus.find(word.wordfrom)
+        freedict_word = freedict.find(word.wordfrom)
+        bnc_word = bnc.find(word.wordfrom)
+        cache.save(word.wordfrom, CachedWord(word,
+                                             thesaurus_word,
+                                             freedict_word,
+                                             bnc_word))
+        words_fetched[0] += 1
+        cache.flush() # save early
+        _logger.info(u'Fetched {0}'.format(word.wordfrom))
+
+    with ThreadPoolExecutor(max_workers=args.jobs) as executor:
+        futures = {executor.submit(process_word, i, word)
+                   for i, word in enumerate(words)}
+        for future in as_completed(futures):
+            try:
+                future.result(timeout=args.timeout)
+            except Exception:
+                _logger.exception('Error while fetching word')
+
+    if words_fetched[0]:
+        _logger.info('{0} new words fetched'.format(words_fetched[0]))
 
 
 def _add_numbers(text):

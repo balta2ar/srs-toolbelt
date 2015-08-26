@@ -19,6 +19,7 @@ FORMAT = '%(asctime)-15s %(levelname)-7s %(message)s'
 logging.basicConfig(format=FORMAT)
 _logger = logging.getLogger()
 _logger.setLevel(logging.DEBUG)
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 def parse_args():
@@ -38,6 +39,10 @@ def parse_args():
                               help='Login to Yandex')
     parser_fetch.add_argument('--password', type=str, default=None,
                               help='Password')
+    parser_fetch.add_argument('--jobs', type=int, default=5,
+                              help='Number of parallel jobs')
+    parser_fetch.add_argument('--timeout', type=float, default=30.0,
+                              help='Timeout in seconds for word retrieve operation')
 
     help = 'Pretty print words in cache'
     parser_show = subparsers.add_parser(
