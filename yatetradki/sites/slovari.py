@@ -6,8 +6,12 @@ from requests.utils import cookiejar_from_dict
 from pickle import load as pickle_load
 from pickle import dump as pickle_dump
 from collections import namedtuple
+import logging
 
 from yatetradki.utils import save
+
+
+_logger = logging.getLogger()
 
 
 URL_COPYBOOKS = 'https://slovari.yandex.ru/'\
@@ -32,7 +36,7 @@ class YandexSlovari(object):
                 with open(cookies) as f:
                     self._session.cookies = cookiejar_from_dict(pickle_load(f))
             except IOError:
-                print('Could not load cookies from {0}'.format(self._cookies))
+                _logger.error('Could not load cookies from {0}'.format(self._cookies))
 
     def _get_words_page(self):
         responce = self._session.get(URL_COPYBOOKS)
@@ -49,7 +53,7 @@ class YandexSlovari(object):
         return responce
 
     def _auth(self, url):
-        print('Authorizing at: %s' % url)
+        _logger.debug('Authorizing at: %s' % url)
         params = {'mode': 'auth',
                   'msg': 'slovari',
                   'retpath': URL_COPYBOOKS}
@@ -60,7 +64,7 @@ class YandexSlovari(object):
                                       params=params,
                                       data=data,
                                       allow_redirects=True)
-        print(responce.status_code, responce.history)
+        _logger.debug(responce.status_code, responce.history)
         return responce
 
     def _get_urls_containing(self, content, substring):

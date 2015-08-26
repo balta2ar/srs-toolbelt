@@ -1,4 +1,5 @@
 from collections import namedtuple
+import logging
 
 from yatetradki.sites.slovari import YandexSlovari
 from yatetradki.sites.thesaurus import Thesaurus
@@ -10,6 +11,9 @@ from yatetradki.cache import Cache
 from yatetradki.utils import load_colorscheme
 from yatetradki.utils import get_terminal_width_fallback
 from yatetradki.utils import load_credentials_from_netrc
+
+
+_logger = logging.getLogger()
 
 
 COOKIE_JAR = 'cookiejar.dat'
@@ -25,7 +29,7 @@ def fetch(args):
     if None in (args.login, args.password):
         login, password = load_credentials_from_netrc(NETRC_HOST)
         if None in (login, password):
-            print('Please specify login and password')
+            _logger.error('Please specify login and password')
             return 1
         args.login, args.password = login, password
 
@@ -43,8 +47,8 @@ def fetch(args):
     words_fetched = 0
     for i, word in enumerate(words):
         if not cache.contains(word.wordfrom):
-            print(u'Fetching {0}/{1}: {2}'
-                  .format(i + 1, len(words), word.wordfrom))
+            _logger.info(u'Fetching {0}/{1}: {2}'
+                         .format(i + 1, len(words), word.wordfrom))
             thesaurus_word = thesaurus.find(word.wordfrom)
             freedict_word = freedict.find(word.wordfrom)
             bnc_word = bnc.find(word.wordfrom)
@@ -56,7 +60,7 @@ def fetch(args):
             cache.flush() # save early
 
     if words_fetched:
-        print('{0} new words fetched'.format(words_fetched))
+        _logger.info('{0} new words fetched'.format(words_fetched))
 
 
 def _add_numbers(text):
@@ -78,7 +82,7 @@ def _show_words(args, cache, words):
 
     words_missing = len(words) - len(cached_words)
     if words_missing:
-        print('Could not load {0} words from cache'.format(words_missing))
+        _logger.error('Could not load {0} words from cache'.format(words_missing))
 
 
 def show(args):

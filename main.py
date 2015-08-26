@@ -1,5 +1,6 @@
 # vim: set fileencoding=utf-8 :
 
+import logging
 from sys import exit
 from argparse import ArgumentParser
 from argparse import ArgumentDefaultsHelpFormatter
@@ -12,6 +13,12 @@ from yatetradki.command import word
 
 CACHE_FILE = 'cache.dat'
 NUM_WORDS = 3
+FORMAT = '%(asctime)-15s %(levelname)-7s %(message)s'
+
+
+logging.basicConfig(format=FORMAT)
+_logger = logging.getLogger()
+_logger.setLevel(logging.DEBUG)
 
 
 def parse_args():
