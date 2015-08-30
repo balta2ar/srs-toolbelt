@@ -1,7 +1,7 @@
 # vim: set fileencoding=utf-8 :
 
 import logging
-from sys import exit
+from sys import exit, stderr
 from argparse import ArgumentParser
 from argparse import ArgumentDefaultsHelpFormatter
 
@@ -16,7 +16,7 @@ NUM_WORDS = 3
 FORMAT = '%(asctime)-15s %(levelname)-7s %(message)s'
 
 
-logging.basicConfig(format=FORMAT)
+logging.basicConfig(format=FORMAT, stream=stderr)
 _logger = logging.getLogger()
 _logger.setLevel(logging.DEBUG)
 logging.getLogger("requests").setLevel(logging.WARNING)
