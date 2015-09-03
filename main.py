@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from argparse import ArgumentDefaultsHelpFormatter
 
 from yatetradki.command import fetch
+from yatetradki.command import export
 from yatetradki.command import show
 from yatetradki.command import words
 from yatetradki.command import word
@@ -43,6 +44,17 @@ def parse_args():
                               help='Number of parallel jobs')
     parser_fetch.add_argument('--timeout', type=float, default=30.0,
                               help='Timeout in seconds for word retrieve operation')
+
+    help = 'Export words into another format'
+    parser_export = subparsers.add_parser(
+        'export', description=help, help=help,
+        formatter_class=ArgumentDefaultsHelpFormatter)
+    parser_export.add_argument('--cache', type=str, default=CACHE_FILE,
+                               help='Path to cache file')
+    parser_export.add_argument('--num-words', type=int, default=NUM_WORDS,
+                               help='Number of last words to export')
+    parser_export.add_argument('--anki-card', type=str, default=None,
+                               help='Path to the output ANKI card')
 
     help = 'Pretty print words in cache'
     parser_show = subparsers.add_parser(
@@ -98,6 +110,7 @@ def main():
     args = parse_args()
     dispatch = {
         'fetch': fetch,
+        'export': export,
         'show': show,
         'words': words,
         'word': word

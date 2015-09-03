@@ -77,6 +77,26 @@ def fetch(args):
         _logger.info('{0} new words fetched'.format(words_fetched[0]))
 
 
+def export(args):
+    cache = Cache(args.cache)
+    words = cache.order
+    words = words[:args.num_words] if args.num_words else words
+    _export_words(args, cache, words)
+
+
+def _export_words(args, cache, words):
+    cached_words = filter(None, map(cache.load, words))
+    if args.anki_card:
+        with open(args.anki_card, 'w') as output:
+            output.writelines(
+                u'{0}\t{1}\n'.format(word.tetradki_word.wordfrom,
+                                     ', '.join(word.tetradki_word.wordsto))
+                .encode('utf-8')
+                for word in cached_words)
+        print('Exported {0} words into file {1}'.format(len(cached_words),
+                                                        args.anki_card))
+
+
 def _add_numbers(text):
     lines = text.splitlines()
     lines = [u'{0:03} {1}'.format(i + 1, line) for i, line in enumerate(lines)]
