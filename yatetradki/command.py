@@ -1,6 +1,7 @@
 import logging
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from multiprocessing.dummy import Pool as ThreadPool
+from threading import Lock
 
 from yatetradki.sites.slovari import YandexSlovari
 from yatetradki.sites.thesaurus import Thesaurus
@@ -47,31 +48,36 @@ def fetch(args):
     cache.order = [x.wordfrom for x in words]
     words_fetched = [0]
 
-    def process_word(i, word):
-        if cache.contains(word.wordfrom):
-            return
+    cache_lock = Lock()
+
+    def process_word((i, word)):
+        # TODO: deal with this ugly locks
+        with cache_lock:
+            if cache.contains(word.wordfrom):
+                return
 
         _logger.info(u'Fetching {0}/{1}: {2}'
                      .format(i + 1, len(words), word.wordfrom))
-        thesaurus_word = thesaurus.find(word.wordfrom)
-        freedict_word = freedict.find(word.wordfrom)
-        bnc_word = bnc.find(word.wordfrom)
-        cache.save(word.wordfrom, CachedWord(word,
-                                             thesaurus_word,
-                                             freedict_word,
-                                             bnc_word))
-        words_fetched[0] += 1
-        cache.flush() # save early
-        _logger.info(u'Fetched {0}'.format(word.wordfrom))
+        try:
+            thesaurus_word = thesaurus.find(word.wordfrom)
+            freedict_word = freedict.find(word.wordfrom)
+            bnc_word = bnc.find(word.wordfrom)
+        except Exception:
+            _logger.exception(u'Could not fetch word {0}'
+                              .format(word.wordfrom))
+        else:
+            with cache_lock:
+                cache.save(word.wordfrom,
+                           CachedWord(word, thesaurus_word,
+                                      freedict_word, bnc_word))
+                words_fetched[0] += 1
+                cache.flush() # save early
+            _logger.info(u'Fetched {0}'.format(word.wordfrom))
 
-    with ThreadPoolExecutor(max_workers=args.jobs) as executor:
-        futures = {executor.submit(process_word, i, word)
-                   for i, word in enumerate(words)}
-        for future in as_completed(futures):
-            try:
-                future.result(timeout=args.timeout)
-            except Exception:
-                _logger.exception('Error while fetching word')
+    pool = ThreadPool(args.jobs)
+    pool.map(process_word, enumerate(words))
+    pool.close()
+    pool.join()
 
     if words_fetched[0]:
         _logger.info('{0} new words fetched'.format(words_fetched[0]))
