@@ -1,5 +1,4 @@
 import logging
-from collections import namedtuple
 from multiprocessing.dummy import Pool as ThreadPool
 from threading import Lock
 
@@ -9,10 +8,11 @@ from yatetradki.sites.freedict import TheFreeDictionary
 from yatetradki.sites.bnc import BncSimpleSearch
 
 from yatetradki.pretty import Prettifier
-from yatetradki.cache import Cache
+from yatetradki.cache import PickleCache
 from yatetradki.utils import load_colorscheme
 from yatetradki.utils import get_terminal_width_fallback
 from yatetradki.utils import load_credentials_from_netrc
+from yatetradki.types import CachedWord
 
 
 _logger = logging.getLogger()
@@ -20,11 +20,6 @@ _logger = logging.getLogger()
 
 COOKIE_JAR = 'cookiejar.dat'
 NETRC_HOST = 'YandexSlovari'
-
-
-CachedWord = namedtuple('CachedWord',
-                        'tetradki_word thesaurus_word '
-                        'freedict_word bnc_word')
 
 
 def fetch(args):
@@ -35,7 +30,7 @@ def fetch(args):
             return 1
         args.login, args.password = login, password
 
-    cache = Cache(args.cache)
+    cache = PickleCache(args.cache)
 
     slovari = YandexSlovari(args.login, args.password, COOKIE_JAR)
     words = slovari.get_words()
@@ -67,9 +62,9 @@ def fetch(args):
                               .format(word.wordfrom))
         else:
             with cache_lock:
-                cache.save(word.wordfrom,
-                           CachedWord(word, thesaurus_word,
-                                      freedict_word, bnc_word))
+                cache.put(word.wordfrom,
+                          CachedWord(word, thesaurus_word,
+                                     freedict_word, bnc_word))
                 words_fetched[0] += 1
                 cache.flush() # save early
             _logger.info(u'Fetched {0}'.format(word.wordfrom))
@@ -84,14 +79,14 @@ def fetch(args):
 
 
 def export(args):
-    cache = Cache(args.cache)
+    cache = PickleCache(args.cache)
     words = cache.order
     words = words[:args.num_words] if args.num_words else words
     _export_words(args, cache, words)
 
 
 def _export_words(args, cache, words):
-    cached_words = filter(None, map(cache.load, words))
+    cached_words = filter(None, map(cache.get, words))
     if args.anki_card:
         with open(args.anki_card, 'w') as output:
             output.writelines(
@@ -114,7 +109,7 @@ def _show_words(args, cache, words):
                             get_terminal_width_fallback(args.width),
                             args.height, args.num_columns, args.delim)
 
-    cached_words = filter(None, map(cache.load, words))
+    cached_words = filter(None, map(cache.get, words))
     result = prettifier(cached_words)
     if args.numbers:
         result = _add_numbers(result)
@@ -129,20 +124,20 @@ def show(args):
     if args.num_columns:
         args.num_words = 0
 
-    cache = Cache(args.cache)
+    cache = PickleCache(args.cache)
     words = cache.order
     words = words[:args.num_words] if args.num_words else words
     _show_words(args, cache, words)
 
 
 def words(args):
-    cache = Cache(args.cache)
+    cache = PickleCache(args.cache)
     words = cache.order
-    cached_words = filter(None, map(cache.load, words))
+    cached_words = filter(None, map(cache.get, words))
     result = u'\n'.join([x.tetradki_word.wordfrom for x in cached_words])
     print(result.encode('utf-8'))
 
 
 def word(args):
-    cache = Cache(args.cache)
+    cache = PickleCache(args.cache)
     _show_words(args, cache, args.words)

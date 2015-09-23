@@ -1,14 +1,11 @@
 from bs4 import BeautifulSoup
 from requests import Session
-from collections import namedtuple
 
 from yatetradki.utils import text_cleanup
+from yatetradki.types import FreeDictWord
 
 
 URL_FREEDICT = u'http://www.thefreedictionary.com/{0}'
-
-
-FreeDictWord = namedtuple('FreeDictWord', 'definitions')
 
 
 class TheFreeDictionary(object):

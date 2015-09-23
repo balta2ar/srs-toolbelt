@@ -5,10 +5,10 @@ from requests.utils import dict_from_cookiejar
 from requests.utils import cookiejar_from_dict
 from pickle import load as pickle_load
 from pickle import dump as pickle_dump
-from collections import namedtuple
 import logging
 
 from yatetradki.utils import save
+from yatetradki.types import TetradkiWord
 
 
 _logger = logging.getLogger()
@@ -18,10 +18,6 @@ URL_COPYBOOKS = 'https://slovari.yandex.ru/'\
                 '~%D1%82%D0%B5%D1%82%D1%80%D0%B0%D0%B4%D0%BA%D0%B8/0/'
 URL_PART_PASSPORT = 'passport.yandex.ru/passport?mode=auth'
 URL_PASSPORT = 'https://passport.yandex.ru/passport'
-
-
-TetradkiWord = namedtuple('TetradkiWord',
-                          'langfrom langto hash wordfrom wordsto dictionary')
 
 
 class YandexSlovari(object):

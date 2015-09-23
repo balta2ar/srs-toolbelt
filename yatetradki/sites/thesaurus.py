@@ -1,15 +1,13 @@
 from json import loads
 from bs4 import BeautifulSoup
 from requests import Session
-from collections import namedtuple
 from operator import itemgetter
+
+from yatetradki.types import ThesaurusWord
+from yatetradki.types import RelevantWord
 
 
 URL_THESAURUS = u'http://www.thesaurus.com/browse/{0}'
-
-
-ThesaurusWord = namedtuple('ThesaurusWord', 'synonyms antonyms')
-RelevantWord = namedtuple('RelevantWord', 'word relevance')
 
 
 class Thesaurus(object):

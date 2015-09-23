@@ -1,15 +1,12 @@
 from re import sub
 from bs4 import BeautifulSoup
 from requests import Session
-from collections import namedtuple
 
 from yatetradki.utils import text_cleanup
+from yatetradki.types import BncWord
 
 
 URL_BNC = u'http://bnc.bl.uk/saraWeb.php?qy={0}'
-
-
-BncWord = namedtuple('BncWord', 'usages')
 
 
 class BncSimpleSearch(object):
