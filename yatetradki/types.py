@@ -18,3 +18,7 @@ TetradkiWord = namedtuple('TetradkiWord',
 CachedWord = namedtuple('CachedWord',
                         'tetradki_word thesaurus_word '
                         'freedict_word bnc_word')
+
+
+def eval_word(string):
+    return eval(string)

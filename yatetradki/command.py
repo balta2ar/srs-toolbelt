@@ -9,6 +9,7 @@ from yatetradki.sites.bnc import BncSimpleSearch
 
 from yatetradki.pretty import Prettifier
 from yatetradki.cache import PickleCache
+from yatetradki.cache import EvalReprTsvCache
 from yatetradki.utils import load_colorscheme
 from yatetradki.utils import get_terminal_width_fallback
 from yatetradki.utils import load_credentials_from_netrc
@@ -30,11 +31,13 @@ def fetch(args):
             return 1
         args.login, args.password = login, password
 
-    cache = PickleCache(args.cache)
+    # cache = PickleCache(args.cache)
+    cache = EvalReprTsvCache(args.cache)
 
     slovari = YandexSlovari(args.login, args.password, COOKIE_JAR)
     words = slovari.get_words()
     words = words[:args.num_words] if args.num_words else words
+    # print('yandex words', words)
 
     thesaurus = Thesaurus()
     freedict = TheFreeDictionary()
