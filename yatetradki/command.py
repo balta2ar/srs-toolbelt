@@ -72,10 +72,13 @@ def fetch(args):
                 cache.flush() # save early
             _logger.info(u'Fetched {0}'.format(word.wordfrom))
 
-    pool = ThreadPool(args.jobs)
-    pool.map(process_word, enumerate(words))
-    pool.close()
-    pool.join()
+    if args.jobs > 1:
+        pool = ThreadPool(args.jobs)
+        pool.map(process_word, enumerate(words))
+        pool.close()
+        pool.join()
+    else:
+        map(process_word, enumerate(words))
 
     if words_fetched[0]:
         _logger.info('{0} new words fetched'.format(words_fetched[0]))
