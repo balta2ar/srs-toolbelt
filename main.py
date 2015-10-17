@@ -5,6 +5,7 @@ from sys import exit, stderr
 from argparse import ArgumentParser
 from argparse import ArgumentDefaultsHelpFormatter
 
+from yatetradki.command import fetch_word
 from yatetradki.command import fetch
 from yatetradki.command import export
 from yatetradki.command import show
@@ -27,6 +28,13 @@ def parse_args():
     parser = ArgumentParser(
         description='Yandex.Slovari/Tetradki words extractor.')
     subparsers = parser.add_subparsers(dest='command')
+
+    help = 'Fetch only specified words'
+    parser_fetch_word = subparsers.add_parser(
+        'fetch_word', description=help, help=help,
+        formatter_class=ArgumentDefaultsHelpFormatter)
+    parser_fetch_word.add_argument('words', type=str, nargs='+',
+                                   help='List of words to fetch')
 
     help = 'Fetch all words into cache'
     parser_fetch = subparsers.add_parser(
@@ -109,6 +117,7 @@ def parse_args():
 def main():
     args = parse_args()
     dispatch = {
+        'fetch_word': fetch_word,
         'fetch': fetch,
         'export': export,
         'show': show,

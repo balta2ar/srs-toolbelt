@@ -112,7 +112,7 @@ class EvalReprTsvCache(Cache):
 
     @property
     def order(self):
-        return iter(self._cache.keys())
+        return list(self._cache.keys())
         # return self._cache[self._ORDER]
 
     @order.setter

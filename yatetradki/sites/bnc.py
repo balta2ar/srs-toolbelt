@@ -19,6 +19,8 @@ class BncSimpleSearch(object):
         return sub(r'^\W*\w+\W+\w+\W*', '', text)
 
     def find(self, word):
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
         responce = self._session.get(URL_BNC.format(word))
         soup = BeautifulSoup(responce.content)
         start = soup.find('div', {'id': 'solutions'})

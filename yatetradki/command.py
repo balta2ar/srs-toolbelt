@@ -1,14 +1,16 @@
+# encoding=utf8
 import logging
 from multiprocessing.dummy import Pool as ThreadPool
 from threading import Lock
 
+from yatetradki.sites.slovari import YandexTetradki
 from yatetradki.sites.slovari import YandexSlovari
 from yatetradki.sites.thesaurus import Thesaurus
 from yatetradki.sites.freedict import TheFreeDictionary
 from yatetradki.sites.bnc import BncSimpleSearch
 
 from yatetradki.pretty import Prettifier
-from yatetradki.cache import PickleCache
+# from yatetradki.cache import PickleCache
 from yatetradki.cache import EvalReprTsvCache
 from yatetradki.utils import load_colorscheme
 from yatetradki.utils import get_terminal_width_fallback
@@ -20,8 +22,79 @@ _logger = logging.getLogger()
 
 
 COOKIE_JAR = 'cookiejar.dat'
-NETRC_HOST = 'YandexSlovari'
+NETRC_HOST = 'YandexTetradki'
+LIMIT = 2
+BR = u'<br>'
+BR_EXAMPLES = u' :: '
 
+
+def _limit(list_):
+    return list_[:LIMIT]
+
+
+class AnkiFormatter(object):
+    def __init__(self, word):
+        self._word = word
+
+    def _examples(self, examples, front):
+        return [u'syn: {0}'.format(example.synonyms)
+                if example.synonyms
+                else u'{0}'.format(example.examplefrom if front
+                                   else example.exampleto)
+                for example in examples]
+
+    def _entries(self, entries, front):
+        back_newline = '' if front else BR
+        return [u'{0}{1}{2}'.format(
+            '' if front else '= ' + entry.wordto,
+            back_newline + BR_EXAMPLES.join(self._examples(_limit(entry.examples), front)),
+            BR)
+            for entry in entries]
+
+    def _groups(self, groups, front):
+        return [u'({0}){1}{2}'.format(
+            group.part_of_speech,
+            BR,
+            BR.join(self._entries(_limit(group.entries), front)))
+            for group in groups]
+
+    def __call__(self):
+        groups = _limit(self._word.groups)
+        transcription = self._word.transcription
+        front = u'{0}{1}{2}{3}'.format(
+            self._word.wordfrom.decode('utf8'),
+            ' ' + transcription if transcription else '',
+            BR,
+            BR.join(self._groups(groups, front=True)))
+        back = BR.join(self._groups(groups, front=False))
+        return u'{0}\t{1}'.format(front, back)
+
+
+def fetch_word(args):
+    # cmd = Commander(args)
+    for word in args.words:
+        # print(word)
+        slovari = YandexSlovari()
+        data = slovari.find(word)
+        anki = AnkiFormatter(data)
+        print(anki().encode('utf8'))
+
+
+#
+# # XXX: rename me later
+# class Commander(object):
+#     def __init__(self, args):
+#         self._args = args
+#
+#         self._thesaurus = Thesaurus()
+#         self._freedict = TheFreeDictionary()
+#         self._bnc = BncSimpleSearch()
+#
+#     def fetch_words(self, words):
+#         thesaurus_word = thesaurus.find(word.wordfrom)
+#         freedict_word = freedict.find(word.wordfrom)
+#         bnc_word = bnc.find(word.wordfrom)
+#
 
 def fetch(args):
     if None in (args.login, args.password):
@@ -34,7 +107,7 @@ def fetch(args):
     # cache = PickleCache(args.cache)
     cache = EvalReprTsvCache(args.cache)
 
-    slovari = YandexSlovari(args.login, args.password, COOKIE_JAR)
+    slovari = YandexTetradki(args.login, args.password, COOKIE_JAR)
     words = slovari.get_words()
     words = words[:args.num_words] if args.num_words else words
     # print('yandex words', words)
@@ -48,7 +121,9 @@ def fetch(args):
 
     cache_lock = Lock()
 
-    def process_word((i, word)):
+    # def process_word(pair(i, word)):
+    def process_word(pair):
+        i, word = pair
         # TODO: deal with this ugly locks
         with cache_lock:
             if cache.contains(word.wordfrom):
@@ -85,7 +160,8 @@ def fetch(args):
 
 
 def export(args):
-    cache = PickleCache(args.cache)
+    # cache = PickleCache(args.cache)
+    cache = EvalReprTsvCache(args.cache)
     words = cache.order
     words = words[:args.num_words] if args.num_words else words
     _export_words(args, cache, words)
@@ -130,14 +206,16 @@ def show(args):
     if args.num_columns:
         args.num_words = 0
 
-    cache = PickleCache(args.cache)
+    # cache = PickleCache(args.cache)
+    cache = EvalReprTsvCache(args.cache)
     words = cache.order
     words = words[:args.num_words] if args.num_words else words
     _show_words(args, cache, words)
 
 
 def words(args):
-    cache = PickleCache(args.cache)
+    # cache = PickleCache(args.cache)
+    cache = EvalReprTsvCache(args.cache)
     words = cache.order
     cached_words = filter(None, map(cache.get, words))
     result = u'\n'.join([x.tetradki_word.wordfrom for x in cached_words])
@@ -145,5 +223,6 @@ def words(args):
 
 
 def word(args):
-    cache = PickleCache(args.cache)
+    # cache = PickleCache(args.cache)
+    cache = EvalReprTsvCache(args.cache)
     _show_words(args, cache, args.words)
