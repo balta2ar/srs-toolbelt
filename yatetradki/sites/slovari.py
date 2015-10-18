@@ -143,14 +143,20 @@ class YandexTetradki(object):
             return parts
         return map(_translate, words)
 
-    def get_words(self):
+    def _get_words(self):
         page = self._get_words_page()
         soup = BeautifulSoup(page.content)
         dirty_words = filter(None,
                              [x.get('data-words')
                               for x in soup.find_all('div')])[0]
-        # in page words are ordered oldest to newest, but we return newest first
+        # in page words are ordered oldest to newest (--but we return newest
+        # first--)
         result = self._export(self._split(
             self._clear_words(loads(dirty_words))))
-        result.reverse()
+        #result.reverse()
         return result
+
+    def newest(self, n):
+        words = self._get_words()
+        words = words[-n:] if n else words
+        return words

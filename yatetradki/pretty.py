@@ -48,14 +48,16 @@ class Prettifier(object):
         # of all available usage. random portion. that's why setting state.
         rng_state = getstate()
         colored_producer = StraightLayout(colored_printer, self._width)
-        colored_word = colored_producer(cached_word.tetradki_word,
+        colored_word = colored_producer(cached_word.slovari_word,
+                                        cached_word.tetradki_word,
                                         cached_word.thesaurus_word,
                                         cached_word.freedict_word,
                                         cached_word.bnc_word)
 
         setstate(rng_state)
         raw_producer = StraightLayout(raw_printer, self._width)
-        raw_word = raw_producer(cached_word.tetradki_word,
+        raw_word = raw_producer(cached_word.slovari_word,
+                                cached_word.tetradki_word,
                                 cached_word.thesaurus_word,
                                 cached_word.freedict_word,
                                 cached_word.bnc_word)

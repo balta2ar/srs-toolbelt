@@ -56,7 +56,8 @@ class StraightLayout(object):
                      for i in range(len(relevant_words))])
         return relevant_words[:xs[-1][1]] if xs else [relevant_words[0]]
 
-    def __call__(self, tetradki_word, thesaurus_word, freedict_word, bnc_word):
+    def __call__(self, slovari_word, tetradki_word,
+                 thesaurus_word, freedict_word, bnc_word):
         # TODO: separate this into another class, leave helpers in base class
         token_table = self._build_token_table(tetradki_word, thesaurus_word)
 

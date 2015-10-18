@@ -33,6 +33,10 @@ def _limit(list_):
 
 
 class AnkiFormatter(object):
+    """
+    Export SlovariWord into anki format. Supports both directions: en->ru,
+    ru->en. Add part of speech, transcription, translation and usage examples.
+    """
     def __init__(self, word):
         self._word = word
 
@@ -108,15 +112,21 @@ def fetch(args):
     cache = EvalReprTsvCache(args.cache)
 
     slovari = YandexTetradki(args.login, args.password, COOKIE_JAR)
-    words = slovari.get_words()
-    words = words[:args.num_words] if args.num_words else words
+    words = slovari.newest(args.num_words)
+    #words = slovari.get_words()
+    #words = words[:args.num_words] if args.num_words else words
     # print('yandex words', words)
 
     thesaurus = Thesaurus()
     freedict = TheFreeDictionary()
     bnc = BncSimpleSearch()
+    slovari = YandexSlovari()
+    # data = slovari.find(word)
 
-    cache.order = [x.wordfrom for x in words]
+    order = [x.wordfrom for x in words]
+    #cache.order = [x.wordfrom for x in words]
+    # print(cache.order)
+    print(order)
     words_fetched = [0]
 
     cache_lock = Lock()
@@ -132,6 +142,7 @@ def fetch(args):
         _logger.info(u'Fetching {0}/{1}: {2}'
                      .format(i + 1, len(words), word.wordfrom))
         try:
+            slovari_word = slovari.find(word.wordfrom)
             thesaurus_word = thesaurus.find(word.wordfrom)
             freedict_word = freedict.find(word.wordfrom)
             bnc_word = bnc.find(word.wordfrom)
@@ -141,7 +152,7 @@ def fetch(args):
         else:
             with cache_lock:
                 cache.put(word.wordfrom,
-                          CachedWord(word, thesaurus_word,
+                          CachedWord(word, slovari_word, thesaurus_word,
                                      freedict_word, bnc_word))
                 words_fetched[0] += 1
                 cache.flush() # save early
@@ -162,20 +173,26 @@ def fetch(args):
 def export(args):
     # cache = PickleCache(args.cache)
     cache = EvalReprTsvCache(args.cache)
-    words = cache.order
-    words = words[:args.num_words] if args.num_words else words
+    words = cache.newest(args.num_words)
+    #words = cache.order
+    #words = words[:args.num_words] if args.num_words else words
     _export_words(args, cache, words)
 
 
 def _export_words(args, cache, words):
     cached_words = filter(None, map(cache.get, words))
     if args.anki_card:
+        # anki = AnkiFormatter(data)
+        # print(anki().encode('utf8'))
+
         with open(args.anki_card, 'w') as output:
-            output.writelines(
-                u'{0}\t{1}\n'.format(word.tetradki_word.wordfrom,
-                                     ', '.join(word.tetradki_word.wordsto))
-                .encode('utf-8')
-                for word in cached_words)
+            output.writelines(AnkiFormatter(word.slovari_word)
+                              for word in cached_words)
+            # output.writelines(
+            #     u'{0}\t{1}\n'.format(word.tetradki_word.wordfrom,
+            #                          ', '.join(word.tetradki_word.wordsto))
+            #     .encode('utf-8')
+            #     for word in cached_words)
         print('Exported {0} words into file {1}'.format(len(cached_words),
                                                         args.anki_card))
 
@@ -208,8 +225,9 @@ def show(args):
 
     # cache = PickleCache(args.cache)
     cache = EvalReprTsvCache(args.cache)
-    words = cache.order
-    words = words[:args.num_words] if args.num_words else words
+    words = cache.newest(args.num_words)
+    # words = cache.order
+    # words = words[:args.num_words] if args.num_words else words
     _show_words(args, cache, words)
 
 

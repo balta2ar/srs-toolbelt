@@ -86,7 +86,7 @@ class PickleCache(Cache):
 
 
 class EvalReprTsvCache(Cache):
-    _ORDER = '__order__'
+    _ORDER_EXT = '.ord'
 
     def __init__(self, cache_filename):
         self._cache_filename = cache_filename
@@ -110,16 +110,20 @@ class EvalReprTsvCache(Cache):
             #      .format(self._cache_filename))
             return OrderedDict()
 
-    @property
-    def order(self):
-        return list(self._cache.keys())
-        # return self._cache[self._ORDER]
+    #@property
+    #def order(self):
+    #    return list(self._cache.keys())
 
-    @order.setter
-    def order(self, value):
-        # self._cache[self._ORDER] = value
-        # TODO: IMPLEMENT ME
-        pass
+    def newest(self, n):
+        words = self._cache.keys()
+        words = words[-n:] if n else words
+        return words
+
+    #@order.setter
+    #def order(self, value):
+    #    # self._cache[self._ORDER] = value
+    #    # TODO: IMPLEMENT ME
+    #    pass
 
     def flush(self):
         with self._lock:
