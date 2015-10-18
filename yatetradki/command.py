@@ -123,10 +123,10 @@ def fetch(args):
     slovari = YandexSlovari()
     # data = slovari.find(word)
 
-    order = [x.wordfrom for x in words]
+    # order = [x.wordfrom for x in words]
     #cache.order = [x.wordfrom for x in words]
     # print(cache.order)
-    print(order)
+    # print(order)
     words_fetched = [0]
 
     cache_lock = Lock()
@@ -179,6 +179,11 @@ def export(args):
     _export_words(args, cache, words)
 
 
+def _anki(word):
+    string = AnkiFormatter(word.slovari_word)()
+    return u'\n{0}'.format(string).encode('utf8')
+
+
 def _export_words(args, cache, words):
     cached_words = filter(None, map(cache.get, words))
     if args.anki_card:
@@ -186,8 +191,7 @@ def _export_words(args, cache, words):
         # print(anki().encode('utf8'))
 
         with open(args.anki_card, 'w') as output:
-            output.writelines(AnkiFormatter(word.slovari_word)
-                              for word in cached_words)
+            output.writelines(_anki(word) for word in cached_words)
             # output.writelines(
             #     u'{0}\t{1}\n'.format(word.tetradki_word.wordfrom,
             #                          ', '.join(word.tetradki_word.wordsto))
