@@ -9,9 +9,12 @@ from yatetradki.sites.articles.thesaurus import Thesaurus
 from yatetradki.sites.articles.freedict import TheFreeDictionary
 from yatetradki.sites.articles.bnc import BncSimpleSearch
 
+from yatetradki.formatters.anki import Anki
+
 from yatetradki.pretty import Prettifier
 # from yatetradki.cache import PickleCache
 from yatetradki.cache import EvalReprTsvCache
+from yatetradki.utils import open_output
 from yatetradki.utils import load_colorscheme
 from yatetradki.utils import get_terminal_width_fallback
 from yatetradki.utils import load_credentials_from_netrc
@@ -23,55 +26,6 @@ _logger = logging.getLogger()
 
 COOKIE_JAR = 'cookiejar.dat'
 NETRC_HOST = 'YandexTetradki'
-LIMIT = 2
-BR = u'<br>'
-BR_EXAMPLES = u' :: '
-
-
-def _limit(list_):
-    return list_[:LIMIT]
-
-
-class AnkiFormatter(object):
-    """
-    Export SlovariWord into anki format. Supports both directions: en->ru,
-    ru->en. Add part of speech, transcription, translation and usage examples.
-    """
-    def __init__(self, word):
-        self._word = word
-
-    def _examples(self, examples, front):
-        return [u'syn: {0}'.format(example.synonyms)
-                if example.synonyms
-                else u'{0}'.format(example.examplefrom if front
-                                   else example.exampleto)
-                for example in examples]
-
-    def _entries(self, entries, front):
-        back_newline = '' if front else BR
-        return [u'{0}{1}{2}'.format(
-            '' if front else '= ' + entry.wordto,
-            back_newline + BR_EXAMPLES.join(self._examples(_limit(entry.examples), front)),
-            BR)
-            for entry in entries]
-
-    def _groups(self, groups, front):
-        return [u'({0}){1}{2}'.format(
-            group.part_of_speech,
-            BR,
-            BR.join(self._entries(_limit(group.entries), front)))
-            for group in groups]
-
-    def __call__(self):
-        groups = _limit(self._word.groups)
-        transcription = self._word.transcription
-        front = u'{0}{1}{2}{3}'.format(
-            self._word.wordfrom.decode('utf8'),
-            ' ' + transcription if transcription else '',
-            BR,
-            BR.join(self._groups(groups, front=True)))
-        back = BR.join(self._groups(groups, front=False))
-        return u'{0}\t{1}'.format(front, back)
 
 
 def fetch_word(args):
@@ -80,7 +34,7 @@ def fetch_word(args):
         # print(word)
         slovari = YandexSlovari()
         data = slovari.find(word)
-        anki = AnkiFormatter(data)
+        anki = Anki(data)
         print(anki().encode('utf8'))
 
 
@@ -180,17 +134,18 @@ def export(args):
 
 
 def _anki(word):
-    string = AnkiFormatter(word.slovari_word)()
+    string = Anki(word.slovari_word)()
     return u'\n{0}'.format(string).encode('utf8')
 
 
 def _export_words(args, cache, words):
     cached_words = filter(None, map(cache.get, words))
-    if args.anki_card:
+    if args.formatter == 'Anki':
+        #if args.anki_card:
         # anki = AnkiFormatter(data)
         # print(anki().encode('utf8'))
 
-        with open(args.anki_card, 'w') as output:
+        with open_output(args.output, 'w') as output:
             output.writelines(_anki(word) for word in cached_words)
             # output.writelines(
             #     u'{0}\t{1}\n'.format(word.tetradki_word.wordfrom,
@@ -198,7 +153,7 @@ def _export_words(args, cache, words):
             #     .encode('utf-8')
             #     for word in cached_words)
         print('Exported {0} words into file {1}'.format(len(cached_words),
-                                                        args.anki_card))
+                                                        args.output))
 
 
 def _add_numbers(text):

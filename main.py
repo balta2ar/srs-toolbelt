@@ -61,8 +61,10 @@ def parse_args():
                                help='Path to cache file')
     parser_export.add_argument('--num-words', type=int, default=NUM_WORDS,
                                help='Number of last words to export')
-    parser_export.add_argument('--anki-card', type=str, default=None,
-                               help='Path to the output ANKI card')
+    parser_export.add_argument('--formatter', type=str, default='Conky',
+                               help='Class name of the formatter (see formatters directory)')
+    parser_export.add_argument('--output', type=str, default=None,
+                               help='Path to the output filename')
 
     help = 'Pretty print words in cache'
     parser_show = subparsers.add_parser(

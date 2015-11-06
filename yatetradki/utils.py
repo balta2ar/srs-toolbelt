@@ -1,5 +1,5 @@
 from re import sub
-from os import popen
+from os import popen, fdopen, dup
 from json import loads as json_loads
 from codecs import open as codecs_open
 from netrc import netrc
@@ -76,3 +76,10 @@ def load_credentials_from_netrc(host):
 
 def text_cleanup(text):
     return sub('\s{2,}', ' ', text.strip())
+
+
+def open_output(filename, mode):
+    if filename is None or filename == '-':
+        return fdopen(dup(2))
+    else:
+        return open(filename, mode)
