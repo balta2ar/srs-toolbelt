@@ -27,6 +27,8 @@ SlovariEntryGroup = namedtuple('SlovariEntryGroup', 'wordto examples')
 SlovariExample = namedtuple('SlovariExample',
                             'synonyms examplefrom exampleto')
 
+PriberamWord = namedtuple('PriberamWord', 'wordfrom, part_of_speech defs syns')
+
 
 def eval_word(string):
     return eval(string)
