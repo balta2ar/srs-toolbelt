@@ -152,8 +152,8 @@ def _export_words(args, cache, words):
             #                          ', '.join(word.tetradki_word.wordsto))
             #     .encode('utf-8')
             #     for word in cached_words)
-        print('Exported {0} words into file {1}'.format(len(cached_words),
-                                                        args.output))
+        # print('Exported {0} words into file {1}'.format(len(cached_words),
+        #                                                 args.output))
 
 
 def _add_numbers(text):

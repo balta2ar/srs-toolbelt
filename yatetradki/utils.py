@@ -80,6 +80,6 @@ def text_cleanup(text):
 
 def open_output(filename, mode):
     if filename is None or filename == '-':
-        return fdopen(dup(2))
+        return fdopen(dup(2), mode)
     else:
         return open(filename, mode)
