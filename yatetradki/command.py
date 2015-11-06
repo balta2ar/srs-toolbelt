@@ -3,11 +3,11 @@ import logging
 from multiprocessing.dummy import Pool as ThreadPool
 from threading import Lock
 
-from yatetradki.sites.slovari import YandexTetradki
-from yatetradki.sites.slovari import YandexSlovari
-from yatetradki.sites.thesaurus import Thesaurus
-from yatetradki.sites.freedict import TheFreeDictionary
-from yatetradki.sites.bnc import BncSimpleSearch
+from yatetradki.sites.units.tetradki import YandexTetradki
+from yatetradki.sites.articles.slovari import YandexSlovari
+from yatetradki.sites.articles.thesaurus import Thesaurus
+from yatetradki.sites.articles.freedict import TheFreeDictionary
+from yatetradki.sites.articles.bnc import BncSimpleSearch
 
 from yatetradki.pretty import Prettifier
 # from yatetradki.cache import PickleCache

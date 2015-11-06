@@ -11,6 +11,9 @@ URL_THESAURUS = u'http://www.thesaurus.com/browse/{0}'
 
 
 class Thesaurus(object):
+    """
+    Extract article from thesaurus.com.
+    """
     _DUMMY = []
 
     def __init__(self):

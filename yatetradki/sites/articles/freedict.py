@@ -9,6 +9,10 @@ URL_FREEDICT = u'http://www.thefreedictionary.com/{0}'
 
 
 class TheFreeDictionary(object):
+    """
+    Extract article from thefreedictionary.com.
+    """
+
     _DUMMY = FreeDictWord([])
 
     def __init__(self):

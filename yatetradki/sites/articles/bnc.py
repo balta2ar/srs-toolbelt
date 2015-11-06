@@ -10,6 +10,10 @@ URL_BNC = u'http://bnc.bl.uk/saraWeb.php?qy={0}'
 
 
 class BncSimpleSearch(object):
+    """
+    Extract article from bnc.bl.uk.
+    """
+
     _DUMMY = []
 
     def __init__(self):
