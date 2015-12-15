@@ -1,0 +1,13 @@
+{% set limit=3 %}
+{{slovariword.wordfrom}} {{slovariword.transcription}}
+{% for part_of_speech, entries in slovariword.groups[:limit] %}
+{{part_of_speech}}
+{% for wordto, examples in entries[:limit] %}
+{% for synonyms, examplefrom, exampleto in examples[:limit] %}
+{% if synonyms %}{{synonyms}}
+{% endif %}
+{% if examplefrom %} {{examplefrom}}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endfor %}

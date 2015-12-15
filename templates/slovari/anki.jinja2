@@ -1,0 +1,21 @@
+{% set limit=3 %}
+
+{{slovariword.wordfrom}} {{slovariword.transcription}}
+<br>
+{% for part_of_speech, entries in slovariword.groups[:limit] %}
+    Part of speech: {{part_of_speech}}
+    {% for wordto, examples in entries[:limit] %}
+        (entry) Wordto: = {{wordto}}
+
+        {% for synonyms, examplefrom, exampleto in examples[:limit] %}
+            Example:
+
+            syn: {{synonyms}}
+            ex from: {{examplefrom}}
+            ex to: {{exampleto}}
+        {% endfor %}
+    {% endfor %}
+    <br>
+{% endfor %}
+
+End

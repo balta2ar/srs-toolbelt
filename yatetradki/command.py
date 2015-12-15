@@ -8,7 +8,7 @@ from yatetradki.sites.articles.slovari import YandexSlovari
 from yatetradki.sites.articles.thesaurus import Thesaurus
 from yatetradki.sites.articles.freedict import TheFreeDictionary
 from yatetradki.sites.articles.bnc import BncSimpleSearch
-from yatetradki.sites.articles.priberam import Priberam
+# from yatetradki.sites.articles.priberam import Priberam
 
 from yatetradki.formatters.anki import Anki
 
@@ -65,14 +65,15 @@ def fetch(args):
 
     # cache = PickleCache(args.cache)
     cache = EvalReprTsvCache(args.cache)
-    priberam = Priberam()
-    while True:
-        word = raw_input('Enter a word: ')
-        #result = priberam.find('árduo')
-        result = priberam.find(word)
-        print(result)
 
-    return
+    # priberam = Priberam()
+    # while True:
+    #     word = raw_input('Enter a word: ')
+    #     #result = priberam.find('árduo')
+    #     result = priberam.find(word)
+    #     print(result)
+    #
+    # return
 
     slovari = YandexTetradki(args.login, args.password, COOKIE_JAR)
     words = slovari.newest(args.num_words)

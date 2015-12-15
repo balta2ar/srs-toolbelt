@@ -1,6 +1,9 @@
+# vim: set fileencoding=utf-8 :
 from bs4 import BeautifulSoup
 from requests import get
-from urllib import quote_plus
+#from urllib import quote_plus
+from six.moves.urllib.parse import quote_plus
+from jinja2 import Environment, FileSystemLoader
 import logging
 
 from yatetradki.types import SlovariWord
@@ -15,12 +18,68 @@ _logger = logging.getLogger()
 URL_SLOVARI = 'https://slovari.yandex.ru/{0}/en-ru/'
 
 
+def as_dict(word):
+    if isinstance(word, SlovariWord):
+        return {
+            'slovariword': {
+                'wordfrom': word.wordfrom,
+                'transcription': word.transcription,
+                'groups': [as_dict(x) for x in word.groups]
+            }
+        }
+    elif isinstance(word, SlovariPartOfSpeechGroup):
+        return {
+            'part_of_speech': word.part_of_speech,
+            'entries': [as_dict(x) for x in word.entries]
+        }
+    elif isinstance(word, SlovariEntryGroup):
+        return {
+            'wordto': word.wordto,
+            'examples': [as_dict(x) for x in word.examples]
+        }
+    elif isinstance(word, SlovariExample):
+        return {
+            'synomyms': word.synonyms,
+            'examplefrom': word.examplefrom,
+            'exampleto': word.exampleto
+        }
+
+
+def save_json(basename, dict_data, data, filename):
+    from json import dump
+    with open(filename + '.json', 'w') as file_object:
+        dump(dict_data, file_object, ensure_ascii=False, indent=4)
+
+    jinja_environment = Environment(loader=FileSystemLoader('templates'),
+                                    trim_blocks=True)
+    template_front = jinja_environment.get_template('slovari/front.jinja2').render(
+        slovariword=data)
+    template_back = jinja_environment.get_template('slovari/back.jinja2').render(
+        slovariword=data)
+    print(template_front)
+    print('-' * 50)
+    print(template_back)
+    print('-' * 50)
+    with open(filename + '.front.html', 'w') as file_object:
+        file_object.write(template_front)
+    with open(filename + '.back.html', 'w') as file_object:
+        file_object.write(template_back)
+
+
+# SlovariWord = namedtuple('SlovariWord', 'wordfrom transcription groups')
+# SlovariPartOfSpeechGroup = namedtuple('SlovariPartOfSpeechGroup',
+#                                       'part_of_speech entries')
+# SlovariEntryGroup = namedtuple('SlovariEntryGroup', 'wordto examples')
+# SlovariExample = namedtuple('SlovariExample',
+#                             'synonyms examplefrom exampleto')
+
+
 class YandexSlovari(object):
     """
     Extract article from YandexSlovari.
     """
     def _get_examples(self, entry):
-        examples = entry.find_all('div', class_='b-translation__example')
+        examples = entry.find_all('div', class_='b-translation__examples')
         for example in examples:
             synomym = example.find('span', class_='b-translation__synonym')
             if synomym:
@@ -28,12 +87,14 @@ class YandexSlovari(object):
                 # print('SYNONYMS: %s' % synomyms)
                 yield SlovariExample(synomyms, None, None)
             else:
-                # left = example.find('span', 'b-translation__example-original').text
-                left = example.find('span', class_='b-translation__text')
-                left_text = left.text
-                right_text = left.find_next('span', class_='b-translation__text').text
-                # print('EXAMPLES: %s -> %s' % (left_text, right_text))
-                yield SlovariExample(None, left_text, right_text)
+                subexamples = example.find_all('div', class_='b-translation__example')
+                for subexample in subexamples:
+                    # left = example.find('span', 'b-translation__example-original').text
+                    left = subexample.find('span', class_='b-translation__text')
+                    left_text = left.text
+                    right_text = left.find_next('span', class_='b-translation__text').text
+                    # print('EXAMPLES: %s -> %s' % (left_text, right_text))
+                    yield SlovariExample(None, left_text, right_text)
 
     def _get_entries(self, group):
         entries = group.find_all('li', class_='b-translation__entry')
@@ -57,7 +118,7 @@ class YandexSlovari(object):
 
     def find(self, word):
         response = get(URL_SLOVARI.format(quote_plus(word)))
-        soup = BeautifulSoup(response.content)
+        soup = BeautifulSoup(response.content, 'lxml')
 
         transcription = soup.find('span', class_='b-translation__tr')
         transcription = transcription.text if transcription else None
@@ -65,6 +126,10 @@ class YandexSlovari(object):
 
         # print('-----------------------------------------')
         # return SlovariWord(word, transcription, None)
-        return SlovariWord(word, transcription, list(self._get_groups(soup)))
+        result = SlovariWord(word, transcription, list(self._get_groups(soup)))
+
+        save_json(word, as_dict(result), result, 'tetradki_dump/{0}'.format(word))
+
+        return result
 
         # return response
