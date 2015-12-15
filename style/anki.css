@@ -1,0 +1,33 @@
+.card {
+ font-family: arial;
+ font-size: 20px;
+ text-align: left;
+ color: #ADBC93;
+ background-color: #303030;
+}
+.word {
+ font-size: 20px;
+}
+.wordto {
+ color: #eee0b3;
+ font-size: 20px;
+}
+.exampleto {
+ color: lightgrey;
+ font-size: 18px;
+}
+.transcription {
+ color: grey;
+ font-size: 18px;
+}
+.partofspeech {
+ font-style: italic;
+ font-size: 16px;
+}
+.example {
+ font-size: 18px;
+}
+.synonym {
+ color: #93C996;
+ font-size: 18px;
+}

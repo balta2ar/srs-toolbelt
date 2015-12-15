@@ -1,6 +1,6 @@
 <meta charset="UTF-8">
 {% set limit=3 %}
-<div class="word"><span class="wordfrom">{{slovariword.wordfrom}}</span> <span class="transcription">{{slovariword.transcription}}</span></div>
+<div class="word"><span class="wordfrom">{{slovariword.wordfrom}}</span>{% if slovariword.transcription %} <span class="transcription">{{slovariword.transcription}}</span>{% endif %}</div>
 {% for part_of_speech, entries in slovariword.groups[:limit] %}
 <div class="partofspeech">{{part_of_speech}}</div>
 {% for wordto, examples in entries[:limit] %}
