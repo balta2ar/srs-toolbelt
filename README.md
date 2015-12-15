@@ -55,7 +55,11 @@ en -> ru | fraudulent          обманный, жульнический
            2.  Characterized by, constituting, or gained by fraud: fraudulent business practices.
 ```
 
-## Screenshot
+## Screenshots of anki
+
+![Card](http://i.imgur.com/ZgsLl68.png)
+
+## Screenshots of conky
 
 ### Translation & syn & ant
 
