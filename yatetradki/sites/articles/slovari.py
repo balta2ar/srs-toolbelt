@@ -45,25 +45,36 @@ def as_dict(word):
         }
 
 
-def save_json(basename, dict_data, data, filename):
-    from json import dump
-    with open(filename + '.json', 'w') as file_object:
-        dump(dict_data, file_object, ensure_ascii=False, indent=4)
-
+def format_jinja2(word):
     jinja_environment = Environment(loader=FileSystemLoader('templates'),
                                     trim_blocks=True)
-    template_front = jinja_environment.get_template('slovari/front.jinja2').render(
-        slovariword=data)
-    template_back = jinja_environment.get_template('slovari/back.jinja2').render(
-        slovariword=data)
+    template_front = jinja_environment.get_template(
+        'slovari/front.jinja2').render(slovariword=word)
+    template_back = jinja_environment.get_template(
+        'slovari/back.jinja2').render(slovariword=word)
+    return template_front, template_back
+
+
+def save_json(basename, dict_data, data, filename):
+    from json import dump
+    from codecs import getwriter
+
+    with open(filename + '.json', 'w') as file_object:
+        wrapped = getwriter('utf-8')(file_object)
+        dump(dict_data, wrapped, ensure_ascii=False, indent=4)
+
+    template_front, template_back = format_jinja2(data)
+
     print(template_front)
     print('-' * 50)
     print(template_back)
     print('-' * 50)
     with open(filename + '.front.html', 'w') as file_object:
-        file_object.write(template_front)
+        wrapped = getwriter('utf-8')(file_object)
+        wrapped.write(template_front)
     with open(filename + '.back.html', 'w') as file_object:
-        file_object.write(template_back)
+        wrapped = getwriter('utf-8')(file_object)
+        wrapped.write(template_back)
 
 
 # SlovariWord = namedtuple('SlovariWord', 'wordfrom transcription groups')
@@ -81,11 +92,13 @@ class YandexSlovari(object):
     def _get_examples(self, entry):
         examples = entry.find_all('div', class_='b-translation__examples')
         for example in examples:
-            synomym = example.find('span', class_='b-translation__synonym')
-            if synomym:
-                synomyms = example.text
-                # print('SYNONYMS: %s' % synomyms)
-                yield SlovariExample(synomyms, None, None)
+            synonym = example.find('span', class_='b-translation__synonym')
+            if synonym:
+                synonyms = example.text
+                if synonyms.endswith('1'):
+                    synonyms = synonyms[:-1]
+                # print('SYNONYMS: %s' % synonyms)
+                yield SlovariExample(synonyms, None, None)
             else:
                 subexamples = example.find_all('div', class_='b-translation__example')
                 for subexample in subexamples:
@@ -128,7 +141,7 @@ class YandexSlovari(object):
         # return SlovariWord(word, transcription, None)
         result = SlovariWord(word, transcription, list(self._get_groups(soup)))
 
-        save_json(word, as_dict(result), result, 'tetradki_dump/{0}'.format(word))
+        # save_json(word, as_dict(result), result, 'tetradki_dump/{0}'.format(word))
 
         return result
 

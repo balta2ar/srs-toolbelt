@@ -4,7 +4,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 from threading import Lock
 
 from yatetradki.sites.units.tetradki import YandexTetradki
-from yatetradki.sites.articles.slovari import YandexSlovari
+from yatetradki.sites.articles.slovari import YandexSlovari, format_jinja2
 from yatetradki.sites.articles.thesaurus import Thesaurus
 from yatetradki.sites.articles.freedict import TheFreeDictionary
 from yatetradki.sites.articles.bnc import BncSimpleSearch
@@ -148,6 +148,13 @@ def _anki(word):
     return u'\n{0}'.format(string).encode('utf8')
 
 
+def _anki_jinja2(word):
+    front, back = format_jinja2(word)
+    front = front.replace('\n', '')
+    back = back.replace('\n', '')
+    return u'\n{0}\t{1}'.format(front, back).encode('utf8')
+
+
 def _export_words(args, cache, words):
     cached_words = filter(None, map(cache.get, words))
     if args.formatter == 'Anki':
@@ -164,6 +171,10 @@ def _export_words(args, cache, words):
             #     for word in cached_words)
         # print('Exported {0} words into file {1}'.format(len(cached_words),
         #                                                 args.output))
+    elif args.formatter == 'AnkiJinja2':
+        with open_output(args.output, 'w') as output:
+            output.writelines(_anki_jinja2(word.slovari_word)
+                              for word in cached_words)
 
 
 def _add_numbers(text):
