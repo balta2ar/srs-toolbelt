@@ -1,5 +1,8 @@
+@font-face { font-family: noto-serif; src: url('_NotoSerif-Regular.ttf'); }
+@font-face { font-family: noto-sans; src: url('_NotoSans-Regular.ttf'); }
 .card {
- font-family: arial;
+ #font-family: arial;
+ font-family: noto-sans;
  font-size: 20px;
  text-align: left;
  color: #ADBC93;
