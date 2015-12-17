@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 from requests import get
-from urllib import quote_plus
+# from urllib import quote_plus
+from six.moves.urllib.parse import quote_plus
 import re
 import logging
 

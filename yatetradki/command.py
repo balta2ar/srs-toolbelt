@@ -3,12 +3,12 @@ import logging
 from multiprocessing.dummy import Pool as ThreadPool
 from threading import Lock
 
-from yatetradki.sites.units.tetradki import YandexTetradki
+#from yatetradki.sites.units.tetradki import YandexTetradki
 from yatetradki.sites.articles.slovari import YandexSlovari, format_jinja2
 from yatetradki.sites.articles.thesaurus import Thesaurus
 from yatetradki.sites.articles.freedict import TheFreeDictionary
 from yatetradki.sites.articles.bnc import BncSimpleSearch
-# from yatetradki.sites.articles.priberam import Priberam
+from yatetradki.sites.articles.priberam import Priberam
 
 from yatetradki.formatters.anki import Anki
 
@@ -55,6 +55,102 @@ def fetch_word(args):
 #         bnc_word = bnc.find(word.wordfrom)
 #
 
+class WordFetcherer(object):
+    def __init__(self, cache):
+        self._cache = cache
+
+    def __call__(self, words, num_jobs):
+        self._words = words
+        self._words_fetched = [0]
+        self._cache_lock = Lock()
+
+        if num_jobs > 1:
+            pool = ThreadPool(num_jobs)
+            pool.map(self._process_word, enumerate(words))
+            pool.close()
+            pool.join()
+        else:
+            map(self._process_word, enumerate(words))
+
+        if self._words_fetched[0]:
+            _logger.info('{0} new words fetched'
+                         .format(self._words_fetched[0]))
+
+    def _process_word(self, pair):
+        i, word = pair
+        word_value = self._word_value(word)
+        # TODO: deal with this ugly locks
+        with self._cache_lock:
+            if self._cache.contains(word_value):
+                return
+
+        _logger.info(u'Fetching {0}/{1}: {2}'
+                     .format(i + 1, len(self._words), word_value))
+        try:
+            fetch_result = self._fetch(word)
+        except Exception:
+            _logger.exception(u'Could not fetch word {0}'
+                              .format(word_value))
+        else:
+            with self._cache_lock:
+                key, value = self._save(word, fetch_result)
+                self._cache.put(key, value)
+                # self._cache.put(word_value,
+                #           CachedWord(word, slovari_word, thesaurus_word,
+                #                      freedict_word, bnc_word))
+                self._words_fetched[0] += 1
+                self._cache.flush() # save early
+            _logger.info(u'Fetched {0}'.format(word_value))
+
+    def _fetch(self, word):
+        raise NotImplementedError
+
+    def _save(self, fetch_result):
+        raise NotImplementedError
+
+    def _word_value(self, word):
+        raise NotImplementedError
+
+
+class SlovariWordFetcherer(WordFetcherer):
+    def __init__(self, cache):
+        super(SlovariWordFetcherer, self).__init__(cache)
+        self._thesaurus = Thesaurus()
+        self._freedict = TheFreeDictionary()
+        self._bnc = BncSimpleSearch()
+        self._slovari = YandexSlovari()
+
+    def _fetch(self, word):
+        slovari_word = self._slovari.find(word.wordfrom)
+        thesaurus_word = self._thesaurus.find(word.wordfrom)
+        freedict_word = self._freedict.find(word.wordfrom)
+        bnc_word = self._bnc.find(word.wordfrom)
+        return slovari_word, thesaurus_word, freedict_word, bnc_word
+
+    def _save(self, word, fetch_result):
+        slovari_word, thesaurus_word, freedict_word, bnc_word = fetch_result
+        return self._word_value(word), CachedWord(
+            word, slovari_word, thesaurus_word, freedict_word, bnc_word)
+
+    def _word_value(self, word):
+        return word.wordfrom
+
+
+class PriberamWordFetcherer(WordFetcherer):
+    def __init__(self, cache):
+        super(PriberamWordFetcherer, self).__init__(cache)
+        self._priberam = Priberam()
+
+    def _fetch(self, word):
+        return self._priberam.find(word)
+
+    def _save(self, word, fetch_result):
+        return self._word_value(word), fetch_result
+
+    def _word_value(self, word):
+        return word.decode('utf-8')
+
+
 def fetch(args):
     if None in (args.login, args.password):
         login, password = load_credentials_from_netrc(NETRC_HOST)
@@ -64,7 +160,6 @@ def fetch(args):
         args.login, args.password = login, password
 
     # cache = PickleCache(args.cache)
-    cache = EvalReprTsvCache(args.cache)
 
     # priberam = Priberam()
     # while True:
@@ -75,63 +170,28 @@ def fetch(args):
     #
     # return
 
-    slovari = YandexTetradki(args.login, args.password, COOKIE_JAR)
-    words = slovari.newest(args.num_words)
+    # CURRENT CODE
+    #slovari = YandexTetradki(args.login, args.password, COOKIE_JAR)
+    #words = slovari.newest(args.num_words)
+
     #words = slovari.get_words()
     #words = words[:args.num_words] if args.num_words else words
     # print('yandex words', words)
 
-    thesaurus = Thesaurus()
-    freedict = TheFreeDictionary()
-    bnc = BncSimpleSearch()
-    slovari = YandexSlovari()
     # data = slovari.find(word)
+
+    words = [line.strip() for line in open('menina.txt').readlines()]
+    print(words)
+
+    cache = EvalReprTsvCache(args.cache)
+    # fetcherer = SlovariWordFetcherer(cache)
+    fetcherer = PriberamWordFetcherer(cache)
+    fetcherer(words, args.jobs)
 
     # order = [x.wordfrom for x in words]
     #cache.order = [x.wordfrom for x in words]
     # print(cache.order)
     # print(order)
-    words_fetched = [0]
-
-    cache_lock = Lock()
-
-    # def process_word(pair(i, word)):
-    def process_word(pair):
-        i, word = pair
-        # TODO: deal with this ugly locks
-        with cache_lock:
-            if cache.contains(word.wordfrom):
-                return
-
-        _logger.info(u'Fetching {0}/{1}: {2}'
-                     .format(i + 1, len(words), word.wordfrom))
-        try:
-            slovari_word = slovari.find(word.wordfrom)
-            thesaurus_word = thesaurus.find(word.wordfrom)
-            freedict_word = freedict.find(word.wordfrom)
-            bnc_word = bnc.find(word.wordfrom)
-        except Exception:
-            _logger.exception(u'Could not fetch word {0}'
-                              .format(word.wordfrom))
-        else:
-            with cache_lock:
-                cache.put(word.wordfrom,
-                          CachedWord(word, slovari_word, thesaurus_word,
-                                     freedict_word, bnc_word))
-                words_fetched[0] += 1
-                cache.flush() # save early
-            _logger.info(u'Fetched {0}'.format(word.wordfrom))
-
-    if args.jobs > 1:
-        pool = ThreadPool(args.jobs)
-        pool.map(process_word, enumerate(words))
-        pool.close()
-        pool.join()
-    else:
-        map(process_word, enumerate(words))
-
-    if words_fetched[0]:
-        _logger.info('{0} new words fetched'.format(words_fetched[0]))
 
 
 def export(args):
@@ -211,7 +271,7 @@ def show(args):
     _show_words(args, cache, words)
 
 
-def words(args):
+def list_words(args):
     # cache = PickleCache(args.cache)
     cache = EvalReprTsvCache(args.cache)
     words = cache.order

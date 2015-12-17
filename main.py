@@ -9,7 +9,7 @@ from yatetradki.command import fetch_word
 from yatetradki.command import fetch
 from yatetradki.command import export
 from yatetradki.command import show
-from yatetradki.command import words
+from yatetradki.command import list_words
 from yatetradki.command import word
 
 
@@ -123,7 +123,7 @@ def main():
         'fetch': fetch,
         'export': export,
         'show': show,
-        'words': words,
+        'words': list_words,
         'word': word
     }
     return dispatch[args.command](args)
