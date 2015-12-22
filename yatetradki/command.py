@@ -3,12 +3,13 @@ import logging
 from multiprocessing.dummy import Pool as ThreadPool
 from threading import Lock
 
-#from yatetradki.sites.units.tetradki import YandexTetradki
+from yatetradki.sites.units.tetradki import YandexTetradki
 from yatetradki.sites.articles.slovari import YandexSlovari, format_jinja2
 from yatetradki.sites.articles.thesaurus import Thesaurus
 from yatetradki.sites.articles.freedict import TheFreeDictionary
 from yatetradki.sites.articles.bnc import BncSimpleSearch
 from yatetradki.sites.articles.priberam import Priberam
+from yatetradki.sites.articles.idioms import IdiomsTheFreeDictionary
 
 from yatetradki.formatters.anki import Anki
 
@@ -88,9 +89,11 @@ class WordFetcherer(object):
                      .format(i + 1, len(self._words), word_value))
         try:
             fetch_result = self._fetch(word)
-        except Exception:
-            _logger.exception(u'Could not fetch word {0}'
-                              .format(word_value))
+            if fetch_result is None:
+                return
+        except Exception as e:
+            _logger.exception(u'Could not fetch word {0} ({1})'
+                              .format(word_value, str(e)))
         else:
             with self._cache_lock:
                 key, value = self._save(word, fetch_result)
@@ -136,6 +139,23 @@ class SlovariWordFetcherer(WordFetcherer):
         return word.wordfrom
 
 
+class IdiomsTheFreeDictionaryWordFetcherer(WordFetcherer):
+    def __init__(self, cache):
+        super(IdiomsTheFreeDictionaryWordFetcherer, self).__init__(cache)
+        self._idioms = IdiomsTheFreeDictionary()
+
+    def _fetch(self, word):
+        idiom = self._idioms.find(word)
+        return idiom
+
+    def _save(self, word, fetch_result):
+        idiom = fetch_result
+        return self._word_value(word), idiom
+
+    def _word_value(self, word):
+        return word.decode('utf-8')
+
+
 class PriberamWordFetcherer(WordFetcherer):
     def __init__(self, cache):
         super(PriberamWordFetcherer, self).__init__(cache)
@@ -159,39 +179,38 @@ def fetch(args):
             return 1
         args.login, args.password = login, password
 
-    # cache = PickleCache(args.cache)
-
-    # priberam = Priberam()
-    # while True:
-    #     word = raw_input('Enter a word: ')
-    #     #result = priberam.find('árduo')
-    #     result = priberam.find(word)
-    #     print(result)
-    #
-    # return
-
-    # CURRENT CODE
-    #slovari = YandexTetradki(args.login, args.password, COOKIE_JAR)
-    #words = slovari.newest(args.num_words)
-
-    #words = slovari.get_words()
-    #words = words[:args.num_words] if args.num_words else words
-    # print('yandex words', words)
-
-    # data = slovari.find(word)
-
-    words = [line.strip() for line in open('menina.txt').readlines()]
-    print(words)
+    # idioms.thefreedictionary.com
+    words = [line.strip() for line in open('idioms-test.txt').readlines()]
+    #words = [line.strip() for line in open('idioms.txt').readlines()]
+    words = words[:args.num_words]
+    # print(words)
 
     cache = EvalReprTsvCache(args.cache)
-    # fetcherer = SlovariWordFetcherer(cache)
-    fetcherer = PriberamWordFetcherer(cache)
+    fetcherer = IdiomsTheFreeDictionaryWordFetcherer(cache)
     fetcherer(words, args.jobs)
+    return
+
+    # yandex.slovari/tetradki
+    cache = EvalReprTsvCache(args.cache)
+    slovari = YandexTetradki(args.login, args.password, COOKIE_JAR)
+    words = slovari.newest(args.num_words)
+    fetcherer = SlovariWordFetcherer(cache)
+    fetcherer(words, args.jobs)
+    return
 
     # order = [x.wordfrom for x in words]
     #cache.order = [x.wordfrom for x in words]
     # print(cache.order)
     # print(order)
+
+    # Priberam
+    words = [line.strip() for line in open('menina.txt').readlines()]
+    print(words)
+
+    cache = EvalReprTsvCache(args.cache)
+    fetcherer = PriberamWordFetcherer(cache)
+    fetcherer(words, args.jobs)
+    return
 
 
 def export(args):
@@ -209,7 +228,20 @@ def _anki(word):
 
 
 def _anki_jinja2(word):
-    front, back = format_jinja2(word)
+    front, back = format_jinja2(word, 'slovari/front.jinja2', 'slovari/back.jinja2')
+    front = front.replace('\n', '')
+    back = back.replace('\n', '')
+    return u'\n{0}\t{1}'.format(front, back).encode('utf8')
+
+
+from yatetradki.types import IdiomsTheFreeDictionaryWord
+from yatetradki.types import IdiomsTheFreeDictionaryEntry
+from yatetradki.types import IdiomsTheFreeDictionaryDefinition
+
+
+def _anki_idioms(word):
+    new_word = IdiomsTheFreeDictionaryWord(word.wordfrom, word.entries)
+    front, back = format_jinja2(new_word, 'idioms/front.jinja2', 'idioms/back.jinja2')
     front = front.replace('\n', '')
     back = back.replace('\n', '')
     return u'\n{0}\t{1}'.format(front, back).encode('utf8')
@@ -234,6 +266,10 @@ def _export_words(args, cache, words):
     elif args.formatter == 'AnkiJinja2':
         with open_output(args.output, 'w') as output:
             output.writelines(_anki_jinja2(word.slovari_word)
+                              for word in cached_words)
+    elif args.formatter == 'AnkiIdioms':
+        with open_output(args.output, 'w') as output:
+            output.writelines(_anki_idioms(word)
                               for word in cached_words)
 
 

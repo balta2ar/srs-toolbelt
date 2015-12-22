@@ -12,6 +12,10 @@ from yatetradki.command import show
 from yatetradki.command import list_words
 from yatetradki.command import word
 
+#import sys
+#reload(sys)
+#sys.setdefaultencoding("utf-8")
+
 
 CACHE_FILE = 'cache.dat'
 NUM_WORDS = 3

@@ -29,6 +29,13 @@ SlovariExample = namedtuple('SlovariExample',
 
 PriberamWord = namedtuple('PriberamWord', 'wordfrom, part_of_speech defs syns')
 
+IdiomsTheFreeDictionaryWord = \
+    namedtuple('IdiomsTheFreeDictionaryWord', 'wordfrom entries')
+IdiomsTheFreeDictionaryEntry = \
+    namedtuple('IdiomsTheFreeDictionaryEntry', 'phrase definitions')
+IdiomsTheFreeDictionaryDefinition = \
+    namedtuple('IdiomsTheFreeDictionaryDefinition', 'definition example')
+
 
 def eval_word(string):
     return eval(string)

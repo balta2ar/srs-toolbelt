@@ -45,13 +45,13 @@ def as_dict(word):
         }
 
 
-def format_jinja2(word):
+def format_jinja2(word, front, back):
     jinja_environment = Environment(loader=FileSystemLoader('templates'),
                                     trim_blocks=True)
     template_front = jinja_environment.get_template(
-        'slovari/front.jinja2').render(slovariword=word)
+        front).render(slovariword=word)
     template_back = jinja_environment.get_template(
-        'slovari/back.jinja2').render(slovariword=word)
+        back).render(slovariword=word)
     return template_front, template_back
 
 
@@ -63,7 +63,8 @@ def save_json(basename, dict_data, data, filename):
         wrapped = getwriter('utf-8')(file_object)
         dump(dict_data, wrapped, ensure_ascii=False, indent=4)
 
-    template_front, template_back = format_jinja2(data)
+    template_front, template_back = format_jinja2(
+        data, 'slovari/front.jinja2', 'slovari/back.jinja2')
 
     print(template_front)
     print('-' * 50)
