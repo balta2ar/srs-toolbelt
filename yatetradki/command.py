@@ -153,7 +153,7 @@ class IdiomsTheFreeDictionaryWordFetcherer(WordFetcherer):
         return self._word_value(word), idiom
 
     def _word_value(self, word):
-        return word.decode('utf-8')
+        return word.decode('utf8')
 
 
 class PriberamWordFetcherer(WordFetcherer):
@@ -168,7 +168,7 @@ class PriberamWordFetcherer(WordFetcherer):
         return self._word_value(word), fetch_result
 
     def _word_value(self, word):
-        return word.decode('utf-8')
+        return word.decode('utf8')
 
 
 def fetch(args):
@@ -234,14 +234,8 @@ def _anki_jinja2(word):
     return u'\n{0}\t{1}'.format(front, back).encode('utf8')
 
 
-from yatetradki.types import IdiomsTheFreeDictionaryWord
-from yatetradki.types import IdiomsTheFreeDictionaryEntry
-from yatetradki.types import IdiomsTheFreeDictionaryDefinition
-
-
 def _anki_idioms(word):
-    new_word = IdiomsTheFreeDictionaryWord(word.wordfrom, word.entries)
-    front, back = format_jinja2(new_word, 'idioms/front.jinja2', 'idioms/back.jinja2')
+    front, back = format_jinja2(word, 'idioms/front.jinja2', 'idioms/back.jinja2')
     front = front.replace('\n', '')
     back = back.replace('\n', '')
     return u'\n{0}\t{1}'.format(front, back).encode('utf8')

@@ -1,4 +1,5 @@
 # import abc
+import codecs
 from pickle import dump as pickle_dump
 from pickle import load as pickle_load
 from threading import Lock
@@ -102,7 +103,7 @@ class EvalReprTsvCache(Cache):
         if not self._cache_filename:
             return OrderedDict()
         try:
-            with open(self._cache_filename) as f:
+            with codecs.open(self._cache_filename, encoding='utf8') as f:
                 return OrderedDict([self._construct_pair(line)
                                     for line in f if line.strip()])
         except IOError:
@@ -129,9 +130,8 @@ class EvalReprTsvCache(Cache):
         with self._lock:
             if not self._cache_filename:
                 return
-            with open(self._cache_filename, 'a') as f:
+            with codecs.open(self._cache_filename, encoding='utf8', mode='a') as f:
                 f.writelines([u'{0}\t{1}\n'.format(key, repr(value))
-                                           .encode('utf-8')
                               for key, value in self._cache.items()
                               if key not in self._flushed_keys])
                 self._flushed_keys = set(self._cache.keys())

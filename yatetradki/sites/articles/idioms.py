@@ -112,6 +112,6 @@ class IdiomsTheFreeDictionary(object):
             print('Could not find anything in "{0}"'.format(word))
             return None
 
-        return IdiomsTheFreeDictionaryWord(word, entries)
+        return IdiomsTheFreeDictionaryWord(word.decode('utf8'), entries)
         #
         # transcription = soup.find('span', class_='b-translation__tr')
