@@ -179,46 +179,37 @@ def fetch(args):
             return 1
         args.login, args.password = login, password
 
-    # idioms.thefreedictionary.com
-    words = [line.strip() for line in open('idioms-test.txt').readlines()]
-    #words = [line.strip() for line in open('idioms.txt').readlines()]
-    words = words[:args.num_words]
-    # print(words)
+    if args.fetcher is None:
+        _logger.error('Please specify fetcher name (--fetcher <name>)')
 
-    cache = EvalReprTsvCache(args.cache)
-    fetcherer = IdiomsTheFreeDictionaryWordFetcherer(cache)
-    fetcherer(words, args.jobs)
-    return
+    elif args.fetcher == 'YandexTetradki':
+        # yandex.slovari/tetradki
+        cache = EvalReprTsvCache(args.cache)
+        slovari = YandexTetradki(args.login, args.password, COOKIE_JAR)
+        words = slovari.newest(args.num_words)
+        fetcherer = SlovariWordFetcherer(cache)
+        fetcherer(words, args.jobs)
 
-    # yandex.slovari/tetradki
-    cache = EvalReprTsvCache(args.cache)
-    slovari = YandexTetradki(args.login, args.password, COOKIE_JAR)
-    words = slovari.newest(args.num_words)
-    fetcherer = SlovariWordFetcherer(cache)
-    fetcherer(words, args.jobs)
-    return
+    elif args.fetcher == 'Idioms':
+        # idioms.thefreedictionary.com
+        words = [line.strip() for line in open(args.words_filename).readlines()]
+        words = words[:args.num_words]
+        cache = EvalReprTsvCache(args.cache)
+        fetcherer = IdiomsTheFreeDictionaryWordFetcherer(cache)
+        fetcherer(words, args.jobs)
 
-    # order = [x.wordfrom for x in words]
-    #cache.order = [x.wordfrom for x in words]
-    # print(cache.order)
-    # print(order)
-
-    # Priberam
-    words = [line.strip() for line in open('menina.txt').readlines()]
-    print(words)
-
-    cache = EvalReprTsvCache(args.cache)
-    fetcherer = PriberamWordFetcherer(cache)
-    fetcherer(words, args.jobs)
-    return
+    elif args.fetcher == 'Priberam':
+        # Priberam
+        words = [line.strip() for line in open(args.words_filename).readlines()]
+        words = words[:args.num_words]
+        cache = EvalReprTsvCache(args.cache)
+        fetcherer = PriberamWordFetcherer(cache)
+        fetcherer(words, args.jobs)
 
 
 def export(args):
-    # cache = PickleCache(args.cache)
     cache = EvalReprTsvCache(args.cache)
     words = cache.newest(args.num_words)
-    #words = cache.order
-    #words = words[:args.num_words] if args.num_words else words
     _export_words(args, cache, words)
 
 
@@ -241,22 +232,18 @@ def _anki_idioms(word):
     return u'\n{0}\t{1}'.format(front, back).encode('utf8')
 
 
+def _anki_priberam(word):
+    front, back = format_jinja2(word, 'priberam/front.jinja2', 'priberam/back.jinja2')
+    front = front.replace('\n', '')
+    back = back.replace('\n', '')
+    return u'\n{0}\t{1}'.format(front, back).encode('utf8')
+
+
 def _export_words(args, cache, words):
     cached_words = filter(None, map(cache.get, words))
     if args.formatter == 'Anki':
-        #if args.anki_card:
-        # anki = AnkiFormatter(data)
-        # print(anki().encode('utf8'))
-
         with open_output(args.output, 'w') as output:
             output.writelines(_anki(word) for word in cached_words)
-            # output.writelines(
-            #     u'{0}\t{1}\n'.format(word.tetradki_word.wordfrom,
-            #                          ', '.join(word.tetradki_word.wordsto))
-            #     .encode('utf-8')
-            #     for word in cached_words)
-        # print('Exported {0} words into file {1}'.format(len(cached_words),
-        #                                                 args.output))
     elif args.formatter == 'AnkiJinja2':
         with open_output(args.output, 'w') as output:
             output.writelines(_anki_jinja2(word.slovari_word)
@@ -264,6 +251,10 @@ def _export_words(args, cache, words):
     elif args.formatter == 'AnkiIdioms':
         with open_output(args.output, 'w') as output:
             output.writelines(_anki_idioms(word)
+                              for word in cached_words)
+    elif args.formatter == 'AnkiPriberam':
+        with open_output(args.output, 'w') as output:
+            output.writelines(_anki_priberam(word)
                               for word in cached_words)
 
 

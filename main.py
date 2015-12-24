@@ -46,6 +46,10 @@ def parse_args():
         formatter_class=ArgumentDefaultsHelpFormatter)
     parser_fetch.add_argument('--cache', type=str, default=CACHE_FILE,
                               help='Path to cache file')
+    parser_fetch.add_argument('--fetcher', type=str, default=None,
+                              help='Name of the fetcher')
+    parser_fetch.add_argument('--words-filename', type=str, default=None,
+                              help='Grab list of units (words) from file')
     parser_fetch.add_argument('--num-words', type=int, default=NUM_WORDS,
                               help='Number of last words to fetch')
     parser_fetch.add_argument('--login', type=str, default=None,

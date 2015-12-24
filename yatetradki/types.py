@@ -27,7 +27,8 @@ SlovariEntryGroup = namedtuple('SlovariEntryGroup', 'wordto examples')
 SlovariExample = namedtuple('SlovariExample',
                             'synonyms examplefrom exampleto')
 
-PriberamWord = namedtuple('PriberamWord', 'wordfrom, part_of_speech defs syns')
+PriberamWord = namedtuple('PriberamWord',
+                          'wordfrom part_of_speech definitions synonims')
 
 IdiomsTheFreeDictionaryWord = \
     namedtuple('IdiomsTheFreeDictionaryWord', 'wordfrom entries')

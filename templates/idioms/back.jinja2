@@ -1,0 +1,10 @@
+<meta charset="UTF-8">
+{% set limit=3 %}
+<div class="word"><span class="wordfrom">{{slovariword.wordfrom}}</span></div>
+{% for phrase, definitions in slovariword.entries[:limit] %}
+<div class="wordto">= {{ phrase }}</div>
+{% for definition, example in definitions[:limit] %}
+<div class="example"><div class="exampleto">{{loop.index}}. {{example}}</div></div>
+<div class="examplefrom">{{loop.index}}. {{definition}}</div>
+{% endfor %}
+{% endfor %}

@@ -1,0 +1,6 @@
+<meta charset="UTF-8">
+{% set limit=10 %}
+<div class="word"><span class="wordfrom">{{slovariword.wordfrom}}</span></div>
+<div class="partofspeech">{{slovariword.part_of_speech}}</div>
+Synonims:
+<div class="synonym">{{slovariword.synonims[:limit] | join(', ')}}</div>
