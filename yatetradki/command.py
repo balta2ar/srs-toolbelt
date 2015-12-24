@@ -172,17 +172,17 @@ class PriberamWordFetcherer(WordFetcherer):
 
 
 def fetch(args):
-    if None in (args.login, args.password):
-        login, password = load_credentials_from_netrc(NETRC_HOST)
-        if None in (login, password):
-            _logger.error('Please specify login and password')
-            return 1
-        args.login, args.password = login, password
-
     if args.fetcher is None:
         _logger.error('Please specify fetcher name (--fetcher <name>)')
 
     elif args.fetcher == 'YandexTetradki':
+        if None in (args.login, args.password):
+            login, password = load_credentials_from_netrc(NETRC_HOST)
+            if None in (login, password):
+                _logger.error('Please specify login and password')
+                return 1
+            args.login, args.password = login, password
+
         # yandex.slovari/tetradki
         cache = EvalReprTsvCache(args.cache)
         slovari = YandexTetradki(args.login, args.password, COOKIE_JAR)
