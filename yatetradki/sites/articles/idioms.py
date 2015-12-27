@@ -1,9 +1,8 @@
 # vim: set fileencoding=utf-8 :
 from bs4 import BeautifulSoup
+from bs4.element import NavigableString
 from requests import get
-#from urllib import quote_plus
 from six.moves.urllib.parse import quote_plus
-# from jinja2 import Environment, FileSystemLoader
 from os.path import exists
 import logging
 from collections import defaultdict
@@ -35,11 +34,23 @@ class IdiomsTheFreeDictionary(object):
     def __init__(self):
         pass
 
+    def _is_illustration(self, soup):
+        if soup.name != 'span':
+            return False
+        if not hasattr(soup, 'attrs'):
+            return False
+        return 'illustration' in soup.attrs.get('class', {})
+
+    def _text(self, soup):
+        if isinstance(soup, NavigableString):
+            return soup.strip()
+        return soup.text.strip()
+
     def _idia_non_illustrations(self, soup):
         results = []
         for item in soup.children:
-            if not hasattr(item, 'attrs'):
-                results.append(item.strip())
+            if not self._is_illustration(item):
+                results.append(self._text(item))
         return ' '.join(results).strip()
 
     def _expand_pseg(self, soup):
@@ -113,5 +124,3 @@ class IdiomsTheFreeDictionary(object):
             return None
 
         return IdiomsTheFreeDictionaryWord(word.decode('utf8'), entries)
-        #
-        # transcription = soup.find('span', class_='b-translation__tr')
