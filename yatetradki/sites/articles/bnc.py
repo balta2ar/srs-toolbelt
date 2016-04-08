@@ -23,6 +23,9 @@ class BncSimpleSearch(object):
         return sub(r'^\W*\w+\W+\w+\W*', '', text)
 
     def find(self, word):
+        # Unfortunately, bnc.bl.uk is down.
+        return self._DUMMY
+
         import logging
         logging.basicConfig(level=logging.DEBUG)
         responce = self._session.get(URL_BNC.format(word))
