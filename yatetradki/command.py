@@ -222,7 +222,12 @@ def _anki_jinja2(word):
     front, back = format_jinja2(word, 'slovari/front.jinja2', 'slovari/back.jinja2')
     front = front.replace('\n', '')
     back = back.replace('\n', '')
-    return u'\n{0}\t{1}'.format(front, back).encode('utf8')
+    # We put three fields separated with tabs:
+    # Front
+    # Back
+    # Word -- this one will be used by AwesomeTTS to find sound for the word
+    return u'\n{0}\t{1}\t{2}'.format(front, back, word.wordfrom).encode('utf8')
+    #return u'\n{0}\t{1}'.format(front, back).encode('utf8')
 
 
 def _anki_idioms(word):
