@@ -71,6 +71,29 @@ en -> ru | fraudulent          обманный, жульнический
 
 ### Usage
 
+Export words from cache into Jinja2-formatted deck:
+
+``` bash
+python2 main.py export --cache data/jinja.dat --num-words 3000 --formatter AnkiJinja2 --output jinja-sound.txt
+```
+
+Fetch words from Yandex Tetradki account. This service was closed, this is only
+left as old reference:
+
+``` bash
+python2 main.py fetch --fetcher YandexTetradki --cache data2/jinja.dat --num-words 13000 --timeout 10.0 --jobs 1
+```
+
+Fetch idioms from thefreedictionary.com/idioms. This isn't exactly how I did it.
+Additionally I had to turn on caching and run the script several times because
+thefreedictionary.com banned me for frequent requests.
+
+``` bash
+python2 main.py fetch --fetcher Idioms --words-filename idioms.txt --cache idioms-7.dat --num-words 11000 --timeout 10.0 --jobs 1 > idioms.log 2>&1
+```
+
+Picture:
+
 ![Usage](http://i.imgur.com/eiAk5or.png)
 
 ## Author
