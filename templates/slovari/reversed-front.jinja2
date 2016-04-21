@@ -1,0 +1,14 @@
+<meta charset="UTF-8">
+{% set limit=3 %}
+{% for part_of_speech, entries in slovariword.groups[:limit] %}
+<div class="partofspeech">{{part_of_speech}}</div>
+{% for wordto, examples in entries[:limit] %}
+<div class="wordto">= {{wordto}}</div>
+{% for synonyms, examplefrom, exampleto in examples[:limit] %}
+{% if synonyms %}<div class="synonym">{{synonyms}}</div>
+{% endif %}
+{% if exampleto %}<div class="example"><span class="exampleto">{{exampleto}}</span></div>
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endfor %}

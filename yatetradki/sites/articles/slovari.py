@@ -45,14 +45,16 @@ def as_dict(word):
         }
 
 
-def format_jinja2(word, front, back):
+def format_jinja2(word, straight_front, reversed_front, back):
     jinja_environment = Environment(loader=FileSystemLoader('templates'),
                                     trim_blocks=True)
-    template_front = jinja_environment.get_template(
-        front).render(slovariword=word)
+    template_straight_front = jinja_environment.get_template(
+        straight_front).render(slovariword=word)
+    template_reversed_front = jinja_environment.get_template(
+        reversed_front).render(slovariword=word)
     template_back = jinja_environment.get_template(
         back).render(slovariword=word)
-    return template_front, template_back
+    return template_straight_front, template_reversed_front, template_back
 
 
 def save_json(basename, dict_data, data, filename):

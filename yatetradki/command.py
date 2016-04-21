@@ -219,15 +219,23 @@ def _anki(word):
 
 
 def _anki_jinja2(word):
-    front, back = format_jinja2(word, 'slovari/front.jinja2', 'slovari/back.jinja2')
-    front = front.replace('\n', '')
+    # Backs for straight and reversed cards are the same
+    straight_front, reversed_front, back = format_jinja2(
+        word,
+        'slovari/straight-front.jinja2',
+        'slovari/reversed-front.jinja2',
+        'slovari/back.jinja2')
+    straight_front = straight_front.replace('\n', '')
+    reversed_front = reversed_front.replace('\n', '')
     back = back.replace('\n', '')
+
     # We put three fields separated with tabs:
-    # Front
+    # StraightFront
+    # ReversedFront
     # Back
     # Word -- this one will be used by AwesomeTTS to find sound for the word
-    return u'\n{0}\t{1}\t{2}'.format(front, back, word.wordfrom).encode('utf8')
-    #return u'\n{0}\t{1}'.format(front, back).encode('utf8')
+    return u'\n{0}\t{1}\t{2}\t{3}'.format(
+        straight_front, reversed_front, back, word.wordfrom).encode('utf8')
 
 
 def _anki_idioms(word):
