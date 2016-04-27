@@ -2,11 +2,21 @@ import sys
 import os
 from bs4 import BeautifulSoup
 
-# Ripper for this book:
+#
+# This script as a converted of this book into Anki cards:
 # http://www.goethe-verlag.com/book2/_VOCAB/EN/ENKO/ENKO.HTM
-
-# Run me as follows:
+#
+# Before running, download manually all the pages of the book into the data
+# directory.
+#
+# Then run as follows:
 # python rip/goethe-verlang.com/goethe-verlang.py rip/goethe-verlang.com/data/ENKO*.HTM > korean-enko-sounds.txt
+#
+# URLs to sound files will be printed to stdout. You need to downloaded them
+# and save into your Anki/media directory.
+#
+# Anki cards will be written into korean-enko.txt file.
+#
 
 # Card 1:
 # English
@@ -57,19 +67,17 @@ def main(filenames):
                         korean_full = korean[1].contents[0].strip('\n ')
                         korean_transcription = korean[1].contents[1].text.strip('\n ').replace('ndash;', '—')
                         basename = os.path.basename(sound)
-                        #pronunciation = '[sound:enko/{0}]'.format(basename)
                         pronunciation = '[sound:korean_enko_{0}]'.format(basename)
-                        #print(english, sound, korean_full, korean_partial, korean_transcription)
                         print(sound)
                         line = '\n{0}\t{1}\t{2}\t{3}\t{4}'.format(
-                            english, korean_full,
-                            korean_partial, korean_transcription, pronunciation)
+                            english,
+                            korean_full,
+                            korean_partial,
+                            korean_transcription,
+                            pronunciation)
                         file_out.write(line)
                     except Exception as e:
-                        from ipdb import set_trace; set_trace(context=20)
                         print(e)
-                        #print(row.text)
-                        # from ipdb import set_trace; set_trace(context=20)
 
 
 if __name__ == '__main__':
