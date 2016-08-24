@@ -5,7 +5,7 @@ better because they are recorded by humans. Field for which human pronunction
 is missing are filled with TextToSpeech generated audio (use AwesomeTTS
 Anki plugin to do that).
 """
-from os.path import join, exists
+from os.path import join, exists, getsize
 from shutil import copy2
 from operator import itemgetter
 import codecs
@@ -24,6 +24,7 @@ COPIED_PREFIX = 'kc101_'
 LOOKUP_TABLE_FILENAME = '/mnt/big_ext4/btsync/prg/koreanclass101-dictionary/sort-uniq-table.txt'
 WORD_FIELD = 'Korean'
 AUDIO_FIELD = 'Audio'
+MAX_AUDIO_COUNT = 3
 
 
 class WordTable(object):
@@ -44,8 +45,16 @@ class WordTable(object):
                      len(self._db), filename)
 
     def lookup(self, value):
-        return sorted([entry for entry in self._db
-                       if entry['korean'] == value],
+        results = [entry for entry in self._db
+                   if entry['korean'] == value
+                   and '_' not in entry['mp3base']]
+
+        uniq_sizes = {getsize(join(MP3_DIR, entry['mp3base'])): entry
+                      for entry in results}
+
+        uniq_results = list(uniq_sizes.values())
+
+        return sorted(uniq_results,
                       key=itemgetter('mp3base'))
 
 
@@ -84,7 +93,7 @@ def main():
         logging.info('"%s" "%s" "%s"', cardid, note[WORD_FIELD], note[AUDIO_FIELD])
 
         new_audio_field = ''
-        entries = table.lookup(note[WORD_FIELD])[:2]
+        entries = table.lookup(note[WORD_FIELD])[:MAX_AUDIO_COUNT]
         for entry in entries:
             logging.info('Entry: "%s"', entry)
             mp3from = join(MP3_DIR, entry['mp3base'])
