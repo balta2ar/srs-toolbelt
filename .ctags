@@ -1,0 +1,5 @@
+--languages=python
+--exclude=data
+--exclude=data2
+--exclude=thirdparty
+--exclude=.ropeproject

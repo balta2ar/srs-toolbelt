@@ -13,6 +13,7 @@ from sys import stderr
 from bs4 import BeautifulSoup
 from requests import Session
 from netrc import netrc
+from collections import OrderedDict
 
 
 def main():
@@ -46,7 +47,7 @@ def main():
     soup = BeautifulSoup(result.content, 'lxml')
     history_data = soup.find('div', class_='js-history-data')
     words = history_data.find_all('a', class_='l-searchHistory__historyLink')
-    collected_words.extend([word.text for word in words])
+    collected_words.extend([word.text.lower() for word in words])
 
     # Limit number of requested pages
     for i in range(1, 51):
@@ -64,11 +65,13 @@ def main():
 
         soup = BeautifulSoup(result.content, 'lxml')
         words = soup.find_all('a', class_='l-searchHistory__historyLink')
-        collected_words.extend([word.text for word in words])
+        collected_words.extend([word.text.lower() for word in words])
     else:
         print('Reached maximum number of pages: #%s' % i, file=stderr)
 
-    print('\n'.join(set(collected_words)))
+    # remove duplicate words but keep the order
+    collected_words = list(OrderedDict.fromkeys(collected_words))
+    print('\n'.join(collected_words))
 
 
 if __name__ == '__main__':
