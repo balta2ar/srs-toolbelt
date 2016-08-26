@@ -151,15 +151,17 @@ def main():
 
     for word in fileinput.input('-'):
         found = 0
+        articles = []
         word = word.strip()
         for dsl_reader in dsl_readers:
             article = dsl_reader.lookup(word)
             if article is not None:
                 article = article.replace('\t', ' ')
                 article = article.replace('\n', '')
-                print('%s\t%s' % (word, article))
+                articles.append(article)
                 found = 1
         if found:
+            print('%s\t%s' % (word, '<br>'.join(articles)))
             words_found += 1
         else:
             words_missing += 1
