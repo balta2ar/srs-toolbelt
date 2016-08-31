@@ -96,6 +96,21 @@ Picture:
 
 ![Usage](http://i.imgur.com/eiAk5or.png)
 
+Grab words from lingvo-online.ru and convert them into Anki cards taking
+articles from DSL dictionaries:
+
+``` bash
+cd yatetradki/extract/lingvo-online.ru
+python lingvo-online.py > history.txt
+
+cat yatetradki/extract/lingvo-online.ru/history.txt | python -m yatetradki.reader.dsl \
+    --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/ru-en/DSL UTF16LE/Ru-En_Mostitsky_Universal.dsl' \
+    --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-ru/LingvoUniversalEnRu/LingvoUniversalEnRu.dsl' \
+    --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl' \
+    > data3/lingvo-online.tsv
+
+```
+
 ## Author
 
-(c) 2014, 2015 Yuri Bochkarev
+(c) 2014-2016 Yuri Bochkarev
