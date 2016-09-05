@@ -90,10 +90,20 @@ def main():
         card = col.getCard(cardid)
         note = card.note()
         #note = col.getNote(noteid)
-        logging.info('"%s" "%s" "%s"', cardid, note[WORD_FIELD], note[AUDIO_FIELD])
+        word = note[WORD_FIELD]
+
+        # strip <div> tags
+        # if word.startswith('<div>'):
+        #     word = word[5:]
+        # if word.endswith('</div>'):
+        #     word = word[:word.rfind('</div>')]
+        # note[WORD_FIELD] = word
+        # note.flush()
+
+        logging.info('Another card: "%s" "%s" "%s"', cardid, word, note[AUDIO_FIELD])
 
         new_audio_field = ''
-        entries = table.lookup(note[WORD_FIELD])[:MAX_AUDIO_COUNT]
+        entries = table.lookup(word)[:MAX_AUDIO_COUNT]
         for entry in entries:
             logging.info('Entry: "%s"', entry)
             mp3from = join(MP3_DIR, entry['mp3base'])
