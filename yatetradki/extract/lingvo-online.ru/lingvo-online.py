@@ -14,9 +14,20 @@ from bs4 import BeautifulSoup
 from requests import Session
 from netrc import netrc
 from collections import OrderedDict
+import argparse
+import logging
+
+
+FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
+logging.basicConfig(format=FORMAT, level=logging.INFO)
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Grab word history from lingvo-online.ru')
+    parser.add_argument('--num-pages', type=int, default=50,
+                        help='Max numbers of history pages to scan')
+    args = parser.parse_args()
+
     username, _, password = netrc().hosts['lingvo-online']
 
     session = Session()
@@ -30,16 +41,16 @@ def main():
         'rememberMe': 'true',
         '_': '1461672601133'}
 
-    print('Logging in', file=stderr)
+    logging.info('Logging in')
     result = session.get('https://www.lingvo-online.ru/ru/Account/DoLogin', params=params)
     if result.status_code != 200:
-        print('Could not login', file=stderr)
+        logging.info('Could not login')
         exit(1)
 
-    print('Getting first page of history', file=stderr)
+    logging.info('Getting first page of history')
     result = session.get('http://www.lingvo-online.ru/ru/Search/History')
     if result.status_code != 200:
-        print('Could not get the first page', file=stderr)
+        logging.info('Could not get the first page')
         exit(2)
 
     collected_words = []
@@ -50,24 +61,25 @@ def main():
     collected_words.extend([word.text.lower() for word in words])
 
     # Limit number of requested pages
-    for i in range(1, 51):
-        print('Getting page #%s of history' % i, file=stderr)
+    logging.info('Scanning no more than %d pages', args.num_pages)
+    for i in range(1, args.num_pages + 1):
+        logging.info('Getting page #%s of history', i)
         result = session.get('http://www.lingvo-online.ru/ru/Search/History',
                              params={'pageNumber': str(i)})
         if result.status_code != 200:
-            print('Could not get the page #%s' % i, file=stderr)
+            logging.info('Could not get the page #%s', i)
             exit(3)
 
         # Empty page
         if len(result.content) < 10:
-            print('Page #%s is empty, terminating' % i, file=stderr)
+            logging.info('Page #%s is empty, terminating', i)
             break
 
         soup = BeautifulSoup(result.content, 'lxml')
         words = soup.find_all('a', class_='l-searchHistory__historyLink')
         collected_words.extend([word.text.lower() for word in words])
     else:
-        print('Reached maximum number of pages: #%s' % i, file=stderr)
+        logging.info('Reached maximum number of pages: #%s', i)
 
     # remove duplicate words but keep the order
     collected_words = list(OrderedDict.fromkeys(collected_words))
