@@ -1,13 +1,28 @@
-LINGVO_WORDS = data3/test.txt
-LINGVO_DECK = data3/test.tsv
+TEST_IN = data3/test.txt
+TEST_OUT = data3/test.tsv
+LINGVO_WORDS = data3/lingvolive.txt
+LINGVO_DECK = data3/lingvolive.tsv
+ENGLISH_WORDS = data3/english.txt
+ENGLISH_DECK = data3/english.tsv
 DSLS =
 DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/ru-en/DSL UTF16LE/Ru-En_Mostitsky_Universal.dsl'
 DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-ru/LingvoUniversalEnRu/LingvoUniversalEnRu.dsl'
 DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
 
-lingvo:
+TEST_DSLS = --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
+
+lingvo-online:
 	python yatetradki/extract/lingvo-online.ru/lingvo-online.py --num-pages 100 > $(LINGVO_WORDS)
-	python -m yatetradki.reader.dsl $(DSLS) > $(LINGVO_WORDS) < $(LINGVO_DECK)
+	python -m yatetradki.reader.dsl $(DSLS) > $(LINGVO_DECK) < $(LINGVO_WORDS)
+
+lingvolive:
+	python -m yatetradki.reader.dsl $(DSLS) > $(LINGVO_DECK) < $(LINGVO_WORDS)
+
+english:
+	python -m yatetradki.reader.dsl $(DSLS) > $(ENGLISH_DECK) < $(ENGLISH_WORDS)
+
+test:
+	python -m yatetradki.reader.dsl $(TEST_DSLS) > $(TEST_OUT) < $(TEST_IN)
 
 ANKI_COLLECTION = /home/bz/Documents/Anki/bz/collection.anki2
 ANKI_KOREAN_MODEL = CourseraKoreanBasic

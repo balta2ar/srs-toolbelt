@@ -7,6 +7,8 @@ import pickle
 import fileinput
 from argparse import ArgumentParser
 
+from bs4 import BeautifulSoup
+
 from yatetradki.reader.demangle_dsl import _clean_tags
 
 
@@ -136,6 +138,29 @@ class DSLReader(object):
         return result
 
 
+def check_reference(dsl_reader, word, article):
+    # Special case for articles in En-En-Longman_DOCE5.dsl
+    reference_prefix = 'See main entry: ↑'
+
+    text = BeautifulSoup(article, 'html.parser').text
+    if text.startswith(reference_prefix):
+        referenced_word = text[len(reference_prefix):].strip()
+        logging.info('Detected reference from "%s" to "%s"', word, referenced_word)
+        return lookup_word(dsl_reader, referenced_word)
+
+    return article
+
+
+def lookup_word(dsl_reader, word):
+    article = dsl_reader.lookup(word)
+    if article is None:
+        return None
+
+    article = article.replace('\t', ' ')
+    article = article.replace('\n', '')
+
+    return check_reference(dsl_reader, word, article)
+
 def main():
     parser = ArgumentParser('Extract word articles from a DSL file')
     parser.add_argument('--dsl', dest='dsl', type=str, action='append',
@@ -154,10 +179,8 @@ def main():
         articles = []
         word = word.strip()
         for dsl_reader in dsl_readers:
-            article = dsl_reader.lookup(word)
+            article = lookup_word(dsl_reader, word)
             if article is not None:
-                article = article.replace('\t', ' ')
-                article = article.replace('\n', '')
                 articles.append(article)
                 found = 1
         if found:
