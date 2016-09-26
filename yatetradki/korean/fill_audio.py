@@ -133,6 +133,12 @@ def main():
                         help='Model name to update (CourseraKoreanBasic)')
     parser.add_argument('--deck-name', type=str, required=True,
                         help='Deck name to update (korean::coursera-korean)')
+    parser.add_argument('--korean-word-field', type=str, required=True,
+                        help='Korean word field name')
+    parser.add_argument('--translated-word-field', type=str, required=True,
+                        help='Translated word field name')
+    parser.add_argument('--korean-audio-field', type=str, required=True,
+                        help='Korean audio field name')
     args = parser.parse_args()
 
     logging.info('Starting')
@@ -176,7 +182,7 @@ def main():
         card = col.getCard(cardid)
         note = card.note()
         #note = col.getNote(noteid)
-        word = note[WORD_FIELD]
+        word = note[args.korean_word_field]
         # word = '의사'
 
         # en_word = note[ENGLISH_FIELD]
@@ -188,8 +194,8 @@ def main():
         # note[ENGLISH_FIELD] = en_word
         # note.flush()
 
-        logging.info('Another card: id:"%s" Ko:"%s" audio:"%s" En:"%s"',
-                     cardid, word, note[AUDIO_FIELD], note[ENGLISH_FIELD])
+        logging.info('Another card: id:"%s" Korean:"%s" audio:"%s" Translated:"%s"',
+                     cardid, word, note[args.korean_audio_field], note[args.translated_word_field])
 
         new_audio_field = ''
         entries = korean_class_table.lookup(word)[:MAX_AUDIO_COUNT]
@@ -205,7 +211,7 @@ def main():
 
         if entries:
             logging.info('New audio field: "%s"', new_audio_field)
-            note[AUDIO_FIELD] = new_audio_field
+            note[args.korean_audio_field] = new_audio_field
             if not args.dry_run:
                 note.flush()
             updated_count += 1
