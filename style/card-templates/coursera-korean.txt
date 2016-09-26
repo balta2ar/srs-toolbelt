@@ -1,0 +1,73 @@
+# Style
+
+@font-face { font-family: noto-serif; src: url('_NotoSerif-Regular.ttf'); }
+@font-face { font-family: noto-sans; src: url('_NotoSans-Regular.ttf'); }
+@font-face { font-family: batang; src: url('_batang.ttf'); }
+@font-face { font-family: dotum; src: url('_dotum.ttf'); }
+@font-face { font-family: gulim; src: url('_gulim.ttf'); }
+@font-face { font-family: hline; src: url('_hline.ttf'); }
+
+span.korean {
+  font-family: batang;
+}
+
+.card {
+ font-family: noto-sans;
+ font-size: 40px;
+ text-align: center;
+ color: black;
+ color: #ADBC93;
+ //background-color: white;
+ background-color: #303030;
+}
+
+hr {
+ border: 1px dashed black;
+ background-color:grey;
+}
+
+.card.night_mode {
+ color: white !important;
+ background-color: #303030 !important;
+}
+
+.night_mode {
+  background-color: blue !important;
+}
+
+.replaybutton {
+  background-color: grey;
+}
+
+# Card1 front
+
+{{Audio}}<br>
+<span class="korean">
+{{Korean}}
+</span>
+
+# Card1 back
+
+{{FrontSide}}
+
+<hr id=answer>
+
+{{English}}
+
+# Card2 front
+
+{{English}}
+<span class="korean">
+{{type:Korean}}
+</span>
+
+# Card2 back
+
+{{FrontSide}}
+
+<hr id=answer>
+
+{{Audio}}<br>
+<span class="korean">
+{{Korean}}
+</span>
