@@ -4,10 +4,17 @@ LINGVO_WORDS = data3/lingvolive.txt
 LINGVO_DECK = data3/lingvolive.tsv
 ENGLISH_WORDS = data3/english.txt
 ENGLISH_DECK = data3/english.tsv
+PORTUGUESE_WORDS = data3/portuguese.txt
+PORTUGUESE_DECK = data3/portuguese.tsv
 DSLS =
 DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/ru-en/DSL UTF16LE/Ru-En_Mostitsky_Universal.dsl'
 DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-ru/LingvoUniversalEnRu/LingvoUniversalEnRu.dsl'
 DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
+
+PT_DSLS =
+PT_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/por-por/pt/por-por_dic_priberam_an_1_1.dsl'
+PT_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/por-por/pt/UniversalPtRu.dsl'
+PT_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/por-por/pt/UniversalRuPt.dsl'
 
 TEST_DSLS = --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
 
@@ -17,6 +24,9 @@ lingvo-online:
 
 lingvolive:
 	python -m yatetradki.reader.dsl $(DSLS) > $(LINGVO_DECK) < $(LINGVO_WORDS)
+
+portuguese:
+	python -m yatetradki.reader.dsl $(PT_DSLS) > $(PORTUGUESE_DECK) < $(PORTUGUESE_WORDS)
 
 english:
 	python -m yatetradki.reader.dsl $(DSLS) > $(ENGLISH_DECK) < $(ENGLISH_WORDS)
