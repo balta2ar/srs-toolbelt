@@ -2,6 +2,7 @@
 #import io
 from os import makedirs
 from os.path import exists, basename, dirname, join
+import re
 import logging
 import pickle
 import fileinput
@@ -14,6 +15,9 @@ from yatetradki.reader.demangle_dsl import _clean_tags
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+
+SHORT_ARTICLE_LENGTH = 60
+RE_SHORT_REFERENCE = re.compile(r'= (\w+)')
 
 
 class DSLIndex(object):
@@ -147,6 +151,14 @@ def check_reference(dsl_reader, word, article):
         referenced_word = text[len(reference_prefix):].strip()
         logging.info('Detected reference from "%s" to "%s"', word, referenced_word)
         return lookup_word(dsl_reader, referenced_word)
+
+    # Special case for LingvoUniversal
+    if len(text) < SHORT_ARTICLE_LENGTH:
+        match = RE_SHORT_REFERENCE.search(text)
+        if match:
+            referenced_word = match.group(1)
+            logging.info('Detected reference from "%s" to "%s"', word, referenced_word)
+            return lookup_word(dsl_reader, referenced_word)
 
     return article
 
