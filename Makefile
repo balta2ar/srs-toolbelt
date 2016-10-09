@@ -40,11 +40,31 @@ ANKI_KOREAN_DECK = korean::coursera-korean
 
 # $(ARGS) may be defined in the command line, e.g.:
 # $ make fill-korean ARGS=--dry-run
-fill-korean:
+fill-korean-audio:
 	PYTHONPATH=/usr/share/anki python2 yatetradki/korean/fill_audio.py \
 		--collection $(ANKI_COLLECTION) \
 		--model-name $(ANKI_KOREAN_MODEL) \
 		--deck-name $(ANKI_KOREAN_DECK) \
+		--num 1000 $(ARGS)
+
+fill-sejong-audio:
+	PYTHONPATH=/usr/share/anki python2 yatetradki/korean/fill_audio.py \
+		--collection $(ANKI_COLLECTION) \
+		--model-name 'Sejong-1-3cards' \
+		--deck-name 'korean::sejong-1' \
+		--korean-word-field KoreanWord \
+		--translated-word-field TranslatedWord \
+		--korean-audio-field KoreanAudio \
+		--num 1000 $(ARGS)
+
+fill-wongwan-audio:
+	PYTHONPATH=/usr/share/anki python2 yatetradki/korean/fill_audio.py \
+		--collection $(ANKI_COLLECTION) \
+		--model-name 'WonGwan-3' \
+		--deck-name 'korean::wongwan-1-1' \
+		--korean-word-field KoreanWord \
+		--translated-word-field TranslatedWord \
+		--korean-audio-field KoreanAudio \
 		--num 1000 $(ARGS)
 
 .PHONY:
