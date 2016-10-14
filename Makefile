@@ -30,12 +30,16 @@ portuguese:
 
 TEMP_WORDS = /tmp/words.txt
 SHARED_WORDS = /home/bz/share/btsync/everywhere/info/words/lingvolive-work.txt
-LOCAL_WORDS = data3/home.txt
+LOCAL_WORDS = data3/lingvolive-home.txt
 english-words:
 	cp $(ENGLISH_WORDS) "$(ENGLISH_WORDS).`date +%FT%T`.txt"
 	words-from-history.sh lingvolive > $(LOCAL_WORDS)
-	cat $(LOCAL_WORDS) $(SHARED_WORDS) $(ENGLISH_WORDS) | cat -n | sort -k2 -k1n  | uniq -f1 | sort -nk1,1 | cut -f2- > $(TEMP_WORDS)
-	cp $(TEMP_WORDS) $(ENGLISH_WORDS)
+	cat $(LOCAL_WORDS) $(SHARED_WORDS) $(ENGLISH_WORDS) | sort -u > $(TEMP_WORDS)
+	echo "New words:"
+	comm -13 $(ENGLISH_WORDS) $(TEMP_WORDS)
+	echo "Removed words:"
+	comm -23 $(ENGLISH_WORDS) $(TEMP_WORDS)
+	cat $(TEMP_WORDS) | sort -u > $(ENGLISH_WORDS)
 
 english:
 	python -m yatetradki.reader.dsl $(DSLS) > $(ENGLISH_DECK) < $(ENGLISH_WORDS)
