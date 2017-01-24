@@ -1,0 +1,8 @@
+
+filename,lineclass,ink_volume,fiber_ink_volume,height,words_ratio
+lines/page0_block0_line0.png,,0.319284064665,0.334872979215,16,0.0161662817552
+
+lineclass:
+    0 - incorrect
+    1 - correct
+    2 - comment
