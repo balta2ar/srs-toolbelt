@@ -140,7 +140,6 @@
         console.log(query);
         GM_xmlhttpRequest(query);
 
-
         //alert('DISPLAY DONE');
     }
 
@@ -151,18 +150,6 @@
 
     function onWordNotFound(result, thing, buttons) {
         buttons.innerHTML = 'NOT FOUND';
-    }
-
-    function onDeleteAudio(word, deleteFormParams, thing, buttons) {
-        // https://www.memrise.com/ajax/thing/column/delete_from/
-        callAjax("POST",
-                 "https://www.memrise.com/ajax/thing/column/delete_from/",
-                 function(result) { alert("ON DELETE RESULT"); },
-                 {"Content-Type": "application/x-www-form-urlencoded",
-                  "X-CSRFToken": MEMRISE.csrftoken,
-                  "X-Requested-With": "XMLHttpRequest",
-                  "Cookie": document.cookie},
-                 deleteFormParams);
     }
 
     function onAddAudio(word, uploadFormParams, thing, buttons) {
@@ -253,37 +240,6 @@
         setTimeout(function() { tryAddConvertToTabs(); }, 1000);
     }
 
-    function deleteForThing(thing) {
-        // https://www.memrise.com/ajax/thing/column/delete_from/
-        //query.data = "action=query&meta=siteinfo&format=json";
-        //query.headers = {"Content-type": "application/x-www-form-urlencoded"};
-
-        var buttons = thing.querySelector('button.btn.btn-mini.dropdown-toggle');
-
-        if (buttons === null) {
-            return false;
-        }
-
-        var buttonGroup = buttons.parentNode;
-
-        var firstElement = buttons.parentNode.parentNode.parentNode.getElementsByClassName('text')[0];
-        var word = firstElement.innerText.trim();
-        var thingId = thing.getAttribute('data-thing-id');
-
-        var deleteFormParams = {
-            thing_id: thingId,
-            column_key: "3",
-            file_id: "1",
-            cell_type: "column",
-            csrfmiddlewaretoken: MEMRISE.csrftoken,
-        };
-
-        //deleteFormParams = 'thing_id=' + thingId + '&column_key=3&file_id=1&cell_type=column&csrfmiddlewaretoken=' + MEMRISE.csrftoken;
-        deleteFormParams = 'thing_id=' + thingId + '&column_key=3&file_id=1&cell_type=column';
-
-        onDeleteAudio(word, deleteFormParams, thing, buttons);
-    }
-
     function uploadForThing(thing) {
         var buttons = thing.querySelector('button.btn.btn-mini.dropdown-toggle.disabled');
 
@@ -316,18 +272,7 @@
 
         buttonGroup.appendChild(customUploadButton);
 
-        //var upload = buttons.parentNode.children[0]
-
-
-        //var first = buttons;
-        //var row = first.parentElement.parentElement.parentElement;
-        //var word = row.children[1].innerText.trim();
-
-
         //callAjax("http://localhost:5000/api/get_audio/" + encodeURIComponent(word), displayResult);
-
-
-        //alert(word);
         return true;
     }
 
@@ -337,21 +282,6 @@
             var deleteButton = deleteButtons[i];
             deleteButton.click();
         }
-
-        /*
-        var things = document.getElementsByClassName('thing');
-        for (var i = 0; i < things.length; i++) {
-
-            if (i >= 1) {
-                break;
-            }
-
-            var thing = things[i];
-            if (deleteForThing(thing)) {
-                break;
-            }
-        }
-        */
     }
 
     function findMissingAndUpload() {
