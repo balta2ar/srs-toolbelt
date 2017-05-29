@@ -22,26 +22,38 @@
         console.log(msg);
     }
 
-    function callAjax(url, callback){
+    function callAjax(method, url, callback, headers, data){
         //alert("START");
 
-        GM_xmlhttpRequest({
-            method: "GET",
+        var query = {
+            method: method, //"POST", // GET
             url: url,
             synchronous: true,
             onload: function(response) {
-                //alert('RECEIVED' + response.responseText);
+                //alert('onload RECEIVED' + response.responseText);
                 callback(JSON.parse(response.responseText));
             },
             onerror: function(response) {
                 showError(response);
             },
-        });
+        };
+        if (headers) {
+            query.headers = headers;
+        }
+        if (data) {
+            query.data = data;
+        }
+        console.log(query);
+        GM_xmlhttpRequest(query);
         //alert("END");
     }
 
     function getAudioForWord(word, onsuccess) {
-        callAjax("http://localhost:5000/api/get_audio/" + encodeURIComponent(word), onsuccess);
+        callAjax("GET",
+                 "http://localhost:5000/api/get_audio/" + encodeURIComponent(word),
+                 onsuccess,
+                 null,
+                 null);
     }
 
     function resultToBlob(result) {
@@ -128,6 +140,7 @@
         console.log(query);
         GM_xmlhttpRequest(query);
 
+
         //alert('DISPLAY DONE');
     }
 
@@ -138,6 +151,18 @@
 
     function onWordNotFound(result, thing, buttons) {
         buttons.innerHTML = 'NOT FOUND';
+    }
+
+    function onDeleteAudio(word, deleteFormParams, thing, buttons) {
+        // https://www.memrise.com/ajax/thing/column/delete_from/
+        callAjax("POST",
+                 "https://www.memrise.com/ajax/thing/column/delete_from/",
+                 function(result) { alert("ON DELETE RESULT"); },
+                 {"Content-Type": "application/x-www-form-urlencoded",
+                  "X-CSRFToken": MEMRISE.csrftoken,
+                  "X-Requested-With": "XMLHttpRequest",
+                  "Cookie": document.cookie},
+                 deleteFormParams);
     }
 
     function onAddAudio(word, uploadFormParams, thing, buttons) {
@@ -158,7 +183,7 @@
         });
     }
 
-    function addStartButton() {
+    function addButtons() {
         var header = document.querySelector('ul.header-nav');
         // <li class="header-nav-item plain ">
         // <a href="/home/" class="nav-item-btn">
@@ -166,9 +191,52 @@
         var startButton = document.createElement('li');
         startButton.setAttribute('class', 'header-nav-item plain');
         //startButton.innerHTML = 'Add missing audio [bz]';
-        startButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Add missing audio</span> </a>';
+        startButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Add ♫</span> </a>';
         startButton.addEventListener('click', function(event) { findMissingAndUpload(); } );
         header.appendChild(startButton);
+
+        var deleteButton = document.createElement('li');
+        deleteButton.setAttribute('class', 'header-nav-item plain');
+        deleteButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Delete ♫</span> </a>';
+        deleteButton.addEventListener('click', function(event) { findPresentAndDelete(); } );
+        header.appendChild(deleteButton);
+
+        var bulkAddButton = document.createElement('li');
+        bulkAddButton.setAttribute('class', 'header-nav-item plain');
+        bulkAddButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Buld add</span> </a>';
+        bulkAddButton.addEventListener('click', function(event) { alert("BULK ADD NOT IMPLEMENTED"); } );
+        header.appendChild(bulkAddButton);
+    }
+
+    function deleteForThing(thing) {
+        // https://www.memrise.com/ajax/thing/column/delete_from/
+        //query.data = "action=query&meta=siteinfo&format=json";
+        //query.headers = {"Content-type": "application/x-www-form-urlencoded"};
+
+        var buttons = thing.querySelector('button.btn.btn-mini.dropdown-toggle');
+
+        if (buttons === null) {
+            return false;
+        }
+
+        var buttonGroup = buttons.parentNode;
+
+        var firstElement = buttons.parentNode.parentNode.parentNode.getElementsByClassName('text')[0];
+        var word = firstElement.innerText.trim();
+        var thingId = thing.getAttribute('data-thing-id');
+
+        var deleteFormParams = {
+            thing_id: thingId,
+            column_key: "3",
+            file_id: "1",
+            cell_type: "column",
+            csrfmiddlewaretoken: MEMRISE.csrftoken,
+        };
+
+        //deleteFormParams = 'thing_id=' + thingId + '&column_key=3&file_id=1&cell_type=column&csrfmiddlewaretoken=' + MEMRISE.csrftoken;
+        deleteFormParams = 'thing_id=' + thingId + '&column_key=3&file_id=1&cell_type=column';
+
+        onDeleteAudio(word, deleteFormParams, thing, buttons);
     }
 
     function uploadForThing(thing) {
@@ -205,20 +273,43 @@
 
         //var upload = buttons.parentNode.children[0]
 
+
         //var first = buttons;
         //var row = first.parentElement.parentElement.parentElement;
         //var word = row.children[1].innerText.trim();
 
+
         //callAjax("http://localhost:5000/api/get_audio/" + encodeURIComponent(word), displayResult);
+
 
         //alert(word);
         return true;
     }
 
-    function findMissingAndUpload() {
-        //alert("HELLO");
-        //var things = document.querySelector('tbody', 'things');
+    function findPresentAndDelete() {
+        var deleteButtons = document.querySelectorAll('[title="Delete this audio file"]');
+        for (var i = 0; i < deleteButtons.length; i++) {
+            var deleteButton = deleteButtons[i];
+            deleteButton.click();
+        }
 
+        /*
+        var things = document.getElementsByClassName('thing');
+        for (var i = 0; i < things.length; i++) {
+
+            if (i >= 1) {
+                break;
+            }
+
+            var thing = things[i];
+            if (deleteForThing(thing)) {
+                break;
+            }
+        }
+        */
+    }
+
+    function findMissingAndUpload() {
         var things = document.getElementsByClassName('thing');
         for (var i = 0; i < things.length; i++) {
 
@@ -234,5 +325,5 @@
     }
 
     //setTimeout(function() { findAndUpload(); }, 5000);
-    setTimeout(function() { addStartButton(); }, 1000);
+    setTimeout(function() { addButtons(); }, 1000);
 })();

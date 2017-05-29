@@ -44,8 +44,8 @@ def get_audio(word):
     #return 'WORD: %s' % word
     results = MASTER_TABLE.lookup(word)
     if results:
-        data = slurp('sample.mp3')
-        #data = slurp(results[0].mp3from)
+        #data = slurp('sample.mp3')
+        data = slurp(results[0].mp3from)
         base64 = b64encode(data).decode('utf-8')
         result = {
             'success': True,
