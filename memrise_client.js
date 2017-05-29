@@ -31,7 +31,12 @@
             synchronous: true,
             onload: function(response) {
                 //alert('onload RECEIVED' + response.responseText);
-                callback(JSON.parse(response.responseText));
+                try {
+                    callback(JSON.parse(response.responseText));
+                } catch (e) {
+                    console.log('onload RECEIVED' + response.responseText);
+                    console.log(e);
+                }
             },
             onerror: function(response) {
                 showError(response);

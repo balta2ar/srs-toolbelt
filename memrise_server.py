@@ -7,6 +7,10 @@ servers.
 
 This server is using fill_audio module that references local tables
 with words/audios.
+
+Run me like this (without any conda env):
+
+PYTHONPATH=/usr/share/anki:. python2 memrise_server.py
 """
 import logging
 try:
