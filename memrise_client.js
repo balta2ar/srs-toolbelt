@@ -201,11 +201,56 @@
         deleteButton.addEventListener('click', function(event) { findPresentAndDelete(); } );
         header.appendChild(deleteButton);
 
-        var bulkAddButton = document.createElement('li');
-        bulkAddButton.setAttribute('class', 'header-nav-item plain');
-        bulkAddButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Buld add</span> </a>';
-        bulkAddButton.addEventListener('click', function(event) { alert("BULK ADD NOT IMPLEMENTED"); } );
-        header.appendChild(bulkAddButton);
+        //var bulkAddButton = document.createElement('li');
+        //bulkAddButton.setAttribute('class', 'header-nav-item plain');
+        //bulkAddButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Bulk add</span> </a>';
+        //bulkAddButton.addEventListener('click', function(event) { alert("BULK ADD NOT IMPLEMENTED"); } );
+        //header.appendChild(bulkAddButton);
+
+        setTimeout(function() { tryAddConvertToTabs(); }, 1000);
+    }
+
+    function findTagWithText(tag, text) {
+        var aTags = document.getElementsByTagName(tag);
+        var searchText = text;
+
+        for (var i = 0; i < aTags.length; i++) {
+            if (aTags[i].textContent == searchText) {
+                return aTags[i];
+            }
+        }
+        return null;
+    }
+
+    function onConvertTabs() {
+        var textarea = document.querySelector('textarea');
+        if (!textarea) {
+            console.log("textarea not found");
+            return;
+        }
+        textarea.value = textarea.value.replace(/;/g, '\t');
+        console.log("converted text to tabs");
+    }
+
+    function tryAddConvertToTabs() {
+        var addButton = findTagWithText("a", "Add");
+        if (addButton) {
+            //console.log("FOUND add button");
+            var convertTabsButton = findTagWithText("a", "ConvertTabs");
+            if (convertTabsButton) {
+                //console.log("FOUND convert tabs button");
+            } else {
+                // class="btn column-editor-close"
+                convertTabsButton = document.createElement('a');
+                convertTabsButton.setAttribute('class', 'btn');
+                convertTabsButton.innerHTML = 'ConvertTabs';
+                convertTabsButton.addEventListener('click', function(event) { onConvertTabs(); } );
+                addButton.parentNode.appendChild(convertTabsButton);
+                console.log("ADDED convert tabs button");
+            }
+        }
+
+        setTimeout(function() { tryAddConvertToTabs(); }, 1000);
     }
 
     function deleteForThing(thing) {
