@@ -11,6 +11,17 @@
 (function() {
     'use strict';
 
+    function showError(response) {
+        var msg = "An error occurred." +
+            "\nresponseText: " + response.responseText +
+            "\nreadyState: " + response.readyState +
+            "\nresponseHeaders: " + response.responseHeaders +
+            "\nstatus: " + response.status +
+            "\nstatusText: " + response.statusText +
+            "\nfinalUrl: " + response.finalUrl;
+        console.log(msg);
+    }
+
     function callAjax(url, callback){
         //alert("START");
 
@@ -23,14 +34,7 @@
                 callback(JSON.parse(response.responseText));
             },
             onerror: function(response) {
-                var msg = "An error occurred." +
-                    "\nresponseText: " + response.responseText +
-                    "\nreadyState: " + response.readyState +
-                    "\nresponseHeaders: " + response.responseHeaders +
-                    "\nstatus: " + response.status +
-                    "\nstatusText: " + response.statusText +
-                    "\nfinalUrl: " + response.finalUrl;
-                console.error(msg);
+                showError(response);
             },
         });
         //alert("END");
@@ -94,8 +98,11 @@
             method: "POST",
             url: "https://www.memrise.com/ajax/thing/cell/upload_file/",
             onload: function (response) {
-                //alert('UPLOAD RESULT:' + res.responseText);
+                //alert('UPLOAD RESULT:' + response.responseText);
                 onsuccess(response.responseText);
+            },
+            onerror: function(response) {
+                showError(response);
             },
         };
 
@@ -118,6 +125,7 @@
 
         //query.headers = {"Content-Type": "multipart/form-data"};
 
+        console.log(query);
         GM_xmlhttpRequest(query);
 
         //alert('DISPLAY DONE');
@@ -125,6 +133,7 @@
 
     function onUploadedSuccessfully(result, thing, buttons) {
         buttons.innerHTML = 'UPLOADED';
+        //alert(result);
     }
 
     function onWordNotFound(result, thing, buttons) {
@@ -135,8 +144,11 @@
         //alert("ADDING AUDIO FOR WORD " + word);
         //callAjax("http://localhost:5000/api/get_audio/" + encodeURIComponent(word), displayResult);
         getAudioForWord(word, function(result) {
+            //alert(JSON.stringify(result));
             if (result.success) {
+                console.log(result);
                 uploadAudio(result, uploadFormParams, function(uploadResult) {
+                    console.log('UPLOADED');
                     onUploadedSuccessfully(uploadResult, thing, buttons);
                 });
             } else {
@@ -154,7 +166,7 @@
         var startButton = document.createElement('li');
         startButton.setAttribute('class', 'header-nav-item plain');
         //startButton.innerHTML = 'Add missing audio [bz]';
-        startButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Add missing audio [bz]</span> </a>';
+        startButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Add missing audio</span> </a>';
         startButton.addEventListener('click', function(event) { findMissingAndUpload(); } );
         header.appendChild(startButton);
     }
@@ -163,7 +175,7 @@
         var buttons = thing.querySelector('button.btn.btn-mini.dropdown-toggle.disabled');
 
         if (buttons === null) {
-            return;
+            return false;
         }
 
         var buttonGroup = buttons.parentNode;
@@ -200,6 +212,7 @@
         //callAjax("http://localhost:5000/api/get_audio/" + encodeURIComponent(word), displayResult);
 
         //alert(word);
+        return true;
     }
 
     function findMissingAndUpload() {
@@ -214,7 +227,9 @@
             }
 
             var thing = things[i];
-            uploadForThing(thing);
+            if (uploadForThing(thing)) {
+                //break;
+            }
         }
     }
 
