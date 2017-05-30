@@ -150,12 +150,17 @@ def create_master_table():
         MEDIA_DIR,
         HOSGELDI_COPIED_PREFIX
     )
+
+    naver_table = NaverService()
+    naver_caching_table = CachingWordTable('tts_cache_naver', naver_table)
+
     neospeech_table = NeoSpeechService()
-    caching_table = CachingWordTable('tts_cache', neospeech_table)
+    neospeech_caching_table = CachingWordTable('tts_cache_neospeech', neospeech_table)
 
     return ComposerWordTable([korean_class_table,
                               hosgeldi_table,
-                              caching_table])
+                              naver_caching_table,
+                              neospeech_caching_table])
 
 
 def test_table(value=None):
@@ -216,11 +221,36 @@ class NeoSpeechService(WordTable):
         return [TableEntry('neo.mp3', None, 'neo.mp3')]
 
 
+class NaverService(WordTable):
+    def lookup(self, value):
+        import service
+
+        #word = '색인'
+        logger = logging.getLogger()
+        neospeech = service.naver.Naver(
+            normalize=None,
+            ecosystem=None,
+            logger=logger,
+            lame_flags=None,
+            temp_dir='/tmp'
+        )
+        print(neospeech, type(neospeech))
+        neospeech.net_reset()
+        #value = value.decode('utf-8')
+        result = neospeech.run(value, {'voice': 'ko'}, 'naver.mp3')
+        print(result)
+        print(value)
+        return [TableEntry('naver.mp3', None, 'naver.mp3')]
+
+
 def test_neospeech():
-    word = '색인'
+    #word = '색인'
+    word = '종일'
     import service
     logger = logging.getLogger()
-    neospeech = service.neospeech.NeoSpeech(
+    neospeech = service.imtranslator.ImTranslator(
+    #neospeech = service.neospeech.NeoSpeech(
+    #neospeech = service.naver.Naver(
         normalize=None,
         ecosystem=None,
         logger=logger,
@@ -229,7 +259,10 @@ def test_neospeech():
     )
     print(neospeech, type(neospeech))
     neospeech.net_reset()
-    result = neospeech.run(word.decode('utf-8'), {'voice': 'Jihun'}, 'neo.mp3')
+
+    result = neospeech.run(word.decode('utf-8'), {'voice': 'VW Yumi', 'speed': 0}, 'im.mp3')
+    #result = neospeech.run(word.decode('utf-8'), {'voice': 'Jihun'}, 'neo.mp3')
+    #result = neospeech.run(word.decode('utf-8'), {'voice': 'ko'}, 'naver.mp3')
     print(result)
     print(word)
 
