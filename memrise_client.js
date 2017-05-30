@@ -220,7 +220,15 @@
             console.log("textarea not found");
             return;
         }
-        textarea.value = textarea.value.replace(/;/g, '\t');
+
+        var lines = textarea.value.match(/[^\r\n]+/g);
+        for (var i = 0; i < lines.length; i++) {
+            lines[i] = lines[i].replace(/;/, '\t');
+        }
+        lines = lines.join('\n');
+
+        textarea.value = lines;
+        //textarea.value = textarea.value.replace(/;/g, '\t');
         console.log("converted text to tabs");
     }
 
