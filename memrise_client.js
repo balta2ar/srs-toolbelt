@@ -202,41 +202,47 @@
         setTimeout(function() { tryAddConvertToTabs(); }, 1000);
     }
 
-    function findTagWithText(tag, text) {
-        var aTags = document.getElementsByTagName(tag);
+    function findLastTagWithText(container, tagName, text) {
+        var aTags = container.getElementsByTagName(tagName);
         var searchText = text;
+        var result = null;
 
         for (var i = 0; i < aTags.length; i++) {
             if (aTags[i].textContent == searchText) {
-                return aTags[i];
+                // result.push(aTags[i]);
+                result = aTags[i];
             }
         }
-        return null;
+        return result;
     }
 
     function onConvertTabs() {
-        var textarea = document.querySelector('textarea');
-        if (!textarea) {
-            console.log("textarea not found");
+        var textareas = document.querySelectorAll('textarea');
+        if (!textareas) {
+            console.log("textareas not found");
             return;
         }
 
-        var lines = textarea.value.match(/[^\r\n]+/g);
-        for (var i = 0; i < lines.length; i++) {
-            lines[i] = lines[i].replace(/;/, '\t');
-        }
-        lines = lines.join('\n');
+        for (var index = 0; index < textareas.length; index++) {
+            var textarea = textareas[index];
 
-        textarea.value = lines;
+            var lines = textarea.value.match(/[^\r\n]+/g);
+            for (var i = 0; i < lines.length; i++) {
+                lines[i] = lines[i].replace(/;/, '\t');
+            }
+            lines = lines.join('\n');
+            textarea.value = lines;
+
+        }
         //textarea.value = textarea.value.replace(/;/g, '\t');
         console.log("converted text to tabs");
     }
 
     function tryAddConvertToTabs() {
-        var addButton = findTagWithText("a", "Add");
+        var addButton = findLastTagWithText(document, "a", "Add");
         if (addButton) {
             //console.log("FOUND add button");
-            var convertTabsButton = findTagWithText("a", "ConvertTabs");
+            var convertTabsButton = findLastTagWithText(addButton.parentNode, "a", "ConvertTabs");
             if (convertTabsButton) {
                 //console.log("FOUND convert tabs button");
             } else {
