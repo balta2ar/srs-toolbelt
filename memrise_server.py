@@ -13,6 +13,7 @@ Run me like this (without any conda env):
 PYTHONPATH=/usr/share/anki:. python2 memrise_server.py
 """
 import logging
+import re
 try:
     from urllib.parse import unquote
 except ImportError:
@@ -29,6 +30,7 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 app = Flask(__name__)
 MASTER_TABLE = create_master_table()
+ESCAPE_RX = re.compile(r'[/]')
 
 
 @app.route("/")
@@ -42,9 +44,15 @@ def slurp(filename):
         return file_.read()
 
 
+def escape(text):
+    return ESCAPE_RX.sub('_', text)
+
+
 @app.route("/api/get_audio/<string:word>")
 def get_audio(word):
-    word = unquote(word)
+    word = escape(unquote(word))
+    logging.info('incoming word: %s', word)
+
     #return 'WORD: %s' % word
     results = MASTER_TABLE.lookup(word)
     if results:

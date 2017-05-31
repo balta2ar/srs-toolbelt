@@ -263,7 +263,7 @@
         var buttonGroup = buttons.parentNode;
 
         var firstElement = buttons.parentNode.parentNode.parentNode.getElementsByClassName('text')[0];
-        var word = firstElement.innerText.trim();
+        var word = firstElement.innerText.trim().replace(/\//, '_');
         var thingId = thing.getAttribute('data-thing-id');
 
         var uploadFormParams = {
