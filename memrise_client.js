@@ -5,14 +5,16 @@
 // @description  Automatically finds words without audios in memrise course and uploads the audio
 // @author       balta2ar
 // @match        https://www.memrise.com/course/1344980/baltazar-korean-words/edit/*
+// @require      http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
+// @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    function showError(response) {
-        var msg = "An error occurred." +
+    function showError(prefix, response) {
+        var msg = prefix + ": an error occurred." +
             "\nresponseText: " + response.responseText +
             "\nreadyState: " + response.readyState +
             "\nresponseHeaders: " + response.responseHeaders +
@@ -39,7 +41,8 @@
                 }
             },
             onerror: function(response) {
-                showError(response);
+                showError("callAjax onerror", response);
+                console.log(query);
             },
         };
         if (headers) {
@@ -48,7 +51,7 @@
         if (data) {
             query.data = data;
         }
-        console.log(query);
+        // console.log(query);
         GM_xmlhttpRequest(query);
         //alert("END");
     }
@@ -87,7 +90,41 @@
     function uploadAudio(result, uploadFormParams, onsuccess) {
         // https://www.memrise.com/ajax/thing/cell/upload_file/
 
-        //alert('DISPLAY: ' + result);
+        var formdata = new FormData();
+        for (var p in uploadFormParams) {
+            formdata.append(p, uploadFormParams[p]);
+        }
+
+        //var formData = new FormData();
+        var blob = resultToBlob(result);
+        formdata.append('f', blob, 'sound.mp3');
+
+        // I'm using jQuery ajax here because GM_xmlhttpRequest often
+        // resulted in invalid CSRF token reply from memrise server.
+        //
+        // https://stackoverflow.com/questions/6974684/how-to-send-formdata-objects-with-ajax-requests-in-jquery
+        var query = {
+            type:        'POST',
+            url:         'https://www.memrise.com/ajax/thing/cell/upload_file/',
+            //dataType:   'JSON',
+            data:        formdata,
+            processData: false,
+            contentType: false,
+            //contentType: 'multipart/form-data',
+            success:     function (response) {
+                console.log(response);
+                onsuccess(response);
+            },
+            error:       function(response) {
+                showError("uploadAudio onerror 2", response);
+                console.log(query);
+                console.log(response);
+                console.log(result);
+            },
+        };
+
+        $.ajax(query);
+        return;
 
         /*
         ------WebKitFormBoundary7wGHsJmxhEeD9hSN
@@ -115,20 +152,16 @@
             method: "POST",
             url: "https://www.memrise.com/ajax/thing/cell/upload_file/",
             onload: function (response) {
-                //alert('UPLOAD RESULT:' + response.responseText);
+                console.log('UPLOAD RESULT:' + response.responseText);
                 onsuccess(response.responseText);
             },
             onerror: function(response) {
-                showError(response);
+                showError("uploadAudio onerror 2", response);
+                console.log(query);
+                console.log(response);
+                console.log(result);
             },
         };
-
-        //var params = {
-        //    thing_id: "query",
-        //    cell_id: "3",
-        //    cell_type: "column",
-        //    csrfmiddlewaretoken: MEMRIZE.csrftoken,
-        //};
 
         query.data = new FormData();
         for (var p in uploadFormParams) {
@@ -138,19 +171,29 @@
         //var formData = new FormData();
         var blob = resultToBlob(result);
         query.data.append('f', blob, 'sound.mp3');
-        //formData.append('f', blob, 'sound.mp3');
 
-        //query.headers = {"Content-Type": "multipart/form-data"};
-
-        console.log(query);
         GM_xmlhttpRequest(query);
 
-        //alert('DISPLAY DONE');
+        //query.headers = {"Content-Type": "multipart/form-data"};
+        //var params = {
+        //    thing_id: "query",
+        //    cell_id: "3",
+        //    cell_type: "column",
+        //    csrfmiddlewaretoken: MEMRIZE.csrftoken,
+        //};
+
     }
 
     function onUploadedSuccessfully(result, thing, buttons) {
-        buttons.innerHTML = 'UPLOADED';
-        //alert(result);
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = result.rendered;
+
+        var audioBlock = thing.children[3];
+        var newAudioColumn = wrapper.children[0]; //wrapper.firstChild;
+        var oldAudioColumn = audioBlock.children[0];
+
+        audioBlock.removeChild(oldAudioColumn);
+        audioBlock.appendChild(newAudioColumn);
     }
 
     function onWordNotFound(result, thing, buttons) {
@@ -274,7 +317,7 @@
         var buttonGroup = buttons.parentNode;
 
         // is there already add button?
-        var addAudioButton = findLastTagWithText(buttonGroup, "div", "AddAudio");
+        var addAudioButton = findLastTagWithText(buttonGroup.parentNode, "div", "AddAudio");
         if (addAudioButton) {
             return false;
         }
@@ -287,7 +330,7 @@
             thing_id: thingId,
             cell_id: "3",
             cell_type: "column",
-            csrfmiddlewaretoken: MEMRISE.csrftoken,
+            csrfmiddlewaretoken: MEMRISE.csrftoken
         };
 
         var customUploadButton = document.createElement('div');
