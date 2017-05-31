@@ -184,13 +184,13 @@
         startButton.setAttribute('class', 'header-nav-item plain');
         //startButton.innerHTML = 'Add missing audio [bz]';
         startButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Add ♫</span> </a>';
-        startButton.addEventListener('click', function(event) { findMissingAndUpload(); } );
+        startButton.addEventListener('click', function(event) { clickAllAddAudioButtons(); } );
         header.appendChild(startButton);
 
         var deleteButton = document.createElement('li');
         deleteButton.setAttribute('class', 'header-nav-item plain');
         deleteButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Delete ♫</span> </a>';
-        deleteButton.addEventListener('click', function(event) { findPresentAndDelete(); } );
+        deleteButton.addEventListener('click', function(event) { clickAllDeleteButtons(); } );
         header.appendChild(deleteButton);
 
         //var bulkAddButton = document.createElement('li');
@@ -199,7 +199,8 @@
         //bulkAddButton.addEventListener('click', function(event) { alert("BULK ADD NOT IMPLEMENTED"); } );
         //header.appendChild(bulkAddButton);
 
-        setTimeout(function() { tryAddConvertToTabs(); }, 1000);
+        setInterval(function() { tryAddConvertToTabs(); }, 1000);
+        setInterval(function() { findMissingAndAddUpload(); }, 1000);
     }
 
     function findLastTagWithText(container, tagName, text) {
@@ -227,11 +228,15 @@
             var textarea = textareas[index];
 
             var lines = textarea.value.match(/[^\r\n]+/g);
-            for (var i = 0; i < lines.length; i++) {
-                lines[i] = lines[i].replace(/;/, '\t');
+            try {
+                for (var i = 0; i < lines.length; i++) {
+                    lines[i] = lines[i].replace(/;/, '\t');
+                }
+                lines = lines.join('\n');
+                textarea.value = lines;
+            } catch (e) {
+                console.log(e);
             }
-            lines = lines.join('\n');
-            textarea.value = lines;
 
         }
         //textarea.value = textarea.value.replace(/;/g, '\t');
@@ -256,7 +261,7 @@
             }
         }
 
-        setTimeout(function() { tryAddConvertToTabs(); }, 1000);
+        // setTimeout(function() { tryAddConvertToTabs(); }, 1000);
     }
 
     function uploadForThing(thing) {
@@ -267,6 +272,12 @@
         }
 
         var buttonGroup = buttons.parentNode;
+
+        // is there already add button?
+        var addAudioButton = findLastTagWithText(buttonGroup, "div", "AddAudio");
+        if (addAudioButton) {
+            return false;
+        }
 
         var firstElement = buttons.parentNode.parentNode.parentNode.getElementsByClassName('text')[0];
         var word = firstElement.innerText.trim().replace(/\//, '_');
@@ -282,12 +293,13 @@
         var customUploadButton = document.createElement('div');
         //<div class="btn btn-mini open-recorder">Record</div>
         customUploadButton.setAttribute('class', 'btn btn-mini');
+        customUploadButton.setAttribute('title', 'AddAudio');
         //customUploadButton.setAttribute('onclick', 'onAddAudio(' + word + ')');
         customUploadButton.addEventListener('click', function(event) {
             onAddAudio(word, uploadFormParams, thing, buttons);
         });
-        onAddAudio(word, uploadFormParams, thing, buttons);
-        customUploadButton.innerHTML = 'ADDAUDIO';
+        // onAddAudio(word, uploadFormParams, thing, buttons);
+        customUploadButton.innerHTML = 'AddAudio';
 
         buttonGroup.appendChild(customUploadButton);
 
@@ -295,7 +307,7 @@
         return true;
     }
 
-    function findPresentAndDelete() {
+    function clickAllDeleteButtons() {
         var deleteButtons = document.querySelectorAll('[title="Delete this audio file"]');
         for (var i = 0; i < deleteButtons.length; i++) {
             var deleteButton = deleteButtons[i];
@@ -303,7 +315,15 @@
         }
     }
 
-    function findMissingAndUpload() {
+    function clickAllAddAudioButtons() {
+        var addAudioButtons = document.querySelectorAll('[title="AddAudio"]');
+        for (var i = 0; i < addAudioButtons.length; i++) {
+            var addAudioButton = addAudioButtons[i];
+            addAudioButton.click();
+        }
+    }
+
+    function findMissingAndAddUpload() {
         var things = document.getElementsByClassName('thing');
         for (var i = 0; i < things.length; i++) {
 
