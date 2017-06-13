@@ -4,7 +4,7 @@
 // @version      0.1
 // @description  Automatically finds words without audios in memrise course and uploads the audio
 // @author       balta2ar
-// @match        https://www.memrise.com/course/1344980/baltazar-korean-words/edit/*
+// @match        https://www.memrise.com/course/*/edit/*
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest

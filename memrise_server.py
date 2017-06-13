@@ -22,14 +22,15 @@ from base64 import b64encode
 
 from flask import Flask, jsonify
 
-from fill_audio import create_master_table
+from fill_audio import create_master_table, create_forced_alignment_table
 
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 app = Flask(__name__)
-MASTER_TABLE = create_master_table()
+MASTER_TABLE = create_forced_alignment_table()
+#MASTER_TABLE = create_master_table()
 ESCAPE_RX = re.compile(r'[/]')
 
 

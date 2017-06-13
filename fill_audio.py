@@ -137,6 +137,11 @@ class HosgeldiWordTable(WordTable):
                 for x in sorted(uniq_results, key=itemgetter('mp3base'))]
 
 
+def create_forced_alignment_table():
+    cached_table = CachingWordTable('lesson11_parts', None)
+    return ComposerWordTable([cached_table])
+
+
 def create_master_table():
     korean_class_table = KoreanClass101WordTable(
         KOREAN_CLASS_LOOKUP_TABLE_FILENAME,
