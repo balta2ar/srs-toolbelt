@@ -13,6 +13,11 @@
 (function() {
     'use strict';
 
+    /**
+     * Display error if an AJAX request fails.
+     * @param {string} prefix Prefix to add before the error message.
+     * @param {object} response Problimatic response.
+     */
     function showError(prefix, response) {
         var msg = prefix + ": an error occurred." +
             "\nresponseText: " + response.responseText +
@@ -24,9 +29,15 @@
         console.log(msg);
     }
 
+    /**
+     * Universal method that performs AJAX call.
+     * @param {string} method 'GET' or 'POST'.
+     * @param {string} url URL to access.
+     * @param {function} callback Function to call upon success.
+     * @param {object} headers Additional headers.
+     * @param {object} data AJAX data to pass with the request.
+     */
     function callAjax(method, url, callback, headers, data){
-        //alert("START");
-
         var query = {
             method: method, //"POST", // GET
             url: url,
@@ -51,11 +62,14 @@
         if (data) {
             query.data = data;
         }
-        // console.log(query);
         GM_xmlhttpRequest(query);
-        //alert("END");
     }
 
+    /**
+     * Rertrieve audio for the given word. Calls `onsuccess` upon success.
+     * @param {string} word Word to get audio for.
+     * @param {function} onsuccess Callback to call on success.
+     */
     function getAudioForWord(word, onsuccess) {
         callAjax("GET",
                  "http://localhost:5000/api/get_audio/" + encodeURIComponent(word),
@@ -64,10 +78,15 @@
                  null);
     }
 
+    /**
+     * Convert result returned by memrise_server.py into a blob. memrise_server
+     * returns result in a base64 format. It should be decoded and converted
+     * into a Blob, to be used in FormData later.
+     * @param result Result from memrise_server.
+     @ @return Blob that is ready to be used in FormData.
+     */
     function resultToBlob(result) {
-        //window.RESULT = result;
         MEMRISE.RESULT = result;
-        //alert(result['base64_data']);
         var byteString = atob(result.base64_data);
         var mimeString = 'audio/mp3';
 
@@ -86,7 +105,6 @@
         return bb;
     }
 
-    //function displayResult(result) {
     function uploadAudio(result, uploadFormParams, onsuccess) {
         // https://www.memrise.com/ajax/thing/cell/upload_file/
 
@@ -95,7 +113,6 @@
             formdata.append(p, uploadFormParams[p]);
         }
 
-        //var formData = new FormData();
         var blob = resultToBlob(result);
         formdata.append('f', blob, 'sound.mp3');
 
@@ -124,9 +141,10 @@
         };
 
         $.ajax(query);
-        return;
 
         /*
+        Sample requests:
+
         ------WebKitFormBoundary7wGHsJmxhEeD9hSN
         Content-Disposition: form-data; name="thing_id"
 
@@ -148,40 +166,6 @@
         Content-Type: audio/mp3
         */
 
-        var query = {
-            method: "POST",
-            url: "https://www.memrise.com/ajax/thing/cell/upload_file/",
-            onload: function (response) {
-                console.log('UPLOAD RESULT:' + response.responseText);
-                onsuccess(response.responseText);
-            },
-            onerror: function(response) {
-                showError("uploadAudio onerror 2", response);
-                console.log(query);
-                console.log(response);
-                console.log(result);
-            },
-        };
-
-        query.data = new FormData();
-        for (var p in uploadFormParams) {
-            query.data.append(p, uploadFormParams[p]);
-        }
-
-        //var formData = new FormData();
-        var blob = resultToBlob(result);
-        query.data.append('f', blob, 'sound.mp3');
-
-        GM_xmlhttpRequest(query);
-
-        //query.headers = {"Content-Type": "multipart/form-data"};
-        //var params = {
-        //    thing_id: "query",
-        //    cell_id: "3",
-        //    cell_type: "column",
-        //    csrfmiddlewaretoken: MEMRIZE.csrftoken,
-        //};
-
     }
 
     function onUploadedSuccessfully(result, thing, buttons) {
@@ -201,10 +185,8 @@
     }
 
     function onAddAudio(word, uploadFormParams, thing, buttons) {
-        //alert("ADDING AUDIO FOR WORD " + word);
         //callAjax("http://localhost:5000/api/get_audio/" + encodeURIComponent(word), displayResult);
         getAudioForWord(word, function(result) {
-            //alert(JSON.stringify(result));
             if (result.success) {
                 console.log(result);
                 uploadAudio(result, uploadFormParams, function(uploadResult) {
@@ -218,6 +200,15 @@
         });
     }
 
+    /**
+     * This function adds two main buttons: Add and Remove.
+     * Add - adds audio to all words on the page that don't have an audio yet.
+     * Remove - removes all audios.
+     * This function also starts a reoccuring timer events that when fire,
+     * tries to:
+     *    1. add "ConvertToTabs" button to all bulk upload dialogs.
+     *    2. find words without an audio and add "Upload" button to the button group.
+     */
     function addButtons() {
         var header = document.querySelector('ul.header-nav');
         // <li class="header-nav-item plain ">
@@ -246,6 +237,14 @@
         setInterval(function() { findMissingAndAddUpload(); }, 1000);
     }
 
+    /**
+     * This function is trying to find a tag that has matching text withing
+     * a given container.
+     * @param container {DOMElement} DOM element to search in.
+     * @param tagName <tag_name> to search for.
+     * @param text Text to search for.
+     @ @return DOMElement if found, null otherwise.
+     */
     function findLastTagWithText(container, tagName, text) {
         var aTags = container.getElementsByTagName(tagName);
         var searchText = text;
@@ -253,13 +252,19 @@
 
         for (var i = 0; i < aTags.length; i++) {
             if (aTags[i].textContent == searchText) {
-                // result.push(aTags[i]);
                 result = aTags[i];
             }
         }
         return result;
     }
 
+    /**
+     * This function locates all textareas in the document, breaks the input
+     * into lines, and replaces first tabular character in each line with a ";"
+     * (semicolon). It's helpful because I prefer to keep new words in my
+     * memos in the format as follows:
+     * <korean_word>; translation; more comments; etc...
+     */
     function onConvertTabs() {
         var textareas = document.querySelectorAll('textarea');
         if (!textareas) {
@@ -270,6 +275,8 @@
         for (var index = 0; index < textareas.length; index++) {
             var textarea = textareas[index];
 
+            // We need to process each line separately as we only need
+            // to replace the first occurence of \t in each line.
             var lines = textarea.value.match(/[^\r\n]+/g);
             try {
                 for (var i = 0; i < lines.length; i++) {
@@ -282,10 +289,12 @@
             }
 
         }
-        //textarea.value = textarea.value.replace(/;/g, '\t');
         console.log("converted text to tabs");
     }
 
+    /**
+     * Try to find all dialogs with "Add" button and append "ConvertToTabs".
+     */
     function tryAddConvertToTabs() {
         var addButton = findLastTagWithText(document, "a", "Add");
         if (addButton) {
@@ -303,11 +312,16 @@
                 console.log("ADDED convert tabs button");
             }
         }
-
-        // setTimeout(function() { tryAddConvertToTabs(); }, 1000);
     }
 
-    function uploadForThing(thing) {
+    /**
+     * Add Upload button for one thing. Thing is a row in Memrise table.
+     * It contains a word, translation, and and a block with audio buttons.
+     * This function adds HTML code of a an Add button into the page.
+     * @param thing Thing (row) to add Upload button to.
+     * @return true if successfully added Upload button.
+     */
+    function addUploadButtonForThing(thing) {
         var buttons = thing.querySelector('button.btn.btn-mini.dropdown-toggle.disabled');
 
         if (buttons === null) {
@@ -350,6 +364,10 @@
         return true;
     }
 
+    /**
+     * Click all Delete buttons to remove audio from all words that are
+     * visible on the page.
+     */
     function clickAllDeleteButtons() {
         var deleteButtons = document.querySelectorAll('[title="Delete this audio file"]');
         for (var i = 0; i < deleteButtons.length; i++) {
@@ -358,6 +376,10 @@
         }
     }
 
+    /**
+     * Click all Add buttons to automatically retrieve audio from
+     * memrise_server for all the words.
+     */
     function clickAllAddAudioButtons() {
         var addAudioButtons = document.querySelectorAll('[title="AddAudio"]');
         for (var i = 0; i < addAudioButtons.length; i++) {
@@ -366,6 +388,10 @@
         }
     }
 
+    /**
+     * Scan all words in the table, find those who are missing audios and
+     * append Upload button to each one of them.
+     */
     function findMissingAndAddUpload() {
         var things = document.getElementsByClassName('thing');
         for (var i = 0; i < things.length; i++) {
@@ -375,12 +401,12 @@
             }
 
             var thing = things[i];
-            if (uploadForThing(thing)) {
+            if (addUploadButtonForThing(thing)) {
                 //break;
             }
         }
     }
 
-    //setTimeout(function() { findAndUpload(); }, 5000);
+    // Add all main buttons after a while
     setTimeout(function() { addButtons(); }, 1000);
 })();
