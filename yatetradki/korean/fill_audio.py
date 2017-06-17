@@ -6,6 +6,7 @@ better because they are recorded by humans. Field for which human pronunction
 is missing are filled with TextToSpeech generated audio (use AwesomeTTS
 Anki plugin to do that).
 """
+from os import makedirs
 from os.path import join, exists, getsize
 from shutil import copy2
 from operator import itemgetter
@@ -47,15 +48,18 @@ class WordTable(object):
         raise NotImplementedError('NOT IMPLEMENTED')
 
 
-class ComposedTable(WordTable):
+class ComposerWordTable(WordTable):
     def __init__(self, tables):
         self._tables = tables
 
     def lookup(self, value):
-        result = []
+        results = []
         for table in self._tables:
-            result.extend(table.lookup(value))
-        return result
+            lookup_results = table.lookup(value)
+            if lookup_results:
+                results.extend(lookup_results)
+                break
+        return results
 
 
 class KoreanClass101WordTable(WordTable):
@@ -133,6 +137,11 @@ class HosgeldiWordTable(WordTable):
                 for x in sorted(uniq_results, key=itemgetter('mp3base'))]
 
 
+def create_forced_alignment_table():
+    cached_table = CachingWordTable('lesson11_parts', None)
+    return ComposerWordTable([cached_table])
+
+
 def create_master_table():
     korean_class_table = KoreanClass101WordTable(
         KOREAN_CLASS_LOOKUP_TABLE_FILENAME,
@@ -146,7 +155,17 @@ def create_master_table():
         MEDIA_DIR,
         HOSGELDI_COPIED_PREFIX
     )
-    return ComposedTable([korean_class_table, hosgeldi_table])
+
+    naver_table = NaverService()
+    naver_caching_table = CachingWordTable('tts_cache_naver', naver_table)
+
+    neospeech_table = NeoSpeechService()
+    neospeech_caching_table = CachingWordTable('tts_cache_neospeech', neospeech_table)
+
+    return ComposerWordTable([korean_class_table,
+                              hosgeldi_table,
+                              naver_caching_table,
+                              neospeech_caching_table])
 
 
 def test_table(value=None):
@@ -158,11 +177,85 @@ def test_table(value=None):
     print('Done')
 
 
+class CachingWordTable(WordTable):
+    def __init__(self, cache_dir, table):
+        super(CachingWordTable, self).__init__()
+
+        self._cache_dir = cache_dir
+        self._table = table
+
+    def _mkpath(self, path):
+        if not exists(path):
+            makedirs(path)
+
+    def lookup(self, value):
+        basename = value + '.mp3'
+        filename = join(self._cache_dir, basename)
+
+        if not exists(filename):
+            logging.info('Cache miss: %s', value)
+            self._mkpath(self._cache_dir)
+            results = self._table.lookup(value)
+            result = results[0]
+            copy2(result.mp3from, filename)
+        else:
+            logging.info('Cache hit: %s', value)
+
+        return [TableEntry(filename, None, basename)]
+
+
+class NeoSpeechService(WordTable):
+    def lookup(self, value):
+        import service
+
+        #word = '색인'
+        logger = logging.getLogger()
+        neospeech = service.neospeech.NeoSpeech(
+            normalize=None,
+            ecosystem=None,
+            logger=logger,
+            lame_flags=None,
+            temp_dir='/tmp'
+        )
+        print(neospeech, type(neospeech))
+        neospeech.net_reset()
+        #value = value.decode('utf-8')
+        result = neospeech.run(value, {'voice': 'Jihun'}, 'neo.mp3')
+        print(result)
+        print(value)
+        return [TableEntry('neo.mp3', None, 'neo.mp3')]
+
+
+class NaverService(WordTable):
+    def lookup(self, value):
+        import service
+
+        #word = '색인'
+        logger = logging.getLogger()
+        neospeech = service.naver.Naver(
+            normalize=None,
+            ecosystem=None,
+            logger=logger,
+            lame_flags=None,
+            temp_dir='/tmp'
+        )
+        print(neospeech, type(neospeech))
+        neospeech.net_reset()
+        #value = value.decode('utf-8')
+        result = neospeech.run(value, {'voice': 'ko'}, 'naver.mp3')
+        print(result)
+        print(value)
+        return [TableEntry('naver.mp3', None, 'naver.mp3')]
+
+
 def test_neospeech():
-    word = '색인'
+    #word = '색인'
+    word = '종일'
     import service
     logger = logging.getLogger()
-    neospeech = service.neospeech.NeoSpeech(
+    neospeech = service.imtranslator.ImTranslator(
+    #neospeech = service.neospeech.NeoSpeech(
+    #neospeech = service.naver.Naver(
         normalize=None,
         ecosystem=None,
         logger=logger,
@@ -170,7 +263,12 @@ def test_neospeech():
         temp_dir='/tmp'
     )
     print(neospeech, type(neospeech))
-    neospeech.run(word, {'voice': 'Jihun'}, '/tmp/neo.mp3')
+    neospeech.net_reset()
+
+    result = neospeech.run(word.decode('utf-8'), {'voice': 'VW Yumi', 'speed': 0}, 'im.mp3')
+    #result = neospeech.run(word.decode('utf-8'), {'voice': 'Jihun'}, 'neo.mp3')
+    #result = neospeech.run(word.decode('utf-8'), {'voice': 'ko'}, 'naver.mp3')
+    print(result)
     print(word)
 
 
