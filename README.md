@@ -1,5 +1,22 @@
-yandex-slovari-tetradki
-=======================
+srs-toolbelt (former yandex-slovari-tetradki)
+=============================================
+
+In this repository I keep all kinds of useful scripts that I use to enhance
+my SRS (Spaced Repetition Software, e.g. Anki, Memrise, Quizlet) experience.
+
+Initially this repo was named `yandex-slovari-tetradki` because that's what
+the code here used to do. Few years later Yandex.Slovari server was shutdown
+and this code got outdated. I slightly adapted it, reworked and now it
+helps me with the following reoccuring tasks:
+
+1. Convert a list of new words (taken from a dictionary lookup history) into
+   Anki flash cards.
+2. Easily add TTS audio for my new Korean words and phrases (powered by Naver
+   TTS)
+3. Do forced alignment for korean sentences from my Korean textbook and convert
+   them to Memrise course (flash cards).
+
+## Information below is outdated
 
 yandex-slovari-tetradki is a script to extract words from Yandex Slovari.Tetradki.
 I happen to use this translation service and I thought I could help myself to
@@ -113,4 +130,4 @@ cat yatetradki/extract/lingvo-online.ru/history.txt | python -m yatetradki.reade
 
 ## Author
 
-(c) 2014-2016 Yuri Bochkarev
+(c) 2014-2017 Yuri Bochkarev

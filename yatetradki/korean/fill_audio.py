@@ -38,6 +38,11 @@ TableEntry = namedtuple('TableEntry', 'mp3from mp3to mp3tobase')
 
 
 class WordTable(object):
+    """
+    Common interface to lookup words from a table. A table is a file with
+    the following columns:
+    korean_word, russian_word, path_to_file, ...
+    """
     def _make_entry(self, entry_dict):
         mp3from = join(self._mp3dir, entry_dict['mp3base'])
         mp3tobase = self._copied_prefix + entry_dict['mp3base']
@@ -48,7 +53,11 @@ class WordTable(object):
         raise NotImplementedError('NOT IMPLEMENTED')
 
 
-class ComposerWordTable(WordTable):
+class ComposedWordTable(WordTable):
+    """
+    This table can compose several child tables and query them one by one,
+    returning result as soon as the first result is available.
+    """
     def __init__(self, tables):
         self._tables = tables
 
@@ -138,11 +147,23 @@ class HosgeldiWordTable(WordTable):
 
 
 def create_forced_alignment_table():
+    """
+    Forced alingnment table simply retrieves words from a directory. Filenames
+    should be as follows:
+    <korean_word>.mp3
+    """
     cached_table = CachingWordTable('lesson11_parts', None)
-    return ComposerWordTable([cached_table])
+    return ComposedWordTable([cached_table])
 
 
 def create_master_table():
+    """
+    Master table chains 4 audio sources:
+        - words from KoreanClass101 site
+        - words from Hosgeldi site
+        - NaverTTS
+        - NeoSpeechTTS
+    """
     korean_class_table = KoreanClass101WordTable(
         KOREAN_CLASS_LOOKUP_TABLE_FILENAME,
         KOREAN_CLASS_MP3_DIR,
@@ -162,7 +183,7 @@ def create_master_table():
     neospeech_table = NeoSpeechService()
     neospeech_caching_table = CachingWordTable('tts_cache_neospeech', neospeech_table)
 
-    return ComposerWordTable([korean_class_table,
+    return ComposedWordTable([korean_class_table,
                               hosgeldi_table,
                               naver_caching_table,
                               neospeech_caching_table])
@@ -178,6 +199,11 @@ def test_table(value=None):
 
 
 class CachingWordTable(WordTable):
+    """
+    This table cannot generate or provide audios for words, it only caches
+    the result into cache_dir. However, if cache_dir contains audios for
+    many words, it can easily become an audio source.
+    """
     def __init__(self, cache_dir, table):
         super(CachingWordTable, self).__init__()
 
@@ -324,9 +350,6 @@ def main():
     #noteids = col.findNotes('deck:"%s"' % args.deck_name)
     logging.info('Found %d cards in "%s" deck', len(cardids), args.deck_name)
 
-    # from ipdb import set_trace; set_trace()
-    # return
-
     updated_count = 0
 
     #for noteid in noteids:
@@ -368,8 +391,6 @@ def main():
                 note.flush()
             updated_count += 1
 
-        # from ipdb import set_trace; set_trace()
-        # break
         if args.num is not None and i >= args.num:
             break
 
