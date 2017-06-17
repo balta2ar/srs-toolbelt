@@ -15,8 +15,6 @@ import argparse
 from collections import namedtuple
 from pprint import pformat
 
-from anki import Collection
-
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -44,6 +42,20 @@ class WordTable(object):
         mp3tobase = self._copied_prefix + entry_dict['mp3base']
         mp3to = join(self._media_dir, mp3tobase)
         return TableEntry(mp3from, mp3to, mp3tobase)
+
+    def lookup(self, value):
+        raise NotImplementedError('NOT IMPLEMENTED')
+
+
+class ComposedTable(WordTable):
+    def __init__(self, tables):
+        self._tables = tables
+
+    def lookup(self, value):
+        result = []
+        for table in self._tables:
+            result.extend(table.lookup(value))
+        return result
 
 
 class KoreanClass101WordTable(WordTable):
@@ -121,6 +133,47 @@ class HosgeldiWordTable(WordTable):
                 for x in sorted(uniq_results, key=itemgetter('mp3base'))]
 
 
+def create_master_table():
+    korean_class_table = KoreanClass101WordTable(
+        KOREAN_CLASS_LOOKUP_TABLE_FILENAME,
+        KOREAN_CLASS_MP3_DIR,
+        MEDIA_DIR,
+        KOREAN_CLASS_COPIED_PREFIX
+    )
+    hosgeldi_table = HosgeldiWordTable(
+        HOSGELDI_LOOKUP_TABLE_FILENAME,
+        HOSGELDI_MP3_DIR,
+        MEDIA_DIR,
+        HOSGELDI_COPIED_PREFIX
+    )
+    return ComposedTable([korean_class_table, hosgeldi_table])
+
+
+def test_table(value=None):
+    print('Hello')
+    if value is not None:
+        table = create_master_table()
+        result = table.lookup(value)
+        print(result)
+    print('Done')
+
+
+def test_neospeech():
+    word = '색인'
+    import service
+    logger = logging.getLogger()
+    neospeech = service.neospeech.NeoSpeech(
+        normalize=None,
+        ecosystem=None,
+        logger=logger,
+        lame_flags=None,
+        temp_dir='/tmp'
+    )
+    print(neospeech, type(neospeech))
+    neospeech.run(word, {'voice': 'Jihun'}, '/tmp/neo.mp3')
+    print(word)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Add audio pronunciation to korean words')
     parser.add_argument('--dry-run', action='store_true', default=False,
@@ -159,6 +212,7 @@ def main():
         HOSGELDI_COPIED_PREFIX
     )
 
+    from anki import Collection
     col = Collection(args.collection)
     deckid = col.decks.id(args.deck_name)
     col.decks.select(deckid)

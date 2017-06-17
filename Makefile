@@ -4,6 +4,8 @@ LINGVO_WORDS = data3/lingvolive.txt
 LINGVO_DECK = data3/lingvolive.tsv
 ENGLISH_WORDS = data3/english.txt
 ENGLISH_DECK = data3/english.tsv
+#ENGLISH_WORDS = toefl/words.txt
+#ENGLISH_DECK = toefl/from_dsl.tsv
 PORTUGUESE_WORDS = data3/portuguese.txt
 PORTUGUESE_DECK = data3/portuguese.tsv
 DSLS =
@@ -30,7 +32,8 @@ portuguese:
 
 TEMP_WORDS = /tmp/words.txt
 SHARED_WORDS = /home/bz/share/btsync/everywhere/info/words/lingvolive-work.txt
-LOCAL_WORDS = data3/lingvolive-home.txt
+LOCAL_WORDS = /home/bz/share/btsync/everywhere/info/words/lingvolive-home.txt
+#LOCAL_WORDS = data3/lingvolive-home.txt
 english-words:
 	cp $(ENGLISH_WORDS) "$(ENGLISH_WORDS).`date +%FT%T`.txt"
 	words-from-history.sh lingvolive > $(LOCAL_WORDS)

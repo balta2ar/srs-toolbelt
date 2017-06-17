@@ -15,7 +15,7 @@ from aqt.qt import *
 from aqt import AnkiApp, setupLang
 
 
-def main():
+def main(delay):
     app = AnkiApp(sys.argv)
     QCoreApplication.setApplicationName("Anki")
 
@@ -54,7 +54,7 @@ def main():
         timer = QTimer(mw)
         timer.setSingleShot(True)
         timer.connect(timer, SIGNAL('timeout()'), handler)
-        timer.start(60000)
+        timer.start(delay)
 
     set_timer()
 
@@ -62,4 +62,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    delay = 60000
+    if len(sys.argv) > 1:
+        delay = int(sys.argv[1])
+    main(delay)

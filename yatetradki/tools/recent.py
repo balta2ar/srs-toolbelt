@@ -12,14 +12,13 @@ from anki import Collection
 
 COLLECTION = '/home/bz/Documents/Anki/bz/collection.anki2'
 QUERIES_AND_FIELDS = [
-    ('deck:english::englishclub-phrasal-verbs rated:2:1', 'Word'),
-    ('deck:english::idiomconnection rated:2:1', 'Word'),
-    ('deck:english::jinja rated:2:1', 'Word'),
-    ('deck:english::lingvo-online rated:2:1', 'Word'),
-    ('deck:english::toefl-vocabulary rated:2:1', 'Word'),
-    ('deck:english::using-english rated:2:1', 'Word'),
+    ('deck:english::englishclub-phrasal-verbs rated:7:2', 'Word'),
+    ('deck:english::idiomconnection rated:7:2', 'Word'),
+    ('deck:english::jinja rated:7:2', 'Word'),
+    ('deck:english::lingvo-online rated:7:2', 'Word'),
+    ('deck:english::toefl-vocabulary rated:7:2', 'Word'),
+    ('deck:english::using-english rated:7:2', 'Word'),
 ]
-
 
 def get_collection():
     """Not used"""
