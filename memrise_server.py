@@ -29,8 +29,8 @@ FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 app = Flask(__name__)
-MASTER_TABLE = create_forced_alignment_table()
-#MASTER_TABLE = create_master_table()
+#MASTER_TABLE = create_forced_alignment_table()
+MASTER_TABLE = create_master_table()
 ESCAPE_RX = re.compile(r'[/]')
 
 
