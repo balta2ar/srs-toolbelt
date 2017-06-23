@@ -20,6 +20,20 @@ PT_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/por-por/pt/UniversalRu
 
 TEST_DSLS = --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
 
+MORE_DSLS =
+MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/ru-en/DSL UTF16LE/Ru-En_Mostitsky_Universal.dsl'
+MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-ru/LingvoUniversalEnRu/LingvoUniversalEnRu.dsl'
+MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/CALD3 for Lingvo/dsl/En-En_Cambridge Advanced Learners Dictionary.dsl'
+MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/MED2 for Lingvo/dsl/En-En_Macmillan English Dictionary.dsl'
+MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
+
+SAT_WORDS = data3/sat-words.txt
+SAT_DECK = data3/sat-words.tsv
+# SAT_WORDS = data3/sat-words-test.txt
+# SAT_DECK = data3/sat-words-test.tsv
+sat-words:
+	python -m yatetradki.reader.dsl $(MORE_DSLS) > $(SAT_DECK) < $(SAT_WORDS)
+
 lingvo-online:
 	python yatetradki/extract/lingvo-online.ru/lingvo-online.py --num-pages 100 > $(LINGVO_WORDS)
 	python -m yatetradki.reader.dsl $(DSLS) > $(LINGVO_DECK) < $(LINGVO_WORDS)

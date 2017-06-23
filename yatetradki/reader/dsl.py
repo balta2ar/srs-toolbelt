@@ -18,6 +18,10 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 SHORT_ARTICLE_LENGTH = 60
 RE_SHORT_REFERENCE = re.compile(r'= (\w+)')
+RE_REF_DICT = re.compile(r'\[ref dict="[^"]*"\]')
+RE_A_HREF = re.compile(r'<a href="(\w+)">')
+STR_MAIN_ENTRY = 'Main entry:'
+STR_SEE_MAIN_ENTRY = 'See main entry: ↑'
 
 
 class DSLIndex(object):
@@ -72,9 +76,13 @@ class DSLReader(object):
     def __init__(self, filename):
         # self._file = io.TextIOWrapper(io.BufferedReader(io.open(
         #     filename, 'r', encoding='utf-16')))
+        self._filename = filename
         self._file = open(filename, 'r', encoding='utf-16')
         self._index = DSLIndex(self, join('index', basename(filename) + '.index'))
         self._file.seek(0)
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__, self._filename)
 
     def _read_header(self):
         # logging.info('Reading header')
@@ -144,22 +152,38 @@ class DSLReader(object):
 
 def check_reference(dsl_reader, word, article):
     # Special case for articles in En-En-Longman_DOCE5.dsl
-    reference_prefix = 'See main entry: ↑'
-
     text = BeautifulSoup(article, 'html.parser').text
-    if text.startswith(reference_prefix):
-        referenced_word = text[len(reference_prefix):].strip()
-        logging.info('Detected reference from "%s" to "%s"', word, referenced_word)
+    if text.startswith(STR_SEE_MAIN_ENTRY):
+        referenced_word = text[len(STR_SEE_MAIN_ENTRY):].strip()
+        logging.info('Detected reference from "%s" to "%s" (LongmanDOCE5)', word, referenced_word)
         return lookup_word(dsl_reader, referenced_word)
+
+    # Special case for CambridgeAdvancedLearners
+    main_entry_start = article.find(STR_MAIN_ENTRY)
+    if main_entry_start != -1:
+        article_rest = article[main_entry_start + len(STR_MAIN_ENTRY):]
+        match = RE_A_HREF.search(article_rest)
+        if match:
+            referenced_word = match.group(1)
+            if referenced_word != word:
+                logging.info('Detected reference from "%s" to "%s" (CambridgeAdvancedLearners)', word, referenced_word)
+                return lookup_word(dsl_reader, referenced_word)
 
     # Special case for LingvoUniversal
     if len(text) < SHORT_ARTICLE_LENGTH:
         match = RE_SHORT_REFERENCE.search(text)
         if match:
             referenced_word = match.group(1)
-            logging.info('Detected reference from "%s" to "%s"', word, referenced_word)
+            logging.info('Detected reference from "%s" to "%s" (LingvoUniversal)', word, referenced_word)
             return lookup_word(dsl_reader, referenced_word)
 
+    return article
+
+
+def cleanup_article(article):
+    article = article.replace('\t', ' ')
+    article = article.replace('\n', '')
+    article = RE_REF_DICT.sub('', article)
     return article
 
 
@@ -168,9 +192,7 @@ def lookup_word(dsl_reader, word):
     if article is None:
         return None
 
-    article = article.replace('\t', ' ')
-    article = article.replace('\n', '')
-
+    article = cleanup_article(article)
     return check_reference(dsl_reader, word, article)
 
 def main():
