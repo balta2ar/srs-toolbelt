@@ -48,6 +48,7 @@ from .voicetext import VoiceText
 from .wiktionary import Wiktionary
 from .yandex import Yandex
 from .youdao import Youdao
+from .krdictkoreangokr import Krdict
 
 __all__ = [
     # common

@@ -17,7 +17,7 @@ from collections import namedtuple
 from pprint import pformat
 
 
-FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
+FORMAT = '%(asctime)-15s %(levelname)s (%(name)s) %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 
@@ -43,6 +43,7 @@ class WordTable(object):
     the following columns:
     korean_word, russian_word, path_to_file, ...
     """
+
     def _make_entry(self, entry_dict):
         mp3from = join(self._mp3dir, entry_dict['mp3base'])
         mp3tobase = self._copied_prefix + entry_dict['mp3base']
@@ -58,6 +59,7 @@ class ComposedWordTable(WordTable):
     This table can compose several child tables and query them one by one,
     returning result as soon as the first result is available.
     """
+
     def __init__(self, tables):
         self._tables = tables
 
@@ -120,10 +122,11 @@ class HosgeldiWordTable(WordTable):
         for line in codecs.open(filename, 'r', encoding='utf-8').readlines():
             line = line.strip()
             try:
-                korean, russian, id, mp3base, mp3url, image_base, image_url = line.split('\t')
+                korean, russian, id_, mp3base, mp3url, image_base, image_url = line.split(
+                    '\t')
                 self._db.append({'korean': '%s' % korean,
                                  'russian': '%s' % russian,
-                                 'id': id,
+                                 'id': id_,
                                  'mp3base': mp3base,
                                  'mp3url': mp3url,
                                  'image_base': image_base,
@@ -161,6 +164,7 @@ def create_master_table():
     Master table chains 4 audio sources:
         - words from KoreanClass101 site
         - words from Hosgeldi site
+        - words from Naver (pronounced by human, but serviced from Krdict)
         - NaverTTS
         - NeoSpeechTTS
     """
@@ -177,14 +181,19 @@ def create_master_table():
         HOSGELDI_COPIED_PREFIX
     )
 
+    krdict_table = KrdictService()
+    krdict_caching_table = CachingWordTable('cache_krdict', krdict_table)
+
     naver_table = NaverService()
     naver_caching_table = CachingWordTable('tts_cache_naver', naver_table)
 
     neospeech_table = NeoSpeechService()
-    neospeech_caching_table = CachingWordTable('tts_cache_neospeech', neospeech_table)
+    neospeech_caching_table = CachingWordTable(
+        'tts_cache_neospeech', neospeech_table)
 
     return ComposedWordTable([korean_class_table,
                               hosgeldi_table,
+                              krdict_caching_table,
                               naver_caching_table,
                               neospeech_caching_table])
 
@@ -204,11 +213,13 @@ class CachingWordTable(WordTable):
     the result into cache_dir. However, if cache_dir contains audios for
     many words, it can easily become an audio source.
     """
+
     def __init__(self, cache_dir, table):
         super(CachingWordTable, self).__init__()
 
         self._cache_dir = cache_dir
         self._table = table
+        self._logger = logging.getLogger(self.__class__.__name__)
 
     def _mkpath(self, path):
         if not exists(path):
@@ -219,13 +230,17 @@ class CachingWordTable(WordTable):
         filename = join(self._cache_dir, basename)
 
         if not exists(filename):
-            logging.info('Cache miss: %s', value)
+            self._logger.info('Cache miss: %s', value)
             self._mkpath(self._cache_dir)
             results = self._table.lookup(value)
-            result = results[0]
-            copy2(result.mp3from, filename)
+            if results:
+                result = results[0]
+                copy2(result.mp3from, filename)
+            else:
+                self._logger.info('Child table returned None: %s', self._table)
+                return None
         else:
-            logging.info('Cache hit: %s', value)
+            self._logger.info('Cache hit: %s', value)
 
         return [TableEntry(filename, None, basename)]
 
@@ -243,12 +258,9 @@ class NeoSpeechService(WordTable):
             lame_flags=None,
             temp_dir='/tmp'
         )
-        print(neospeech, type(neospeech))
         neospeech.net_reset()
         #value = value.decode('utf-8')
         result = neospeech.run(value, {'voice': 'Jihun'}, 'neo.mp3')
-        print(result)
-        print(value)
         return [TableEntry('neo.mp3', None, 'neo.mp3')]
 
 
@@ -265,33 +277,62 @@ class NaverService(WordTable):
             lame_flags=None,
             temp_dir='/tmp'
         )
-        print(neospeech, type(neospeech))
         neospeech.net_reset()
         #value = value.decode('utf-8')
         result = neospeech.run(value, {'voice': 'ko'}, 'naver.mp3')
-        print(result)
-        print(value)
         return [TableEntry('naver.mp3', None, 'naver.mp3')]
+
+
+class KrdictService(WordTable):
+    """
+    Extractor of audio from https://krdict.korean.go.kr/eng/dicSearch/search?
+    service.
+    """
+    def lookup(self, value):
+        import service
+        logger = logging.getLogger()
+        krdict = service.krdictkoreangokr.Krdict(
+            normalize=None,
+            ecosystem=None,
+            logger=logger,
+            lame_flags=None,
+            temp_dir='/tmp'
+        )
+        krdict.net_reset()
+        #value = value.decode('utf-8')
+        result = krdict.run(value, {'voice': 'ko'}, 'krdict.mp3')
+        if result is not None:
+            return [TableEntry('krdict.mp3', None, 'krdict.mp3')]
+        return None
 
 
 def test_neospeech():
     #word = '색인'
-    word = '종일'
+    import sys
+    print(sys.path)
+    word = '성공적' #'종일'
     import service
     logger = logging.getLogger()
-    neospeech = service.imtranslator.ImTranslator(
-    #neospeech = service.neospeech.NeoSpeech(
-    #neospeech = service.naver.Naver(
+    krdict = service.krdictkoreangokr.Krdict(
         normalize=None,
         ecosystem=None,
         logger=logger,
         lame_flags=None,
-        temp_dir='/tmp'
-    )
-    print(neospeech, type(neospeech))
-    neospeech.net_reset()
+        temp_dir='/tmp')
+    # neospeech = service.imtranslator.ImTranslator(
+    # neospeech = service.neospeech.NeoSpeech(
+    # neospeech = service.naver.Naver(
+    #     normalize=None,
+    #     ecosystem=None,
+    #     logger=logger,
+    #     lame_flags=None,
+    #     temp_dir='/tmp'
+    # )
+    print(krdict, type(krdict))
+    krdict.net_reset()
 
-    result = neospeech.run(word.decode('utf-8'), {'voice': 'VW Yumi', 'speed': 0}, 'im.mp3')
+    result = krdict.run(word.decode('utf-8'),
+                        {'voice': 'VW Yumi', 'speed': 0}, 'krdict.mp3')
     #result = neospeech.run(word.decode('utf-8'), {'voice': 'Jihun'}, 'neo.mp3')
     #result = neospeech.run(word.decode('utf-8'), {'voice': 'ko'}, 'naver.mp3')
     print(result)
@@ -299,7 +340,8 @@ def test_neospeech():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Add audio pronunciation to korean words')
+    parser = argparse.ArgumentParser(
+        description='Add audio pronunciation to korean words')
     parser.add_argument('--dry-run', action='store_true', default=False,
                         help='Do not modify anything')
     parser.add_argument('--num', type=int, default=None,
@@ -379,7 +421,8 @@ def main():
             logging.info('Entry: "%s"', entry)
 
             if not args.dry_run and not exists(entry.mp3to):
-                logging.info('Copying "%s" to "%s"', entry.mp3from, entry.mp3to)
+                logging.info('Copying "%s" to "%s"',
+                             entry.mp3from, entry.mp3to)
                 copy2(entry.mp3from, entry.mp3to)
 
             new_audio_field += '[sound:%s]' % entry.mp3tobase
