@@ -53,6 +53,24 @@ input {
   overflow: visible;
 }
 
+.index_entry {
+  display: inline-block;
+}
+
+.index_img {
+  float: left;
+  width: 10%;
+  margin: 10px 20px 20px 0;
+}
+
+.index_p {
+  margin: 0 0 0 0;
+}
+
+span {
+  margin: 0 0 0 0;
+}
+
 img {
   max-width: 100%;
   height: auto;

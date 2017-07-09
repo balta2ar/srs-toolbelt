@@ -4,6 +4,7 @@ import re
 from os.path import isfile
 from os.path import dirname
 from os import makedirs
+from os import remove
 import json
 import glob
 import logging
@@ -33,6 +34,13 @@ DOWNLOAD_COMMAND = "aria2c -o '%s' '%s'"
 
 def mkpath(filename):
     makedirs(dirname(filename), exist_ok=True)
+
+
+def remove_file(filename):
+    try:
+        remove(filename)
+    except Exception:
+        pass
 
 
 def spit_json(filename, json_data):
@@ -89,24 +97,29 @@ def replay_flow(flow, filename):
     # code.write("print(response.text)")
 
 
+def write_standard_html_header(title, writer):
+    w = writer
+    w('<meta charset="UTF-8">')
+    w('<!doctype html>')
+    w('<html>')
+
+    w('<head>')
+    w('  <meta charset="utf-8">')
+    w('  <meta name="viewport" content="width=device-width, initial-scale=1.0">')
+    w('  <title>%s</title>' % title)
+    w('  <link rel="stylesheet" href="mini.css">')
+    w('</head>')
+
+
 def write_episode_script(filename, episode_json):
     with open(filename, 'w', encoding='utf8') as file_:
         def w(msg):
             file_.write(msg)
             file_.write('\n')
 
-        w('<meta charset="UTF-8">')
-        w('<!doctype html>')
-        w('<html>')
-
         title = 'Channel {channelNo} ({channelId}): {channelName} -' \
             ' Episode {episodeNo}: {episodeTitle}'.format_map(episode_json)
-        w('<head>')
-        w('  <meta charset="utf-8">')
-        w('  <meta name="viewport" content="width=device-width, initial-scale=1.0">')
-        w('  <title>%s</title>' % title)
-        w('  <link rel="stylesheet" href="mini.css">')
-        w('</head>')
+        write_standard_html_header(title, w)
 
         duration = int(episode_json['playTime'] / 60.)
         date = datetime.datetime.utcfromtimestamp(
@@ -254,3 +267,45 @@ def generate_html(json_wildcard):
         script_filename = './audioclip-naver-ripped/channels-%s-episodes-%s-script.html' % (
             match.group(1), match.group(2))
         write_episode_script(script_filename, episode_json)
+
+
+def generate_index(json_wildcard):
+    init_logging(None)
+    index_filename = './audioclip-naver-ripped/index.html'
+
+    def w(line):
+        append_to_file(index_filename, line)
+
+    remove_file(index_filename)
+    write_standard_html_header('Index', w)
+    w('<body>')
+    filenames = sorted(glob.glob(json_wildcard),
+                       key=lambda x: int(re.sub(r'\D', '', x)))
+    for filename in filenames:
+        _logger.info('Adding to index %s', filename)
+        episode_json = slurp_json(filename)
+        match = RX_CHANNELS_EPISODES_DESCRIPTION_FILENAME.search(filename)
+
+        script_filename = 'channels-%s-episodes-%s-script.html' % (
+            match.group(1), match.group(2))
+
+        duration = int(episode_json['playTime'] / 60.)
+        date = datetime.datetime.utcfromtimestamp(
+            int(episode_json['approvalTimestamp'] / 1e3))
+        date = date.strftime('%Y-%m-%d %H:%M:%S')
+        img_url = 'channels-{channelNo}-episodes-{episodeNo}-image.jpg'.format_map(episode_json)
+
+        # w('  <h1>Channel {channelNo} ({channelId}): {channelName}</h1>'.format_map(episode_json))
+        w('<div class="index_entry">')
+        w('  <a href="%s"><img class="index_img" src="%s"/></a>' % (script_filename, img_url))
+        w('  <p class="index_p">Episode {episodeNo}: {episodeTitle}'.format_map(episode_json))
+        # w('      <p>Description: {description}</p>'.format_map(episode_json))
+        w('  <br><span>Date: %s</span>' % date)
+        w('  <br><span>Duration: %s minutes</span></p>' % duration)
+        w('</div>')
+        w('<hr>')
+        w('')
+
+        # write_episode_script(script_filename, episode_json)
+        # break
+    w('</body></html>')
