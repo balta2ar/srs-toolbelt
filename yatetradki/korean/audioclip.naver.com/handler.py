@@ -225,10 +225,6 @@ class RequestHandler:
             match.group(1), match.group(2))
         download_episode_audio(audio_filename, episode_json, self._download)
 
-        image_filename = './audioclip-naver-ripped/channels-%s-episodes-%s-image.jpg' % (
-            match.group(1), match.group(2))
-        download_episode_image(image_filename, episode_json)
-
     def handle_channels_episodes_description(self, match, flow):
         _logger.info('handle_channels_episodes_description %s', match)
         filename = './audioclip-naver-ripped/channels-%s-episodes-%s-description-response.json' % (
@@ -238,6 +234,10 @@ class RequestHandler:
         script_filename = './audioclip-naver-ripped/channels-%s-episodes-%s-script.html' % (
             match.group(1), match.group(2))
         write_episode_script(script_filename, episode_json)
+
+        image_filename = './audioclip-naver-ripped/channels-%s-episodes-%s-image.jpg' % (
+            match.group(1), match.group(2))
+        download_episode_image(image_filename, episode_json)
 
 
 def init_logging(filename):
