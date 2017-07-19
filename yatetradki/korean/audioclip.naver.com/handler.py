@@ -1,7 +1,7 @@
 # vim: set fileencoding=utf8 :
 
 import re
-from os.path import isfile
+# from os.path import isfile
 from os.path import dirname
 from os import makedirs
 from os import remove
@@ -9,10 +9,12 @@ import json
 import glob
 import logging
 import datetime
-
 import requests
 
+from downloader import ThreadedDownloader
+
 _logger = logging.getLogger('handler')
+
 
 # Sample URLs
 #    GET https://apis.naver.com/audioclip/audioclip/channels/57?msgpad=1499603266060&md=C9Z86rOcx0eikSqQ36LNdpq3uxk%3D HTTP/2.0
@@ -29,7 +31,7 @@ RX_CHANNELS_EPISODES = re.compile(r'audioclip/channels/(\d+)/episodes\?')
 RX_CHANNELS_EPISODES_AUDIO = re.compile(r'audioclip/channels/(\d+)/episodes/(\d+)/audio\?')
 RX_CHANNELS_EPISODES_DESCRIPTION = re.compile(r'audioclip/channels/(\d+)/episodes/(\d+)\?')
 RX_CHANNELS_EPISODES_DESCRIPTION_FILENAME = re.compile(r'channels-(\d+)-episodes-(\d+)')
-DOWNLOAD_COMMAND = "aria2c -o '%s' '%s'"
+DOWNLOAD_COMMAND = "aria2c --continue=true -o '%s' '%s'"
 
 
 def mkpath(filename):
@@ -168,24 +170,14 @@ def append_to_file(filename, line):
 #         file_.write(response.text)
 
 
-def download_episode_image(image_filename, episode_json):
-    line = DOWNLOAD_COMMAND % (image_filename, episode_json['imageUrl'])
-    append_to_file('download_images.sh', line)
-
-
-def download_episode_audio(filename, episode_json, downloader):
-    url = None
-    bitrate = None
-    for info in episode_json['audioPlayUrlInfos']:
-        current_bitrate = get_bitrate(info['encodingOptionId'])
-        if bitrate is None or current_bitrate > bitrate:
-            url = get_url_of_type('download', info['urls'])
-            bitrate = current_bitrate
-    downloader(filename, url)
+def log_download(commands_filename, filename, url):
+    line = DOWNLOAD_COMMAND % (filename, url)
+    append_to_file(commands_filename, line)
 
 
 class RequestHandler:
-    _DOWNLOAD_COMMANDS_FILENAME = 'download.sh'
+    def __init__(self):
+        self._downloader = ThreadedDownloader(_logger)
 
     def _match(self, request_path, flow, rx, handler):
         match = rx.search(request_path)
@@ -194,10 +186,20 @@ class RequestHandler:
             return True
         return False
 
-    def _download(self, filename, url):
-        _logger.info('Downloading episode audio %s to filename %s', url, filename)
-        line = DOWNLOAD_COMMAND % (filename, url)
-        append_to_file(RequestHandler._DOWNLOAD_COMMANDS_FILENAME, line)
+    def _download(self, commands_filename, filename, url):
+        _logger.info('Downloading URL "%s" to filename "%s"', url, filename)
+        log_download(commands_filename, filename, url)
+        self._downloader.add(filename, url)
+
+    def _get_audio_url(self, episode_json):
+        url = None
+        bitrate = None
+        for info in episode_json['audioPlayUrlInfos']:
+            current_bitrate = get_bitrate(info['encodingOptionId'])
+            if bitrate is None or current_bitrate > bitrate:
+                url = get_url_of_type('download', info['urls'])
+                bitrate = current_bitrate
+        return url
 
     def __call__(self, request_path, flow):
         self._match(request_path, flow, RX_CHANNELS, self.handle_channels)
@@ -223,7 +225,8 @@ class RequestHandler:
 
         audio_filename = './audioclip-naver-ripped/channels-%s-episodes-%s-audio.mp4' % (
             match.group(1), match.group(2))
-        download_episode_audio(audio_filename, episode_json, self._download)
+        audio_url = self._get_audio_url(episode_json)
+        self._download('download.sh', audio_filename, audio_url)
 
     def handle_channels_episodes_description(self, match, flow):
         _logger.info('handle_channels_episodes_description %s', match)
@@ -237,7 +240,7 @@ class RequestHandler:
 
         image_filename = './audioclip-naver-ripped/channels-%s-episodes-%s-image.jpg' % (
             match.group(1), match.group(2))
-        download_episode_image(image_filename, episode_json)
+        self._download('download_images.sh', image_filename, episode_json['imageUrl'])
 
 
 def init_logging(filename):
@@ -255,7 +258,7 @@ def download_images(json_wildcard):
         match = RX_CHANNELS_EPISODES_DESCRIPTION_FILENAME.search(filename)
         image_filename = './audioclip-naver-ripped/channels-%s-episodes-%s-image.jpg' % (
             match.group(1), match.group(2))
-        download_episode_image(image_filename, episode_json)
+        log_download('download_images.sh', image_filename, episode_json['imageUrl'])
 
 
 def generate_html(json_wildcard):
