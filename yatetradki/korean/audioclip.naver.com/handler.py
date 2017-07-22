@@ -139,7 +139,7 @@ def write_episode_script(filename, episode_json):
 
         for chapter in episode_json['chapters']:
             w('        <h3>Chapter {chapterNo}: {chapterTitle}</h3>'.format_map(chapter))
-            for section in chapter['sections']:
+            for section in chapter.get('sections', []):
                 for line in section['description'].splitlines():
                     line = line.strip()
                     if line:
