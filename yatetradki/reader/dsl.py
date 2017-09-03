@@ -32,8 +32,8 @@ class DSLIndex(object):
         if exists(filename):
             with open(filename, 'rb') as index_file:
                 self._index = pickle.load(index_file)
-            logging.info('Loaded %d entries from index file (%s)',
-                         len(self._index), filename)
+            # logging.info('Loaded %d entries from index file (%s)',
+            #              len(self._index), filename)
         else:
             logging.info('Indexing to file %s', filename)
 

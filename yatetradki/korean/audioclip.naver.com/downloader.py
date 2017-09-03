@@ -41,8 +41,10 @@ def main():
     _downloader = ThreadedDownloader(_logger)
 
     url = "https://ssl.phinf.net/audio/20161024_154/1477296007608SF5kK_JPEG/%B0%A3%B4%DC%C8%F7%BA%B8%B4%C2%C7%D1%B1%B9%C0%C7%C1%F6%B8%AE.jpeg"
-    filename = "./audioclip-naver-ripped/channels-57-episodes-129-image.jpg"
+    filename = "./test/1.jpg"
     _downloader.add(filename, url)
+    _downloader.add("./test/2.jpg", url)
+    _downloader.add("./test/3.jpg", url)
     _downloader.join()
     _logger.info('Leaving')
 
