@@ -10,6 +10,12 @@ from os import getcwd
 import sys
 import argparse
 
+import logging
+logging.basicConfig(format='%(asctime)s %(levelname)s: (%(name)s) %(message)s',
+                    level=logging.INFO)
+_logger = logging.getLogger('load_from_csv')
+
+
 sys.path.insert(0, '/usr/share/anki')
 
 from anki import Collection
@@ -27,7 +33,7 @@ if __name__ == '__main__':
         default=False, action='store_true')
     args = parser.parse_args()
     args.fields = args.fields.split(',')
-    print(args)
+    _logger.info('Args: %s', args)
 
     cwd = getcwd()
     col = Collection(COLLECTION, log=True)
@@ -49,12 +55,12 @@ if __name__ == '__main__':
         # continue
 
         if found_notes:
-            print('Duplicate notes (%s) for word %s: %s' % (
-                len(found_notes), word, found_notes))
+            _logger.info('Duplicate notes (%s) for word %s: %s',
+                len(found_notes), word, found_notes)
             if not args.update:
-                print('Skipping word %s' % word)
+                _logger.info('Skipping word %s', word)
                 continue
-            print('Updating note %s' % found_notes[0])
+            _logger.info('Updating note %s', found_notes[0])
             note = col.getNote(found_notes[0])
         else:
             note = col.newNote()
@@ -69,9 +75,9 @@ if __name__ == '__main__':
             note.fields[args.fields.index(field)] = value
 
         if found_notes:
-            print('Updated: %s' % word)
+            _logger.info('Updated: %s', word)
         else:
             col.addNote(note)
-            print('Added: %s' % word)
+            _logger.info('Added: %s', word)
 
         col.save()
