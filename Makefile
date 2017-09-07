@@ -11,21 +11,21 @@ PORTUGUESE_DECK = data3/portuguese.tsv
 DSLS =
 DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/ru-en/DSL UTF16LE/Ru-En_Mostitsky_Universal.dsl'
 DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-ru/LingvoUniversalEnRu/LingvoUniversalEnRu.dsl'
-DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
+DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-en/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
 
 PT_DSLS =
 PT_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/por-por/pt/por-por_dic_priberam_an_1_1.dsl'
 PT_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/por-por/pt/UniversalPtRu.dsl'
 PT_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/por-por/pt/UniversalRuPt.dsl'
 
-TEST_DSLS = --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
+TEST_DSLS = --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-en/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
 
 MORE_DSLS =
 MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/ru-en/DSL UTF16LE/Ru-En_Mostitsky_Universal.dsl'
 MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-ru/LingvoUniversalEnRu/LingvoUniversalEnRu.dsl'
-MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/CALD3 for Lingvo/dsl/En-En_Cambridge Advanced Learners Dictionary.dsl'
-MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/MED2 for Lingvo/dsl/En-En_Macmillan English Dictionary.dsl'
-MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
+MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-en/CALD3 for Lingvo/dsl/En-En_Cambridge Advanced Learners Dictionary.dsl'
+MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-en/MED2 for Lingvo/dsl/En-En_Macmillan English Dictionary.dsl'
+MORE_DSLS += --dsl '/mnt/big_ntfs/distrib/lang/dictionaries/en-en/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
 
 SAT_WORDS = data3/sat-words.txt
 SAT_DECK = data3/sat-words.tsv
