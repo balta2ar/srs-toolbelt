@@ -3,6 +3,7 @@
 from os import makedirs
 from os.path import exists, basename, dirname, join
 import re
+from sys import stderr
 import logging
 import pickle
 import fileinput
@@ -20,8 +21,11 @@ SHORT_ARTICLE_LENGTH = 60
 RE_SHORT_REFERENCE = re.compile(r'= (\w+)')
 RE_REF_DICT = re.compile(r'\[ref dict="[^"]*"\]')
 RE_A_HREF = re.compile(r'<a href="(\w+)">')
+RUSSIAN_TRANSLATION = re.compile(u" — [\u0400-\u0500]+")
 STR_MAIN_ENTRY = 'Main entry:'
 STR_SEE_MAIN_ENTRY = 'See main entry: ↑'
+EXAMPLES_PER_DICT = 3
+MAX_ARTICLE_LEN = 100000
 
 
 class DSLIndex(object):
@@ -177,7 +181,7 @@ def check_reference(dsl_reader, word, article):
             logging.info('Detected reference from "%s" to "%s" (LingvoUniversal)', word, referenced_word)
             return lookup_word(dsl_reader, referenced_word)
 
-    return article
+    return article, None
 
 
 def cleanup_article(article):
@@ -187,13 +191,41 @@ def cleanup_article(article):
     return article
 
 
+def strip_russian_translation(text):
+    match = re.search(RUSSIAN_TRANSLATION, text)
+    if match is not None:
+        text = text[:match.start(0)]
+    return text
+
+
+def extract_examples(article):
+    result = []
+    soup = BeautifulSoup(article, 'html.parser')
+    for tag in ('div', 'span'):
+        for element in soup.findAll(tag, class_='sec ex'):
+            text = strip_russian_translation(element.text.strip())
+            if text:
+                result.append(text)
+    return result
+
+
 def lookup_word(dsl_reader, word):
     article = dsl_reader.lookup(word)
     if article is None:
-        return None
+        return None, None
 
     article = cleanup_article(article)
-    return check_reference(dsl_reader, word, article)
+    article, _examples = check_reference(dsl_reader, word, article)
+
+    # print(dsl_reader, file=stderr)
+    # print(article, file=stderr)
+    # print('----------------', file=stderr)
+    examples = None
+    if article is not None:
+        examples = extract_examples(article)
+    # print('EXAMPLES', examples, file=stderr)
+
+    return article, examples
 
 def main():
     parser = ArgumentParser('Extract word articles from a DSL file')
@@ -211,14 +243,22 @@ def main():
     for word in fileinput.input('-'):
         found = 0
         articles = []
+        examples = []
         word = word.strip()
         for dsl_reader in dsl_readers:
-            article = lookup_word(dsl_reader, word)
+            article, current_examples = lookup_word(dsl_reader, word)
             if article is not None:
                 articles.append(article)
+                examples.extend(current_examples[:EXAMPLES_PER_DICT])
                 found = 1
         if found:
-            print('%s\t%s' % (word, '<br>'.join(articles)))
+            articles = '<br>'.join(articles)
+            articles = articles[:MAX_ARTICLE_LEN]
+            examples = ''.join(['<li>%s</li>' % ex for ex in examples])
+            if examples:
+                examples = '<ul>%s</ul>' % examples
+            print('%s\t%s\t%s' % (word, examples, articles))
+            #print(examples, file=stderr)
             words_found += 1
         else:
             words_missing += 1

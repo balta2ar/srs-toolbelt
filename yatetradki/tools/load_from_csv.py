@@ -19,56 +19,9 @@ _logger = logging.getLogger('load_from_csv')
 sys.path.insert(0, '/usr/share/anki')
 
 from anki import Collection
+from yatetradki.tools.audio import get_pronunciation_call
 
 COLLECTION = '/home/bz/Documents/Anki/bz/collection.anki2'
-
-
-def get_pronunciation(text):
-    import sip
-    sip.setapi('QString', 2)
-    sip.setapi('QVariant', 2)
-    sip.setapi('QUrl', 2)
-
-    from PyQt4.QtGui import QApplication
-    from PyQt4.QtCore import QTimer
-    sound_path = [None]
-    app = QApplication([])
-
-    def fake_awesometts():
-        class FakeAddons(object):
-            def GetAddons(self):
-                return []
-            GetAddons.__bases__ = [object]
-
-        import aqt
-        aqt.addons = FakeAddons()
-
-        sys.path.insert(0, expanduser('~/Documents/Anki/addons'))
-        import awesometts
-
-        #text = 'furfurfur'
-        # text = 'smear'
-        group = {u'presets': [u'Howjsay (en)', u'Oxford Dictionary (en-US)', u'Collins (en)', u'Google Translate (en-US)', u'Baidu Translate (en)', u'ImTranslator (VW Paul)'], u'mode': u'ordered'}
-        presets = {u'ImTranslator (VW Paul)': {u'voice': u'VW Paul', u'speed': 0, u'service': u'imtranslator'}, u'Linguatec (ko, Sora)': {u'voice': u'Sora', u'service': u'linguatec'}, u'Collins (en)': {u'voice': u'en', u'service': u'collins'}, u'NeoSpeech (ko, Jihun)': {u'voice': u'Jihun', u'service': u'neospeech'}, u'Baidu Translate (en)': {u'voice': u'en', u'service': u'baidu'}, u'Google Translate (en-US)': {u'voice': u'en-US', u'service': u'google'}, u'Acapela Group (ko, Minji)': {u'voice': u'Minji', u'service': u'acapela'}, u'ImTranslator (ko, VW Yumi)': {u'voice': u'VW Yumi', u'speed': 0, u'service': u'imtranslator'}, u'Howjsay (en)': {u'voice': u'en', u'service': u'howjsay'}, u'Oxford Dictionary (en-US)': {u'voice': u'en-US', u'service': u'oxford'}, u'NAVER Translate (ko)': {u'voice': u'ko', u'service': u'naver'}}
-        def on_okay(path):
-            sound_path[0] = path
-            app.quit()
-        def on_fail(path):
-            app.quit()
-        callbacks = {
-            'okay': on_okay,
-            'fail': on_fail,
-        } #{'fail': <function fail at 0x7fe53b8aa668>, 'then': <function <lambda> at 0x7fe53b8aa758>, 'done': <function done at 0x7fe55084fed8>, 'okay': <function okay at 0x7fe550afa758>, 'miss': <function miss at 0x7fe53b8aa6e0>}
-        want_human = False
-        note = None # <anki.notes.Note object at 0x7fe550871990>
-
-        awesometts.router._logger = _logger
-        awesometts.router.group(text, group, presets, callbacks, want_human, note)
-
-    # fake_awesometts()
-    QTimer.singleShot(1, fake_awesometts)
-    app.exec_()
-    return sound_path[0]
 
 
 def main():
@@ -95,7 +48,7 @@ def main():
     query_template = 'deck:%s note:%s word:%s'
 
     for line in io.open(join(cwd, args.csv), encoding='utf8'):
-        word, meaning = line.split('\t')
+        word, example, meaning = line.split('\t')
         query = query_template % (args.deck, args.model, word)
         found_notes = col.findNotes(query)
         # import ipdb; ipdb.set_trace()
@@ -116,11 +69,15 @@ def main():
 
         fields = {
             'Word': word,
+            'Example': example,
             'Description': meaning,
         }
 
-        audio = get_pronunciation(word)
-        if audio is not None:
+        audio = get_pronunciation_call(word)
+        if audio is None:
+            _logger.warning('Could not add audio for word %s', word)
+        else:
+            _logger.info('Adding audio for word %s: %s', word, audio)
             col.media.addFile(audio)
             fields['Audio'] = '[sound:%s]' % basename(audio)
 
