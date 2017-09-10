@@ -69,12 +69,17 @@ def get_pronunciation_call(text):
     error-prone as all that Qt machinery is reinitialized each time.
     """
     proc = Popen(['python2', __file__], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
-    outs, errs = proc.communicate(input='%s\n' % text)
+    data = '%s\n' % text
+    outs, errs = proc.communicate(input=data.encode('utf8'))
     result = outs.strip().decode('utf8')
+    print('pronunciation audio', result)
     return result if result else None
 
 
 def main():
+    import sys
+    reload(sys)
+    sys.setdefaultencoding('utf8')
     for line in fileinput.input():
         print(get_pronunciation(line))
 

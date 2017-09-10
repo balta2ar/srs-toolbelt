@@ -102,7 +102,7 @@ class KoreanClass101WordTable(WordTable):
                    and '_' not in entry['mp3base']]
 
         uniq_sizes = {getsize(join(self._mp3dir, entry['mp3base'])): entry
-                      for entry in results}
+                      for entry in results if exists(join(self._mp3dir, entry['mp3base']))}
 
         uniq_results = list(uniq_sizes.values())
 
@@ -141,7 +141,7 @@ class HosgeldiWordTable(WordTable):
                    if entry['korean'] == value]
 
         uniq_sizes = {getsize(join(self._mp3dir, entry['mp3base'])): entry
-                      for entry in results}
+                      for entry in results if exists(join(self._mp3dir, entry['mp3base']))}
 
         uniq_results = list(uniq_sizes.values())
 
