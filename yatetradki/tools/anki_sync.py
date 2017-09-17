@@ -7,6 +7,7 @@ Run as follows:
     PYTHONPATH=/usr/share/anki xvfb-run python2 anki_sync.py
 
 """
+import time
 import sys
 sys.path.insert(0, '/usr/share/anki')
 
@@ -16,6 +17,7 @@ from aqt import AnkiApp, setupLang
 
 
 def main(delay):
+    from PyQt4.QtCore import QTimer
     app = AnkiApp(sys.argv)
     QCoreApplication.setApplicationName("Anki")
 
@@ -26,6 +28,8 @@ def main(delay):
     from aqt.profiles import ProfileManager
     pm = ProfileManager('', '')
     setupLang(pm, app)
+    pm.load('bz')
+    pm.profile['autoSync'] = True
     pm.ensureProfile()
 
     def dummy(*args, **kwargs):
@@ -42,9 +46,11 @@ def main(delay):
 
     def handler():
         if mw.state == 'sync':
+            # print('state sync')
             set_timer()
             return
         else:
+            # print('state NOT sync')
             mw.onClose()
             mw.close()
             app.closeAllWindows()
@@ -56,8 +62,19 @@ def main(delay):
         timer.connect(timer, SIGNAL('timeout()'), handler)
         timer.start(delay)
 
-    set_timer()
+    def start_sync():
+        # print('timer start_sync')
+        mw.onSync(auto=True)
 
+    set_timer()
+    QTimer.singleShot(5000, start_sync)
+
+    # print(dir(mw))
+    #print('executing app')
+    #mw.setupProgress()
+    #mw.progress.start(immediate=True)
+    #mw.progress._lastUpdate = time.time()
+    #mw.onSync()
     app.exec_()
 
 

@@ -306,6 +306,28 @@ class KrdictService(WordTable):
         return None
 
 
+def test_krdict():
+
+    import sys
+    print(sys.path)
+    word = '줄이다' #'성공적' #'종일'
+    import service
+    logger = logging.getLogger()
+    krdict = service.krdictkoreangokr.Krdict(
+        normalize=None,
+        ecosystem=None,
+        logger=logger,
+        lame_flags=None,
+        temp_dir='/tmp')
+    print(krdict, type(krdict))
+    krdict.net_reset()
+
+    result = krdict.run(word.decode('utf-8'),
+                        {'voice': 'VW Yumi', 'speed': 0}, 'krdict.mp3')
+    print(result)
+    print(word)
+
+
 def test_neospeech():
     #word = '색인'
     import sys
