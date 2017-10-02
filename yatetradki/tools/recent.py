@@ -9,6 +9,9 @@ sys.path.insert(0, '/usr/share/anki')
 
 from anki import Collection
 
+MIN_COLUMN_WIDTH = 15
+COLUMN_SEPARATOR = ' '
+
 
 COLLECTION = '/home/bz/Documents/Anki/bz/collection.anki2'
 QUERIES_AND_FIELDS = [
@@ -33,6 +36,40 @@ def get_collection():
     return col
 
 
+def columns_fit(total_width, column_width):
+    return int(total_width / column_width)
+
+
+def format_1_columns(lines, maxlen):
+    return '\n'.join(lines)
+
+
+def format_2_columns(lines, maxlen):
+    result = []
+    for a, b in zip(lines[::2], lines[1::2]):
+        result.append('%s %s' % (a.ljust(maxlen, COLUMN_SEPARATOR), b))
+    return '\n'.join(result)
+
+
+def format_3_columns(lines, maxlen):
+    result = []
+    for a, b, c in zip(lines[::3], lines[1::3], lines[2::3]):
+        result.append('%s %s %s' % (a.ljust(maxlen, COLUMN_SEPARATOR),
+                                    b.ljust(maxlen, COLUMN_SEPARATOR),
+                                    c))
+    return '\n'.join(result)
+
+
+def format_4_columns(lines, maxlen):
+    result = []
+    for a, b, c, d in zip(lines[::4], lines[1::4], lines[2::4], lines[3::4]):
+        result.append('%s %s %s %s' % (a.ljust(maxlen, COLUMN_SEPARATOR),
+                                       b.ljust(maxlen, COLUMN_SEPARATOR),
+                                       c.ljust(maxlen, COLUMN_SEPARATOR),
+                                       d))
+    return '\n'.join(result)
+
+
 def show_recent(col, query, field):
     ids = col.findCards(query)
     words = []
@@ -40,17 +77,30 @@ def show_recent(col, query, field):
         card = col.getCard(id)
         note = col.getNote(card.nid)
         words.append(note[field])
-    return '\n'.join(words)
+    return words
+    #return '\n'.join(words)
 
 
 def show_recent_from_collection():
     col = Collection(COLLECTION)
     for query, field in QUERIES_AND_FIELDS:
-        output = show_recent(col, query, field)
-        if output:
-            print('>>> %s (%s):' % (query, field))
-            print(output)
-            print('')
+        header = '>>> %s (%s)' % (query, field)
+        words = sorted(show_recent(col, query, field))
+        if words:
+            maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
+            fit = columns_fit(len(header), maxlen)
+            # print(len(header), maxlen, fit)
+
+            if fit >= 4:
+                body = format_4_columns(words, maxlen)
+            elif fit >= 3:
+                body = format_3_columns(words, maxlen)
+            elif fit >= 2:
+                body = format_2_columns(words, maxlen)
+            else:
+                body = format_1_columns(words, maxlen)
+            message = '%s\n%s\n\n' % (header, body)
+            print(message.encode('utf8'))
 
 
 def main():
