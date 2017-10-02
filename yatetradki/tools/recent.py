@@ -70,6 +70,17 @@ def format_4_columns(lines, maxlen):
     return '\n'.join(result)
 
 
+def format_5_columns(lines, maxlen):
+    result = []
+    for a, b, c, d, e in zip(lines[::5], lines[1::5], lines[2::5], lines[3::5], lines[4::5]):
+        result.append('%s %s %s %s %s' % (a.ljust(maxlen, COLUMN_SEPARATOR),
+                                          b.ljust(maxlen, COLUMN_SEPARATOR),
+                                          c.ljust(maxlen, COLUMN_SEPARATOR),
+                                          d.ljust(maxlen, COLUMN_SEPARATOR),
+                                          e))
+    return '\n'.join(result)
+
+
 def show_recent(col, query, field):
     ids = col.findCards(query)
     words = []
@@ -83,15 +94,18 @@ def show_recent(col, query, field):
 
 def show_recent_from_collection():
     col = Collection(COLLECTION)
+    padding = ' ' * 30
     for query, field in QUERIES_AND_FIELDS:
-        header = '>>> %s (%s)' % (query, field)
+        header = '>>> %s (%s)%s' % (query, field, padding)
         words = sorted(show_recent(col, query, field))
         if words:
             maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
             fit = columns_fit(len(header), maxlen)
             # print(len(header), maxlen, fit)
 
-            if fit >= 4:
+            if fit >= 5:
+                body = format_5_columns(words, maxlen)
+            elif fit >= 4:
                 body = format_4_columns(words, maxlen)
             elif fit >= 3:
                 body = format_3_columns(words, maxlen)
@@ -99,7 +113,7 @@ def show_recent_from_collection():
                 body = format_2_columns(words, maxlen)
             else:
                 body = format_1_columns(words, maxlen)
-            message = '%s\n%s\n\n' % (header, body)
+            message = '%s\n%s\n' % (header, body)
             print(message.encode('utf8'))
 
 
