@@ -9,16 +9,19 @@ sys.path.insert(0, '/usr/share/anki')
 
 from anki import Collection
 
-MIN_COLUMN_WIDTH = 15
+MIN_COLUMN_WIDTH = 10
 COLUMN_SEPARATOR = ' '
 
 
 COLLECTION = '/home/bz/Documents/Anki/bz/collection.anki2'
 QUERIES_AND_FIELDS = [
+    # ('deck:english::english-for-students rated:7:2', 'Word'),
     ('deck:english::englishclub-phrasal-verbs rated:7:2', 'Word'),
     ('deck:english::idiomconnection rated:7:2', 'Word'),
     ('deck:english::jinja rated:7:2', 'Word'),
     ('deck:english::lingvo-online rated:7:2', 'Word'),
+    ('deck:english::phrases-org-uk rated:7:2', 'Word'),
+    ('deck:english::sat-words rated:7:2', 'Word'),
     ('deck:english::toefl-vocabulary rated:7:2', 'Word'),
     ('deck:english::using-english rated:7:2', 'Word'),
 ]
@@ -40,44 +43,42 @@ def columns_fit(total_width, column_width):
     return int(total_width / column_width)
 
 
-def format_1_columns(lines, maxlen):
-    return '\n'.join(lines)
+# Left for reference
+# def format_6_columns(lines, maxlen):
+#     result = []
+#     for a, b, c, d, e, f in zip(lines[::5], lines[1::6], lines[2::6], lines[3::6], lines[4::6], lines[5::6]):
+#         result.append('%s %s %s %s %s %s' % (a.ljust(maxlen, COLUMN_SEPARATOR),
+#                                              b.ljust(maxlen, COLUMN_SEPARATOR),
+#                                              c.ljust(maxlen, COLUMN_SEPARATOR),
+#                                              d.ljust(maxlen, COLUMN_SEPARATOR),
+#                                              e.ljust(maxlen, COLUMN_SEPARATOR),
+#                                              f))
+#     return '\n'.join(result)
 
 
-def format_2_columns(lines, maxlen):
+def test():
+    lines = ['a', 'b', 'c']
+    print(format_n_columns(lines, 10, 3))
+
+
+def format_n_columns(lines, maxlen, n):
     result = []
-    for a, b in zip(lines[::2], lines[1::2]):
-        result.append('%s %s' % (a.ljust(maxlen, COLUMN_SEPARATOR), b))
-    return '\n'.join(result)
 
+    missing_count = 0
+    if (len(lines) % n) > 0:
+        missing_count = n - (len(lines) % n)
+    lines = lines + [''] * missing_count
 
-def format_3_columns(lines, maxlen):
-    result = []
-    for a, b, c in zip(lines[::3], lines[1::3], lines[2::3]):
-        result.append('%s %s %s' % (a.ljust(maxlen, COLUMN_SEPARATOR),
-                                    b.ljust(maxlen, COLUMN_SEPARATOR),
-                                    c))
-    return '\n'.join(result)
+    zip_parts = []
+    for i in range(n):
+        zip_parts.append(lines[i::n])
 
+    for parts in zip(*zip_parts):
+        strings = ('%s ' * n).strip()
+        ljusted = [part.ljust(maxlen, COLUMN_SEPARATOR) if i+1 != len(parts) else part
+                   for i, part in enumerate(parts)]
+        result.append(strings % tuple(ljusted))
 
-def format_4_columns(lines, maxlen):
-    result = []
-    for a, b, c, d in zip(lines[::4], lines[1::4], lines[2::4], lines[3::4]):
-        result.append('%s %s %s %s' % (a.ljust(maxlen, COLUMN_SEPARATOR),
-                                       b.ljust(maxlen, COLUMN_SEPARATOR),
-                                       c.ljust(maxlen, COLUMN_SEPARATOR),
-                                       d))
-    return '\n'.join(result)
-
-
-def format_5_columns(lines, maxlen):
-    result = []
-    for a, b, c, d, e in zip(lines[::5], lines[1::5], lines[2::5], lines[3::5], lines[4::5]):
-        result.append('%s %s %s %s %s' % (a.ljust(maxlen, COLUMN_SEPARATOR),
-                                          b.ljust(maxlen, COLUMN_SEPARATOR),
-                                          c.ljust(maxlen, COLUMN_SEPARATOR),
-                                          d.ljust(maxlen, COLUMN_SEPARATOR),
-                                          e))
     return '\n'.join(result)
 
 
@@ -88,7 +89,7 @@ def show_recent(col, query, field):
         card = col.getCard(id)
         note = col.getNote(card.nid)
         words.append(note[field])
-    return words
+    return sorted(set(words))
     #return '\n'.join(words)
 
 
@@ -97,22 +98,11 @@ def show_recent_from_collection():
     padding = ' ' * 30
     for query, field in QUERIES_AND_FIELDS:
         header = '>>> %s (%s)%s' % (query, field, padding)
-        words = sorted(show_recent(col, query, field))
+        words = show_recent(col, query, field)
         if words:
             maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
             fit = columns_fit(len(header), maxlen)
-            # print(len(header), maxlen, fit)
-
-            if fit >= 5:
-                body = format_5_columns(words, maxlen)
-            elif fit >= 4:
-                body = format_4_columns(words, maxlen)
-            elif fit >= 3:
-                body = format_3_columns(words, maxlen)
-            elif fit >= 2:
-                body = format_2_columns(words, maxlen)
-            else:
-                body = format_1_columns(words, maxlen)
+            body = format_n_columns(words, maxlen, fit)
             message = '%s\n%s\n' % (header, body)
             print(message.encode('utf8'))
 
