@@ -10,12 +10,13 @@ sys.path.insert(0, '/usr/share/anki')
 from anki import Collection
 
 MIN_COLUMN_WIDTH = 10
+MIN_HEADER_WIDTH = 80
 COLUMN_SEPARATOR = ' '
 
 
 COLLECTION = '/home/bz/Documents/Anki/bz/collection.anki2'
 QUERIES_AND_FIELDS = [
-    # ('deck:english::english-for-students rated:7:2', 'Word'),
+    #('deck:english::english-for-students rated:7:2', 'Word'),
     ('deck:english::englishclub-phrasal-verbs rated:7:2', 'Word'),
     ('deck:english::idiomconnection rated:7:2', 'Word'),
     ('deck:english::jinja rated:7:2', 'Word'),
@@ -93,11 +94,13 @@ def show_recent(col, query, field):
     #return '\n'.join(words)
 
 
-def show_recent_from_collection():
+def show_recent_from_collection(reader):
     col = Collection(COLLECTION)
-    padding = ' ' * 30
-    for query, field in QUERIES_AND_FIELDS:
-        header = '>>> %s (%s)%s' % (query, field, padding)
+    #padding = ' ' * 10
+    for query, field in reader: #QUERIES_AND_FIELDS:
+        #header = '>>> %s (%s)%s' % (query, field, padding)
+        header = '>>> %s (%s)' % (query, field)
+        header = header.ljust(MIN_HEADER_WIDTH, COLUMN_SEPARATOR)
         words = show_recent(col, query, field)
         if words:
             maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
@@ -105,6 +108,13 @@ def show_recent_from_collection():
             body = format_n_columns(words, maxlen, fit)
             message = '%s\n%s\n' % (header, body)
             print(message.encode('utf8'))
+
+
+def read_queries(filename):
+    with open(filename) as file_:
+        for line in file_:
+            parts = line.strip().split('\t')
+            yield parts
 
 
 def main():
@@ -122,7 +132,12 @@ def main():
     # col.decks.select(deckid)
     # from ipdb import set_trace; set_trace()
 
-    show_recent_from_collection()
+    reader = QUERIES_AND_FIELDS
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+        reader = list(read_queries(filename))
+
+    show_recent_from_collection(reader)
 
 
 if __name__ == '__main__':
