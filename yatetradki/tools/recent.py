@@ -2,6 +2,7 @@
 This script displays cards there were answered "Hard" today.
 To be used in conky as a reminder for hard words.
 """
+import os
 import sys
 import argparse
 
@@ -94,13 +95,13 @@ def show_recent(col, query, field):
     #return '\n'.join(words)
 
 
-def show_recent_from_collection(reader):
+def show_recent_from_collection(queries, header_width):
     col = Collection(COLLECTION)
     #padding = ' ' * 10
-    for query, field in reader: #QUERIES_AND_FIELDS:
+    for query, field in queries: #QUERIES_AND_FIELDS:
         #header = '>>> %s (%s)%s' % (query, field, padding)
         header = '>>> %s (%s)' % (query, field)
-        header = header.ljust(MIN_HEADER_WIDTH, COLUMN_SEPARATOR)
+        header = header.ljust(header_width, COLUMN_SEPARATOR)
         words = show_recent(col, query, field)
         if words:
             maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
@@ -117,27 +118,32 @@ def read_queries(filename):
             yield parts
 
 
+def get_terminal_width():
+    rows, columns = os.popen('stty size', 'r').read().split()
+    return int(columns) - 10
+
+
 def main():
-    # parser = argparse.ArgumentParser(description='Extract recent cards from Anki collection')
-    # parser.add_argument('--collection', type=str, required=True,
-    #                     help='Filename of the collection to read (collection.anki2)')
-    # parser.add_argument('--query', type=str, required=True,
-    #                     help='Query that is used to filter cards')
+    parser = argparse.ArgumentParser(description='Show recently studied anki cards')
+    parser.add_argument('--queries', type=str, required=False, default=None,
+                        help='Filename with queries of format: query<tab>field')
+    parser.add_argument('--width', type=int, required=False, default=get_terminal_width(),
+                        help='Minimal header width (words are formatted into columns '
+                        'to fill this width)')
     # parser.add_argument('--field', type=str, required=True,
     #                     help='Field name to print')
-    # args = parser.parse_args()
+    args = parser.parse_args()
 
     # col = Collection(args.collection)
     # deckid = col.decks.id(args.deck_name)
     # col.decks.select(deckid)
     # from ipdb import set_trace; set_trace()
 
-    reader = QUERIES_AND_FIELDS
-    if len(sys.argv) > 1:
-        filename = sys.argv[1]
-        reader = list(read_queries(filename))
+    queries = QUERIES_AND_FIELDS
+    if args.queries:
+        queries = list(read_queries(args.queries))
 
-    show_recent_from_collection(reader)
+    show_recent_from_collection(queries, args.width)
 
 
 if __name__ == '__main__':
