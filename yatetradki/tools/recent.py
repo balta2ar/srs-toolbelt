@@ -127,7 +127,7 @@ def main():
     parser = argparse.ArgumentParser(description='Show recently studied anki cards')
     parser.add_argument('--queries', type=str, required=False, default=None,
                         help='Filename with queries of format: query<tab>field')
-    parser.add_argument('--width', type=int, required=False, default=get_terminal_width(),
+    parser.add_argument('--width', type=int, required=False, default=None,
                         help='Minimal header width (words are formatted into columns '
                         'to fill this width)')
     # parser.add_argument('--field', type=str, required=True,
@@ -143,7 +143,13 @@ def main():
     if args.queries:
         queries = list(read_queries(args.queries))
 
-    show_recent_from_collection(queries, args.width)
+    width = MIN_HEADER_WIDTH
+    if args.width is not None:
+        if args.width > 0:
+            width = args.width
+        else:
+            width = get_terminal_width()
+    show_recent_from_collection(queries, width)
 
 
 if __name__ == '__main__':
