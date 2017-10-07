@@ -37,7 +37,7 @@ def convert_file(filename):
         left, right = '', ''
         for line in file_:
             line = line.strip()
-            if not line:
+            if not line or line.startswith('#'):
                 if left or right:
                     pairs.append('%s\t\t%s' % (left, right))
                     left, right = '', ''
