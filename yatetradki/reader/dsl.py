@@ -21,6 +21,7 @@ SHORT_ARTICLE_LENGTH = 60
 RE_SHORT_REFERENCE = re.compile(r'= (\w+)')
 RE_REF_DICT = re.compile(r'\[ref dict="[^"]*"\]')
 RE_A_HREF = re.compile(r'<a href="(\w+)">')
+RE_SEE_OTHER = re.compile(r'^See (\w+).?$')
 RUSSIAN_TRANSLATION = re.compile(u" — [\u0400-\u0500]+")
 STR_MAIN_ENTRY = 'Main entry:'
 STR_SEE_MAIN_ENTRY = 'See main entry: ↑'
@@ -109,7 +110,8 @@ class DSLReader(object):
             return None, None
         # logging.info('word %s', word.strip())
 
-        article = ['<meta charset="utf-8">']
+        header = ['<meta charset="utf-8">']
+        article = []
         while True:
             pos = self._file.tell()
             line = self._file.readline()
@@ -123,11 +125,15 @@ class DSLReader(object):
                     article.append(line)
                 # logging.info('Append')
             else: # start of the next article
-                self._file.seek(pos)
-                # logging.info('Rewind and break')
-                break
+                if article:
+                    self._file.seek(pos)
+                    # logging.info('Rewind and break')
+                    break
+                # we've just skipped a line and didn't accumulate arcticle
+                # this means we've men an empty word, e.g. 'preeminence'
+                # in En-En_American_Heritage_Dictionary.dsl
 
-        return word.strip(), '\n'.join(article)
+        return word.strip(), '\n'.join(header + article)
 
     def _find_word(self, word):
         while True:
@@ -181,6 +187,14 @@ def check_reference(dsl_reader, word, article):
             logging.info('Detected reference from "%s" to "%s" (LingvoUniversal)', word, referenced_word)
             return lookup_word(dsl_reader, referenced_word)
 
+    # Special case for En-En_American_Heritage_Dictionary.dsl
+    match = RE_SEE_OTHER.search(text)
+    if match:
+        referenced_word = match.group(1)
+        if referenced_word != word:
+            logging.info('Detected reference from "%s" to "%s" (AmericanHeritageDictionary)', word, referenced_word)
+            return lookup_word(dsl_reader, referenced_word)
+
     return article, None
 
 
@@ -214,11 +228,12 @@ def lookup_word(dsl_reader, word):
     if article is None:
         return None, None
 
+    # print(dsl_reader, file=stderr)
+    # print(article, file=stderr)
+
     article = cleanup_article(article)
     article, _examples = check_reference(dsl_reader, word, article)
 
-    # print(dsl_reader, file=stderr)
-    # print(article, file=stderr)
     # print('----------------', file=stderr)
     examples = None
     if article is not None:

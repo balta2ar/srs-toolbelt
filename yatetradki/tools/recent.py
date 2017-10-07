@@ -14,6 +14,13 @@ MIN_COLUMN_WIDTH = 10
 MIN_HEADER_WIDTH = 80
 COLUMN_SEPARATOR = ' '
 
+# rated:n:m
+# n -- number of days back (up to 30)
+# m - one of:
+#   1 - Again
+#   2 - Hard
+#   3 - Normal
+#   4 - Easy
 
 COLLECTION = '/home/bz/Documents/Anki/bz/collection.anki2'
 QUERIES_AND_FIELDS = [
