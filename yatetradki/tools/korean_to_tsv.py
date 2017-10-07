@@ -39,7 +39,7 @@ def convert_file(filename):
             line = line.strip()
             if not line:
                 if left or right:
-                    pairs.append('%s\t%s' % (left, right))
+                    pairs.append('%s\t\t%s' % (left, right))
                     left, right = '', ''
                 continue
 
@@ -49,7 +49,9 @@ def convert_file(filename):
                 right += '<p>' + line + '</p>'
             # print('HANGUL', line, is_hangul(line))
         if left or right:
-            pairs.append('%s\t%s' % (left, right))
+            # One extra \t is for the empty Example field. Fields are:
+            # Word, Example, Description (see KoreanSentenses model in Anki)
+            pairs.append('%s\t\t%s' % (left, right))
     return '\n'.join(pairs)
 
 
