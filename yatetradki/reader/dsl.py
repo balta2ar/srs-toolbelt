@@ -177,7 +177,8 @@ def check_reference(dsl_reader, word, article):
             referenced_word = match.group(1)
             if referenced_word != word:
                 logging.info('Detected reference from "%s" to "%s" (CambridgeAdvancedLearners)', word, referenced_word)
-                return lookup_word(dsl_reader, referenced_word)
+                more_article, more_examples = lookup_word(dsl_reader, referenced_word)
+                return article + more_article, more_examples
 
     # Special case for LingvoUniversal
     if len(text) < SHORT_ARTICLE_LENGTH:
