@@ -185,8 +185,11 @@ def check_reference(dsl_reader, word, article):
         match = RE_SHORT_REFERENCE.search(text)
         if match:
             referenced_word = match.group(1)
-            logging.info('Detected reference from "%s" to "%s" (LingvoUniversal)', word, referenced_word)
-            return lookup_word(dsl_reader, referenced_word)
+            if word == referenced_word:
+                logging.warning('Self reference from "%s" to "%s", skipping (LingvoUniversal)', word, referenced_word)
+            else:
+                logging.info('Detected reference from "%s" to "%s" (LingvoUniversal)', word, referenced_word)
+                return lookup_word(dsl_reader, referenced_word)
 
     # Special case for En-En_American_Heritage_Dictionary.dsl
     match = RE_SEE_OTHER.search(text)

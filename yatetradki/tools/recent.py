@@ -26,13 +26,16 @@ COLLECTION = '/home/bz/Documents/Anki/bz/collection.anki2'
 QUERIES_AND_FIELDS = [
     #('deck:english::english-for-students rated:7:2', 'Word'),
     ('deck:english::englishclub-phrasal-verbs rated:7:2', 'Word'),
-    ('deck:english::idiomconnection rated:7:2', 'Word'),
     ('deck:english::jinja rated:7:2', 'Word'),
     ('deck:english::lingvo-online rated:7:2', 'Word'),
-    ('deck:english::phrases-org-uk rated:7:2', 'Word'),
     ('deck:english::sat-words rated:7:2', 'Word'),
     ('deck:english::toefl-vocabulary rated:7:2', 'Word'),
+    ('deck:english::idiomconnection rated:7:2', 'Word'),
+
     ('deck:english::using-english rated:7:2', 'Word'),
+    ('deck:english::the-idioms rated:7:2', 'Word'),
+    ('deck:english::outcomes-vocabulary rated:7:2', 'Word'),
+    ('deck:english::phrases-org-uk rated:7:2', 'Word'),
 ]
 
 def get_collection():
