@@ -14,6 +14,25 @@ PYTHONPATH=/usr/share/anki:. python2 memrise_server.py
 """
 import logging
 import re
+import os
+
+FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
+logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+
+if os.environ.get('TOR') == '1':
+    logging.info('Using TOR')
+    # pip2 install --user PySocks
+    import socks
+    import socket
+    socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, "127.0.0.1", 9050)
+    socket.socket = socks.socksocket
+
+    import urllib2
+    # print(urllib2.urlopen("http://www.ifconfig.me/ip").read())
+    IP_CHECKER = "http://icanhazip.com"
+    # IP_CHECKER = "http://httpbin.org/ip"
+    logging.info('Current IP: %s', urllib2.urlopen(IP_CHECKER).read().strip())
+
 try:
     from urllib.parse import unquote
 except ImportError:
@@ -24,9 +43,6 @@ from flask import Flask, jsonify
 
 from fill_audio import create_master_table, create_forced_alignment_table
 
-
-FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
-logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 app = Flask(__name__)
 #MASTER_TABLE = create_forced_alignment_table()
