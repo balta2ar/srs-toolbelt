@@ -13,6 +13,7 @@ from .common import Trait
 import re
 from bs4 import BeautifulSoup
 import logging
+from urllib2 import HTTPError
 
 _logger = logging.getLogger(__name__)
 RX_MP3_URL = re.compile(r'http.*mp3')
@@ -171,9 +172,12 @@ class Krdict(Service):
         url = self.extract_audio_url_from_html_response(text, vcode)
 
         if url is not None:
-            self.net_download(
-                path, (url, dict(),),
-                require=dict(mime='audio/mpeg', size=256),
-                custom_quoter=dict(text=_quote_all),)
-            return True
+            try:
+                self.net_download(
+                    path, (url, dict(),),
+                    require=dict(mime='audio/mpeg', size=256),
+                    custom_quoter=dict(text=_quote_all),)
+                return True
+            except HTTPError as e:
+                _logger.error('Could not fetch url %s: %s', url, e)
         return None
