@@ -16,7 +16,7 @@
     /**
      * Display error if an AJAX request fails.
      * @param {string} prefix Prefix to add before the error message.
-     * @param {object} response Problimatic response.
+     * @param {object} response Problematic response.
      */
     function showError(prefix, response) {
         var msg = prefix + ": an error occurred." +
@@ -201,7 +201,25 @@
     }
 
     /**
-     * This function adds two main buttons: Add and Remove.
+     * Find levels and expand/collapse them (toggle, click on them).
+     * @param {levelSelector} string Selector that is used to find levels.
+     * @param {max_levels} int Expand not more than this number of levels.
+     */
+    function toggleExpandCollapseLevels(levelSelector, maxLevels) {
+        // var uncollapsedLevels = document.querySelectorAll('.level:not(.collapsed)');
+        var uncollapsedLevels = document.querySelectorAll(levelSelector);
+        var limit = Math.min(maxLevels, uncollapsedLevels.length);
+
+        for (var i = 0; i < limit; i++) {
+            console.log('expanding: ' + i);
+            var level = uncollapsedLevels[i];
+            var showHideButton = level.getElementsByClassName('show-hide btn btn-small');
+            showHideButton[0].click();
+        }
+    }
+
+    /**
+     * This function adds main buttons: Add, Remove, Expand, Collapse.
      * Add - adds audio to all words on the page that don't have an audio yet.
      * Remove - removes all audios.
      * This function also starts a reoccuring timer events that when fire,
@@ -217,15 +235,31 @@
         var startButton = document.createElement('li');
         startButton.setAttribute('class', 'header-nav-item plain');
         //startButton.innerHTML = 'Add missing audio [bz]';
-        startButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Add ♫</span> </a>';
+        startButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">+♫</span> </a>';
         startButton.addEventListener('click', function(event) { clickAllAddAudioButtons(); } );
         header.appendChild(startButton);
 
         var deleteButton = document.createElement('li');
         deleteButton.setAttribute('class', 'header-nav-item plain');
-        deleteButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">Delete ♫</span> </a>';
+        deleteButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">&ndash;♫</span> </a>';
         deleteButton.addEventListener('click', function(event) { clickAllDeleteButtons(); } );
         header.appendChild(deleteButton);
+
+        var MAX_EXPAND = 5;
+        var SELECTOR_COLLAPSED = '.level.collapsed';
+        var SELECTOR_EXPANDED = '.level:not(.collapsed)';
+
+        var expandButton = document.createElement('li');
+        expandButton.setAttribute('class', 'header-nav-item plain');
+        expandButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">&lt;' + MAX_EXPAND + '&gt;</span> </a>';
+        expandButton.addEventListener('click', function(event) { toggleExpandCollapseLevels(SELECTOR_COLLAPSED, MAX_EXPAND); } );
+        header.appendChild(expandButton);
+
+        var collapseButton = document.createElement('li');
+        collapseButton.setAttribute('class', 'header-nav-item plain');
+        collapseButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">&gt;' + MAX_EXPAND + '&lt;</span> </a>';
+        collapseButton.addEventListener('click', function(event) { toggleExpandCollapseLevels(SELECTOR_EXPANDED, MAX_EXPAND); } );
+        header.appendChild(collapseButton);
 
         //var bulkAddButton = document.createElement('li');
         //bulkAddButton.setAttribute('class', 'header-nav-item plain');
