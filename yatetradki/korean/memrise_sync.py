@@ -6,7 +6,10 @@ text file (--filename).
 import logging
 import netrc
 from time import sleep
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
+from itertools import zip_longest
+from typing import Tuple, List
+# from enum import Enum, auto
 from pprint import pformat
 
 from selenium import webdriver
@@ -18,33 +21,114 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 _logger = logging.getLogger(__name__)
 
 
-def load_file_with_words(filename):
+COMMENT = '@'
+
+
+class WordCollection(OrderedDict):
+    pass
+
+
+WordPair = namedtuple('WordPair', 'word meaning')
+DiffActionDeleteLevel = namedtuple('DiffActionDeleteLevel', 'level_name')
+DiffActionCreateLevel = namedtuple('DiffActionCreateLevel', 'level_name')
+DiffActionDeleteWord = namedtuple('DiffActionDeleteWord', 'level_name pair')
+DiffActionCreateWord = namedtuple('DiffActionCreateWord', 'level_name pair')
+DiffActionChangeLevel = namedtuple('DiffActionChangeLevel',
+                                   'level_name new_level_name')
+DiffActionChangeWord = namedtuple('DiffActionChangeWord',
+                                  'level_name old_pair new_pair')
+
+
+def get_words_difference(level_name: str,
+                         course_level_words: List[WordPair],
+                         file_level_words: List[WordPair]):
+    actions = []
+    for file_pair, course_pair \
+            in zip_longest(file_level_words, course_level_words):
+
+        # Present in file, missing in course
+        if (file_pair is not None) and (course_pair is None):
+            actions.append(DiffActionCreateWord(level_name, file_pair))
+
+        # Missing in file, present in course
+        elif (file_pair is None) and (course_pair is not None):
+            course_word, _course_meaning = course_pair
+            actions.append(DiffActionDeleteWord(
+                level_name, course_word))
+
+        # Equal?
+        elif file_pair != course_pair:
+            actions.append(DiffActionChangeWord(
+                level_name, course_pair, file_pair))
+
+    return actions
+
+
+def get_course_difference(course_words: WordCollection, file_words: WordCollection):
+    actions = []
+    for file_level, course_level in zip_longest(file_words, course_words):
+
+        # Present in file, missing in course
+        if (file_level is not None) and (course_level is None):
+            actions.append(DiffActionCreateLevel(file_level))
+            actions.extend(get_words_difference(
+                file_level,
+                [],
+                file_words[file_level]))
+            continue
+
+        # Missing in file, present in course
+        elif (file_level is None) and (course_level is not None):
+            actions.append(DiffActionDeleteLevel(course_level))
+            continue
+
+        # Present everywhere. Equal?
+        elif file_level != course_level:
+            actions.append(DiffActionChangeLevel(course_level, file_level))
+
+        actions.extend(get_words_difference(
+            file_level,
+            course_words[course_level],
+            file_words[file_level]))
+
+    return actions
+
+
+def load_string_with_words(words_string):
     # key: level name
     # value: [(word, meaning)]
-    words = OrderedDict()
+    words = WordCollection()
     current_level = None
-    with open(filename) as file_:
-        for line in (l.strip() for l in file_.readlines() if l.strip()):
-            if line.startswith('#'):
-                line = line[1:].strip()
-                current_level = line
-                words[current_level] = []
-                continue
+    lines = words_string.split('\n')
+    for line in (l.strip() for l in lines if l.strip()):
+        if line.startswith(COMMENT):
+            continue
 
-            if current_level is None:
-                raise ValueError('Please specify level name before any words')
+        if line.startswith('#'):
+            line = line[1:].strip()
+            current_level = line
+            words[current_level] = []
+            continue
 
-            try:
-                word, meaning = line.split(';', maxsplit=1)
-            except ValueError as e:
-                raise ValueError('Invalid line format, <word>;<meaning> '
-                                 'expected, got %s: %s' % (line, e))
+        if current_level is None:
+            raise ValueError('Please specify level name before any words')
 
-            word = word.strip()
-            meaning = meaning.strip()
-            words[current_level].append((word, meaning))
+        try:
+            word, meaning = line.split(';', maxsplit=1)
+        except ValueError as e:
+            raise ValueError('Invalid line format, <word>;<meaning> '
+                             'expected, got %s: %s' % (line, e))
+
+        word = word.strip()
+        meaning = meaning.strip()
+        words[current_level].append(WordPair(word, meaning))
 
     return words
+
+
+def load_file_with_words(filename):
+    with open(filename) as file_:
+        return load_string_with_words(file_.read())
 
 
 def read_credentials_from_netrc():
@@ -93,13 +177,14 @@ class MemriseCourseSyncer:
             if level.collapsed:
                 level.show_hide()
 
+    @property
     def _file_words(self):
         return load_file_with_words(self._filename)
 
     @property
     def _course_words(self):
-        return OrderedDict([(level.name, level.words)
-                             for level in self._levels])
+        return WordCollection([(level.name, level.words)
+                              for level in self._levels])
 
     def _load_course(self):
         self._driver.get(self._course_url)
@@ -110,23 +195,32 @@ class MemriseCourseSyncer:
         sleep(2.0)
 
         self._levels = Level.load_all(self._driver)
-        for i, level in enumerate(self._levels):
-            _logger.info('Level %s name "%s"', level.name, i)
-            level.name = 'level_%s' % i
-            _logger.info('Level %s name %s', level.name, i)
+        # for i, level in enumerate(self._levels):
+        #     _logger.info('Level %s name "%s"', level.name, i)
+        #     level.name = 'level_%s' % i
+        #     _logger.info('Level %s name %s', level.name, i)
 
         # Expand non-exanded levels
         # Find current level names
         # For each level find all words
 
+    def _apply_diff_actions(self, diff_actions):
+        pass
+
     def sync(self):
-        words = self._file_words()
+        words = self._file_words
         _logger.info(pformat(words))
 
         username, password = read_credentials_from_netrc()
         self._login(username, password)
 
         self._load_course()
+        diff_actions = get_course_difference(
+            self._course_words,
+            self._file_words)
+        _logger.info('Applying difference: %s', diff_actions)
+
+        self._apply_diff_actions(diff_actions)
 
         # return self._driver
 
@@ -196,7 +290,7 @@ class Level:
 
 def interactive():
     url = 'https://www.memrise.com/course/1776472/bz-testing-course/edit/'
-    filename = './testsync.txt'
+    filename = './sample.txt'
     syncer = MemriseCourseSyncer(url, filename)
     _logger.info('Starting sync...')
     syncer.sync()
