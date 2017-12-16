@@ -15,6 +15,10 @@ from pprint import pformat
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
+# from selenium.webdriver.common.by import By
+# from selenium.webdriver.support.ui import WebDriverWait
+# from selenium.webdriver.support import expected_conditions as EC
 
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
@@ -27,6 +31,11 @@ MARK_LEVEL_NAME = '#'
 UI_LARGE_DELAY = 3.0
 UI_SMALL_DELAY = 1.0
 UI_TINY_DELAY = 0.5
+
+
+def snooze(delay):
+    _logger.info('Sleeping %s', delay)
+    sleep(delay)
 
 
 class WordCollection(OrderedDict):
@@ -146,7 +155,8 @@ def get_modal_dialog_yes(driver):
     return dialog.find_element_by_class_name('btn-yes')
 
 
-# TODO: extract EditableCourse class from Syncer
+# DONE: extract EditableCourse class from Syncer
+# switch from delays to waits on conditions (until clickable, visible)
 # TODO: add ReadonlyCourse class
 class MemriseCourseSyncer:
     MEMRISE_LOGIN_PAGE = 'https://www.memrise.com/login/'
@@ -155,7 +165,7 @@ class MemriseCourseSyncer:
         self._course_url = course_url
         self._filename = filename
         self._driver = webdriver.Chrome()
-        self._driver.implicitly_wait(10)
+        self._driver.implicitly_wait(UI_LARGE_DELAY)
 
         self._course = EditableCourse(course_url, self._driver)
 
@@ -241,6 +251,7 @@ class EditableCourse:
     CLASS_LI = 'li'
     CLASS_DROPDOWN_TOGGLE = 'dropdown-toggle'
     SELECTOR_ADD_LEVEL_MENU = '.btn-group.pull-left'
+    ID_HEADER = 'header'
 
     def __init__(self, course_url, driver):
         self.course_url = course_url
@@ -260,17 +271,32 @@ class EditableCourse:
         level = self.find_level(level_name)
         level.delete_word(word, partial(get_modal_dialog_yes, self._driver))
 
+    def _js_click(self, element):
+        self._driver.execute_script('arguments[0].click();', element)
+
     def create_level(self, level_name):
         add_level_menu = self._driver.find_element_by_css_selector(
             self.SELECTOR_ADD_LEVEL_MENU)
         dropdown_toggle = add_level_menu.find_element_by_class_name(
             self.CLASS_DROPDOWN_TOGGLE)
-        dropdown_toggle.click()
+
+        # self._driver.execute_script(
+            # 'arguments[0].scrollIntoView();', add_level_menu)
+
+        # ActionChains(self._driver).move_to_element(
+            # add_level_menu).click(dropdown_toggle).perform()
+        # self._driver.execute_script('arguments[0].click();', dropdown_toggle)
+        self._js_click(dropdown_toggle)
+        # dropdown_toggle.click()
+        # return
+
+        snooze(UI_TINY_DELAY)
         li = add_level_menu.find_element_by_tag_name(self.CLASS_LI)
-        li.click()
+        # li.click()
+        self._js_click(li)
 
         # Wait a little before request reaches the server and UI updates.
-        sleep(UI_LARGE_DELAY)
+        snooze(UI_LARGE_DELAY)
         self._reload_levels()
         self._levels[-1].name = level_name
 
@@ -285,21 +311,29 @@ class EditableCourse:
     def _expand_all_levels(self):
         for level in self._levels:
             if level.collapsed:
+                _logger.info('Expanding level')
                 level.show_hide()
-                sleep(UI_SMALL_DELAY)
+                snooze(UI_SMALL_DELAY)
 
     @property
     def words(self):
         return WordCollection([(level.name, level.words)
                                for level in self._levels])
 
+    def _remove_header(self):
+        header = self._driver.find_element_by_id(self.ID_HEADER)
+        self._driver.execute_script(
+            'arguments[0].parentNode.removeChild(arguments[0]);', header)
+
     def load(self):
         self._driver.get(self.course_url)
+        self._remove_header()
 
         # input('expand now')
         self._reload_levels()
         self._expand_all_levels()
-        # sleep(UI_LARGE_DELAY)
+        _logger.info('Expanded all')
+        # snooze(UI_LARGE_DELAY)
 
         self._reload_levels()
         # for i, level in enumerate(self._levels):
@@ -330,6 +364,7 @@ class Level:
     CLASS_ADDING = 'adding'
     # This class is used by a row of words
     CLASS_THING = 'thing'
+    CLASS_TEXT = 'text'
     CLASS_LEVEL_ACTIONS = 'level-actions'
     CLASS_BTN = 'btn'
     SELECTOR_SHOW_HIDE = '.show-hide.btn.btn-small'
@@ -375,19 +410,23 @@ class Level:
         self._set_input(input_fields[1], meaning, send_return=False)
         adding.find_element_by_class_name(self.CLASS_ICO_PLUS).click()
 
-        sleep(UI_TINY_DELAY)
+        snooze(UI_TINY_DELAY)
+
+    def _text(self, element):
+        return element.find_element_by_class_name(self.CLASS_TEXT)
 
     def change_word(self, old_word, new_word, new_meaning):
         self.ensure_expanded()
 
         thing = self._find_thing(old_word)
         cells = self._cells(thing)
-        cells[0].click()
+        _logger.info(cells)
+        self._text(cells[0]).click()
         self._set_input(self._get_input(cells[0]), new_word)
-        cells[1].click()
+        self._text(cells[1]).click()
         self._set_input(self._get_input(cells[1]), new_meaning)
 
-        sleep(UI_TINY_DELAY)
+        snooze(UI_TINY_DELAY)
 
     def delete_word(self, word, yes_button_finder):
         self.ensure_expanded()
@@ -396,9 +435,9 @@ class Level:
         thing.find_element_by_class_name(self.CLASS_ICO_CLOSE).click()
         # Delay a little before the dialog pops up (animation).
         # Confirmation dialog shows up slowly, so we need large delay here.
-        sleep(UI_LARGE_DELAY)
+        snooze(UI_LARGE_DELAY)
         yes_button_finder().click()
-        sleep(UI_SMALL_DELAY)
+        snooze(UI_SMALL_DELAY)
 
     @property
     def words(self):
@@ -447,7 +486,7 @@ class Level:
         button = self._element().find_element_by_css_selector(
             self.SELECTOR_SHOW_HIDE)
         button.click()
-        sleep(UI_SMALL_DELAY)
+        snooze(UI_SMALL_DELAY)
 
     def ensure_expanded(self):
         if self.collapsed:
@@ -464,7 +503,7 @@ class Level:
         delete_button.click()
         delete_button.click()
         # Wait for the animation to finish.
-        sleep(UI_LARGE_DELAY)
+        snooze(UI_LARGE_DELAY)
 
 
 def interactive():
