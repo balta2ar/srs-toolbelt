@@ -23,7 +23,8 @@ _logger = logging.getLogger(__name__)
 
 
 COMMENT = '@'
-UI_UPDATE_DELAY = 3.0
+UI_LARGE_DELAY = 3.0
+UI_SMALL_DELAY = 1.0
 
 
 class WordCollection(OrderedDict):
@@ -181,7 +182,7 @@ class MemriseCourseSyncer:
         li.click()
 
         # Wait a little before request reaches the server and UI updates.
-        sleep(UI_UPDATE_DELAY)
+        sleep(UI_LARGE_DELAY)
         self._reload_levels()
         self._levels[-1].name = level_name
 
@@ -286,9 +287,7 @@ class MemriseCourseSyncer:
         _logger.info('Applying difference: %s', diff_actions)
 
         # self._apply_diff_actions(diff_actions)
-
         # return self._driver
-
         # input('wait')
 
 class Level:
@@ -347,7 +346,7 @@ class Level:
         thing = self._find_thing(word)
         thing.find_element_by_class_name(self.CLASS_ICO_CLOSE).click()
         # Delay a little before the dialog pops up (animation)
-        sleep(UI_UPDATE_DELAY)
+        sleep(UI_LARGE_DELAY)
         yes_button_finder().click()
 
     def change_word(self, old_word, new_word, new_meaning):
@@ -362,6 +361,7 @@ class Level:
         button = self._element().find_element_by_css_selector(
             self.SELECTOR_SHOW_HIDE)
         button.click()
+        sleep(UI_SMALL_DELAY)
 
     @property
     def words(self):
@@ -388,20 +388,19 @@ class Level:
 
     @property
     def name(self):
-        name = self._element().find_element_by_class_name(self.CLASS_LEVEL_NAME)
+        name = self._element().find_element_by_class_name(
+            self.CLASS_LEVEL_NAME).text
         return name.text
 
     @name.setter
     def name(self, value):
-        name = self._element().find_element_by_class_name(self.CLASS_LEVEL_NAME)
+        name = self._element().find_element_by_class_name(
+            self.CLASS_LEVEL_NAME)
         name.click()
 
-        name = self._element().find_element_by_class_name(self.CLASS_LEVEL_NAME)
+        name = self._element().find_element_by_class_name(
+            self.CLASS_LEVEL_NAME)
         self._set_input(self._get_input(name), value)
-        # input_field = self._get_input(name)
-        # input_field.clear()
-        # input_field.send_keys(value)
-        # input_field.send_keys(Keys.RETURN)
 
     @property
     def collapsed(self):
@@ -419,7 +418,7 @@ class Level:
         delete_button.click()
         delete_button.click()
         # Wait for the animation to finish.
-        sleep(UI_UPDATE_DELAY)
+        sleep(UI_LARGE_DELAY)
 
 
 def interactive():
