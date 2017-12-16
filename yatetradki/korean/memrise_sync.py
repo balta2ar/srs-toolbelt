@@ -9,7 +9,7 @@ from time import sleep
 from collections import OrderedDict, namedtuple
 from functools import partial
 from itertools import zip_longest
-from typing import Tuple, List
+from typing import List
 # from enum import Enum, auto
 from pprint import pformat
 
@@ -22,9 +22,11 @@ logging.basicConfig(format=FORMAT, level=logging.INFO)
 _logger = logging.getLogger(__name__)
 
 
-COMMENT = '@'
+MARK_COMMENT = '@'
+MARK_LEVEL_NAME = '#'
 UI_LARGE_DELAY = 3.0
 UI_SMALL_DELAY = 1.0
+UI_TINY_DELAY = 0.5
 
 
 class WordCollection(OrderedDict):
@@ -103,10 +105,10 @@ def load_string_with_words(words_string):
     current_level = None
     lines = words_string.split('\n')
     for line in (l.strip() for l in lines if l.strip()):
-        if line.startswith(COMMENT):
+        if line.startswith(MARK_COMMENT):
             continue
 
-        if line.startswith('#'):
+        if line.startswith(MARK_LEVEL_NAME):
             line = line[1:].strip()
             current_level = line
             words[current_level] = []
@@ -148,8 +150,6 @@ def get_modal_dialog_yes(driver):
 # TODO: add ReadonlyCourse class
 class MemriseCourseSyncer:
     MEMRISE_LOGIN_PAGE = 'https://www.memrise.com/login/'
-    SELECTOR_ADD_LEVEL_MENU = '.btn-group.pull-left'
-    CLASS_LI = 'li'
 
     def __init__(self, course_url, filename):
         self._course_url = course_url
@@ -157,7 +157,7 @@ class MemriseCourseSyncer:
         self._driver = webdriver.Chrome()
         self._driver.implicitly_wait(10)
 
-        self._levels = None
+        self._course = EditableCourse(course_url, self._driver)
 
     def _login(self, username, password):
         self._driver.get(self.MEMRISE_LOGIN_PAGE)
@@ -174,94 +174,40 @@ class MemriseCourseSyncer:
             '//*[@id="login"]/input[3]')
         login_button.click()
 
-    def _create_level(self, level_name):
-        add_level_menu = self._driver.find_element_by_css_selector(
-            self.SELECTOR_ADD_LEVEL_MENU)
-        add_level_menu.click()
-        li = add_level_menu.find_element_by_tag_name(self.CLASS_LI)
-        li.click()
-
-        # Wait a little before request reaches the server and UI updates.
-        sleep(UI_LARGE_DELAY)
-        self._reload_levels()
-        self._levels[-1].name = level_name
-
-    def _change_level(self, old_level_name, new_level_name):
-        self._find_level(old_level_name).name = new_level_name
-        self._reload_levels()
-
-    def _delete_level(self, level_name):
-        self._find_level(level_name).delete()
-        self._reload_levels()
 
     def _add_word(self, word, meaning):
         pass
-
-    def _expand_all_levels(self):
-        for level in self._levels:
-            if level.collapsed:
-                level.show_hide()
 
     @property
     def _file_words(self):
         return load_file_with_words(self._filename)
 
-    @property
-    def _course_words(self):
-        return WordCollection([(level.name, level.words)
-                               for level in self._levels])
-
-    def _load_course(self):
-        self._driver.get(self._course_url)
-
-        # input('expand now')
-        self._reload_levels()
-        self._expand_all_levels()
-        sleep(2.0)
-
-        self._reload_levels()
-        # for i, level in enumerate(self._levels):
-        #     _logger.info('Level %s name "%s"', level.name, i)
-        #     level.name = 'level_%s' % i
-        #     _logger.info('Level %s name %s', level.name, i)
-
-        # Expand non-exanded levels
-        # Find current level names
-        # For each level find all words
-
-    def _reload_levels(self):
-        self._levels = Level.load_all(self._driver)
-
-    def _find_level(self, name):
-        for level in self._levels:
-            if level.name == name:
-                return level
-        return None
-
     def _apply_single_diff_action(self, action):
-        level = self._find_level(action.level_name)
         _logger.info('Applying action: "%s"', action)
 
         if isinstance(action, DiffActionCreateLevel):
-            self._create_level(action.level_name)
+            self._course.create_level(action.level_name)
 
         elif isinstance(action, DiffActionChangeLevel):
-            self._change_level(action.level_name, action.new_level_name)
+            self._course.change_level(action.level_name, action.new_level_name)
 
         elif isinstance(action, DiffActionDeleteLevel):
-            self._delete_level(action.level_name)
+            self._course.delete_level(action.level_name)
 
         elif isinstance(action, DiffActionCreateWord):
-            level.create_word(action.pair.word, action.pair.meaning)
+            self._course.create_word(action.level_name,
+                                     action.pair.word,
+                                     action.pair.meaning)
 
         elif isinstance(action, DiffActionChangeWord):
-            level.change_word(action.old_pair.word,
-                              action.new_pair.word,
-                              action.new_pair.meaning)
+            self._course.change_word(action.level_name,
+                                     action.old_pair.word,
+                                     action.new_pair.word,
+                                     action.new_pair.meaning)
 
         elif isinstance(action, DiffActionDeleteWord):
-            level.delete_word(action.pair.word,
-                              partial(get_modal_dialog_yes, self._driver))
+            self._course.delete_word(action.level_name,
+                                     action.pair.word)
 
         else:
             _logger.error('Unknown action: %s', action)
@@ -280,15 +226,100 @@ class MemriseCourseSyncer:
         username, password = read_credentials_from_netrc()
         self._login(username, password)
 
-        self._load_course()
+        self._course.load()
         diff_actions = get_course_difference(
-            self._course_words,
+            self._course.words,
             self._file_words)
         _logger.info('Applying difference: %s', diff_actions)
 
         # self._apply_diff_actions(diff_actions)
         # return self._driver
         # input('wait')
+
+
+class EditableCourse:
+    CLASS_LI = 'li'
+    CLASS_DROPDOWN_TOGGLE = 'dropdown-toggle'
+    SELECTOR_ADD_LEVEL_MENU = '.btn-group.pull-left'
+
+    def __init__(self, course_url, driver):
+        self.course_url = course_url
+
+        self._driver = driver
+        self._levels = None
+
+    def create_word(self, level_name, word, meaning):
+        level = self.find_level(level_name)
+        level.create_word(word, meaning)
+
+    def change_word(self, level_name, old_word, new_word, new_meaning):
+        level = self.find_level(level_name)
+        level.change_word(old_word, new_word, new_meaning)
+
+    def delete_word(self, level_name, word):
+        level = self.find_level(level_name)
+        level.delete_word(word, partial(get_modal_dialog_yes, self._driver))
+
+    def create_level(self, level_name):
+        add_level_menu = self._driver.find_element_by_css_selector(
+            self.SELECTOR_ADD_LEVEL_MENU)
+        dropdown_toggle = add_level_menu.find_element_by_class_name(
+            self.CLASS_DROPDOWN_TOGGLE)
+        dropdown_toggle.click()
+        li = add_level_menu.find_element_by_tag_name(self.CLASS_LI)
+        li.click()
+
+        # Wait a little before request reaches the server and UI updates.
+        sleep(UI_LARGE_DELAY)
+        self._reload_levels()
+        self._levels[-1].name = level_name
+
+    def change_level(self, old_level_name, new_level_name):
+        self.find_level(old_level_name).name = new_level_name
+        self._reload_levels()
+
+    def delete_level(self, level_name):
+        self.find_level(level_name).delete()
+        self._reload_levels()
+
+    def _expand_all_levels(self):
+        for level in self._levels:
+            if level.collapsed:
+                level.show_hide()
+                sleep(UI_SMALL_DELAY)
+
+    @property
+    def words(self):
+        return WordCollection([(level.name, level.words)
+                               for level in self._levels])
+
+    def load(self):
+        self._driver.get(self.course_url)
+
+        # input('expand now')
+        self._reload_levels()
+        self._expand_all_levels()
+        # sleep(UI_LARGE_DELAY)
+
+        self._reload_levels()
+        # for i, level in enumerate(self._levels):
+        #     _logger.info('Level %s name "%s"', level.name, i)
+        #     level.name = 'level_%s' % i
+        #     _logger.info('Level %s name %s', level.name, i)
+
+        # Expand non-exanded levels
+        # Find current level names
+        # For each level find all words
+
+    def _reload_levels(self):
+        self._levels = Level.load_all(self._driver)
+
+    def find_level(self, name):
+        for level in self._levels:
+            if level.name == name:
+                return level
+        return None
+
 
 class Level:
     CLASS_LEVEL = 'level'
@@ -336,20 +367,19 @@ class Level:
                              (word, self.name))
 
     def create_word(self, word, meaning):
+        self.ensure_expanded()
+
         adding = self._element().find_element_by_class_name(self.CLASS_ADDING)
         input_fields = self._get_inputs(adding)
         self._set_input(input_fields[0], word, send_return=False)
         self._set_input(input_fields[1], meaning, send_return=False)
         adding.find_element_by_class_name(self.CLASS_ICO_PLUS).click()
 
-    def delete_word(self, word, yes_button_finder):
-        thing = self._find_thing(word)
-        thing.find_element_by_class_name(self.CLASS_ICO_CLOSE).click()
-        # Delay a little before the dialog pops up (animation)
-        sleep(UI_LARGE_DELAY)
-        yes_button_finder().click()
+        sleep(UI_TINY_DELAY)
 
     def change_word(self, old_word, new_word, new_meaning):
+        self.ensure_expanded()
+
         thing = self._find_thing(old_word)
         cells = self._cells(thing)
         cells[0].click()
@@ -357,10 +387,17 @@ class Level:
         cells[1].click()
         self._set_input(self._get_input(cells[1]), new_meaning)
 
-    def show_hide(self):
-        button = self._element().find_element_by_css_selector(
-            self.SELECTOR_SHOW_HIDE)
-        button.click()
+        sleep(UI_TINY_DELAY)
+
+    def delete_word(self, word, yes_button_finder):
+        self.ensure_expanded()
+
+        thing = self._find_thing(word)
+        thing.find_element_by_class_name(self.CLASS_ICO_CLOSE).click()
+        # Delay a little before the dialog pops up (animation).
+        # Confirmation dialog shows up slowly, so we need large delay here.
+        sleep(UI_LARGE_DELAY)
+        yes_button_finder().click()
         sleep(UI_SMALL_DELAY)
 
     @property
@@ -380,7 +417,6 @@ class Level:
         return element.find_element_by_tag_name(self.TAG_INPUT)
 
     def _set_input(self, input_field, value, send_return=True):
-        # input_field = self._get_input(element)
         input_field.clear()
         input_field.send_keys(value)
         if send_return:
@@ -389,7 +425,7 @@ class Level:
     @property
     def name(self):
         name = self._element().find_element_by_class_name(
-            self.CLASS_LEVEL_NAME).text
+            self.CLASS_LEVEL_NAME)
         return name.text
 
     @name.setter
@@ -406,6 +442,16 @@ class Level:
     def collapsed(self):
         class_ = self._element().get_attribute('class')
         return self.CLASS_COLLAPSED in class_
+
+    def show_hide(self):
+        button = self._element().find_element_by_css_selector(
+            self.SELECTOR_SHOW_HIDE)
+        button.click()
+        sleep(UI_SMALL_DELAY)
+
+    def ensure_expanded(self):
+        if self.collapsed:
+            self.show_hide()
 
     def delete(self):
         actions = self._element().find_element_by_class_name(
