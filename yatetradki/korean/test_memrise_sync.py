@@ -67,3 +67,18 @@ class TestCourseDifference:
                 WordPair('word1.5', 'meaning1')),
             DiffActionCreateWord('Chapter 1.5', WordPair('word2', 'meaning2'))
         ]
+
+        file_ = load_string_with_words(
+            '# Chapter 1\n'
+            'word1;meaning1\n'
+            '# Chapter 2\n'
+            'word1;meaning1\n'
+            'word2;meaning2\n'
+            '# Chapter 3\n'
+            'word1;\n'
+            '# Chapter 3\n'
+        )
+        print(get_course_difference(course, file_))
+        assert get_course_difference(course, file_) == [
+            DiffActionCreateLevel('Chapter 3')
+        ]

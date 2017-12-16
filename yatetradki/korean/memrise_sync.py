@@ -16,9 +16,9 @@ from pprint import pformat
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
-# from selenium.webdriver.common.by import By
-# from selenium.webdriver.support.ui import WebDriverWait
-# from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait as wait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
@@ -31,6 +31,7 @@ MARK_LEVEL_NAME = '#'
 UI_LARGE_DELAY = 3.0
 UI_SMALL_DELAY = 1.0
 UI_TINY_DELAY = 0.5
+UI_MAX_IMPLICIT_TIMEOUT = 5.0
 
 
 def snooze(delay):
@@ -38,6 +39,8 @@ def snooze(delay):
     sleep(delay)
 
 
+# TODO: REPLACE OrderedDict WITH SOMETHING ELSE!
+# problematic case: multiple levels with the same name
 class WordCollection(OrderedDict):
     pass
 
@@ -150,11 +153,6 @@ def read_credentials_from_netrc():
     return username, password
 
 
-def get_modal_dialog_yes(driver):
-    dialog = driver.find_element_by_class_name('modal-dialog')
-    return dialog.find_element_by_class_name('btn-yes')
-
-
 # DONE: extract EditableCourse class from Syncer
 # switch from delays to waits on conditions (until clickable, visible)
 # TODO: add ReadonlyCourse class
@@ -183,10 +181,6 @@ class MemriseCourseSyncer:
         login_button = self._driver.find_element_by_xpath(
             '//*[@id="login"]/input[3]')
         login_button.click()
-
-
-    def _add_word(self, word, meaning):
-        pass
 
     @property
     def _file_words(self):
@@ -237,10 +231,10 @@ class MemriseCourseSyncer:
         self._login(username, password)
 
         self._course.load()
-        diff_actions = get_course_difference(
-            self._course.words,
-            self._file_words)
-        _logger.info('Applying difference: %s', diff_actions)
+        # diff_actions = get_course_difference(
+        #     self._course.words,
+        #     self._file_words)
+        # _logger.info('Applying difference: %s', diff_actions)
 
         # self._apply_diff_actions(diff_actions)
         # return self._driver
@@ -248,8 +242,7 @@ class MemriseCourseSyncer:
 
 
 class EditableCourse:
-    CLASS_LI = 'li'
-    CLASS_DROPDOWN_TOGGLE = 'dropdown-toggle'
+    TAG_A = 'a'
     SELECTOR_ADD_LEVEL_MENU = '.btn-group.pull-left'
     ID_HEADER = 'header'
 
@@ -269,34 +262,38 @@ class EditableCourse:
 
     def delete_word(self, level_name, word):
         level = self.find_level(level_name)
-        level.delete_word(word, partial(get_modal_dialog_yes, self._driver))
+        level.delete_word(word)
 
     def _js_click(self, element):
         self._driver.execute_script('arguments[0].click();', element)
 
+    def _wait_level_count_changed(self, initial_level_count):
+        def _level_count_changed(_driver):
+            return self._reload_levels() != initial_level_count
+
+        w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
+        w.until(_level_count_changed)
+
     def create_level(self, level_name):
+        # We're using JavaScript-powered method to initiate click event
+        # because a naive click() method will occasionally fail due to
+        # site header covering "Add level" drop-down button. There is
+        # _remove_header() helper, but even after calling it, the header
+        # sometimes reappears so I've taught the script to add levels
+        # independing of that annoying header.
         add_level_menu = self._driver.find_element_by_css_selector(
             self.SELECTOR_ADD_LEVEL_MENU)
-        dropdown_toggle = add_level_menu.find_element_by_class_name(
-            self.CLASS_DROPDOWN_TOGGLE)
+        self._js_click(add_level_menu)
 
-        # self._driver.execute_script(
-            # 'arguments[0].scrollIntoView();', add_level_menu)
-
-        # ActionChains(self._driver).move_to_element(
-            # add_level_menu).click(dropdown_toggle).perform()
-        # self._driver.execute_script('arguments[0].click();', dropdown_toggle)
-        self._js_click(dropdown_toggle)
-        # dropdown_toggle.click()
-        # return
-
-        snooze(UI_TINY_DELAY)
-        li = add_level_menu.find_element_by_tag_name(self.CLASS_LI)
-        # li.click()
+        li = add_level_menu.find_element_by_tag_name(self.TAG_A)
         self._js_click(li)
 
         # Wait a little before request reaches the server and UI updates.
-        snooze(UI_LARGE_DELAY)
+        self._wait_level_count_changed(len(self._levels))
+        # TODO: wait not for the count changed, but for availability of the
+        # level name entry on the last level.
+        snooze(UI_TINY_DELAY)
+
         self._reload_levels()
         self._levels[-1].name = level_name
 
@@ -317,6 +314,7 @@ class EditableCourse:
 
     @property
     def words(self):
+        # TODO: why is this method so slow? investigate
         return WordCollection([(level.name, level.words)
                                for level in self._levels])
 
@@ -347,6 +345,7 @@ class EditableCourse:
 
     def _reload_levels(self):
         self._levels = Level.load_all(self._driver)
+        return len(self._levels)
 
     def find_level(self, name):
         for level in self._levels:
@@ -369,6 +368,7 @@ class Level:
     CLASS_BTN = 'btn'
     SELECTOR_SHOW_HIDE = '.show-hide.btn.btn-small'
     SELECTOR_CELL = '.cell.text.column'
+    SELECTOR_MODAL_YESNO = '#modal-yesno .btn-yes'
     TAG_INPUT = 'input'
 
     def __init__(self, driver, index):
@@ -428,16 +428,24 @@ class Level:
 
         snooze(UI_TINY_DELAY)
 
-    def delete_word(self, word, yes_button_finder):
+    def _wait_clickable(self, by):
+        w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
+        return w.until(EC.element_to_be_clickable(by))
+
+    def _wait_gone(self, by):
+        w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
+        return w.until(EC.invisibility_of_element_located(by))
+
+    def delete_word(self, word):
         self.ensure_expanded()
 
         thing = self._find_thing(word)
         thing.find_element_by_class_name(self.CLASS_ICO_CLOSE).click()
         # Delay a little before the dialog pops up (animation).
         # Confirmation dialog shows up slowly, so we need large delay here.
-        snooze(UI_LARGE_DELAY)
-        yes_button_finder().click()
-        snooze(UI_SMALL_DELAY)
+        by = (By.CSS_SELECTOR, self.SELECTOR_MODAL_YESNO)
+        self._wait_clickable(by).click()
+        self._wait_gone(by)
 
     @property
     def words(self):
@@ -446,6 +454,7 @@ class Level:
             cells = self._cells(thing)
             word = cells[0].text
             meaning = cells[1].text
+            _logger.info('word: "%s"', word)
             result.append(WordPair(word, meaning))
         return result
 
@@ -460,6 +469,10 @@ class Level:
         input_field.send_keys(value)
         if send_return:
             input_field.send_keys(Keys.RETURN)
+
+    @property
+    def id(self):
+        return self._element().get_attribute('id')
 
     @property
     def name(self):
@@ -493,6 +506,7 @@ class Level:
             self.show_hide()
 
     def delete(self):
+        level_id = self.id
         actions = self._element().find_element_by_class_name(
             self.CLASS_LEVEL_ACTIONS)
         buttons = actions.find_elements_by_class_name(self.CLASS_BTN)
@@ -503,7 +517,8 @@ class Level:
         delete_button.click()
         delete_button.click()
         # Wait for the animation to finish.
-        snooze(UI_LARGE_DELAY)
+        by = (By.ID, level_id)
+        self._wait_gone(by)
 
 
 def interactive():
