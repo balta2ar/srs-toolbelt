@@ -123,7 +123,8 @@ def load_string_with_words(words_string):
         if line.startswith(MARK_LEVEL_NAME):
             line = line[1:].strip()
             current_level = line
-            words[current_level] = []
+            if current_level not in words:
+                words[current_level] = []
             continue
 
         if current_level is None:
@@ -164,6 +165,7 @@ class MemriseCourseSyncer:
         self._filename = filename
         self._driver = webdriver.Chrome()
         self._driver.implicitly_wait(UI_LARGE_DELAY)
+        # self._driver.implicitly_wait(UI_TINY_DELAY)
 
         self._course = EditableCourse(course_url, self._driver)
 
@@ -272,6 +274,7 @@ class EditableCourse:
             return self._reload_levels() != initial_level_count
 
         w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
+        # w = wait(self._driver, UI_SMALL_DELAY)
         w.until(_level_count_changed)
 
     def create_level(self, level_name):
@@ -293,6 +296,10 @@ class EditableCourse:
         # TODO: wait not for the count changed, but for availability of the
         # level name entry on the last level.
         snooze(UI_TINY_DELAY)
+
+        # I noticed that after creating a level, header reappears.
+        # So let's remove it.
+        self._remove_header()
 
         self._reload_levels()
         self._levels[-1].name = level_name
@@ -319,9 +326,14 @@ class EditableCourse:
                                for level in self._levels])
 
     def _remove_header(self):
-        header = self._driver.find_element_by_id(self.ID_HEADER)
+        # header = self._driver.find_element_by_id(self.ID_HEADER)
+        # self._driver.execute_script(
+        #     'arguments[0].parentNode.removeChild(arguments[0]);', header)
+        # This method is safe to call even if header is missing.
         self._driver.execute_script(
-            'arguments[0].parentNode.removeChild(arguments[0]);', header)
+            'var header = document.getElementById(arguments[0]);'
+            'if (header) header.parentNode.removeChild(header);',
+            self.ID_HEADER)
 
     def load(self):
         self._driver.get(self.course_url)
@@ -454,7 +466,7 @@ class Level:
             cells = self._cells(thing)
             word = cells[0].text
             meaning = cells[1].text
-            _logger.info('word: "%s"', word)
+            # _logger.info('word: "%s"', word)
             result.append(WordPair(word, meaning))
         return result
 
@@ -474,6 +486,9 @@ class Level:
     def id(self):
         return self._element().get_attribute('id')
 
+    def _js_click(self, element):
+        self._driver.execute_script('arguments[0].click();', element)
+
     @property
     def name(self):
         name = self._element().find_element_by_class_name(
@@ -484,7 +499,8 @@ class Level:
     def name(self, value):
         name = self._element().find_element_by_class_name(
             self.CLASS_LEVEL_NAME)
-        name.click()
+        # name.click()
+        self._js_click(name)
 
         name = self._element().find_element_by_class_name(
             self.CLASS_LEVEL_NAME)
@@ -498,7 +514,8 @@ class Level:
     def show_hide(self):
         button = self._element().find_element_by_css_selector(
             self.SELECTOR_SHOW_HIDE)
-        button.click()
+        self._js_click(button)
+        # button.click()
         snooze(UI_SMALL_DELAY)
 
     def ensure_expanded(self):
@@ -514,8 +531,10 @@ class Level:
         delete_button = buttons[-1]
         # This first time we click the button, it turns red. You need to
         # click it two times to actually delete the course.
-        delete_button.click()
-        delete_button.click()
+        # delete_button.click()
+        # delete_button.click()
+        self._js_click(delete_button)
+        self._js_click(delete_button)
         # Wait for the animation to finish.
         by = (By.ID, level_id)
         self._wait_gone(by)
