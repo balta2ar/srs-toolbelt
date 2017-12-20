@@ -8,7 +8,6 @@ import netrc
 from time import sleep
 from time import time
 from collections import OrderedDict, namedtuple
-from functools import partial
 from itertools import zip_longest
 from contextlib import contextmanager
 from typing import List, Callable
@@ -18,7 +17,6 @@ from pprint import pformat
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -171,7 +169,7 @@ def read_credentials_from_netrc():
 # DONE: extract EditableCourse class from Syncer
 # switch from delays to waits on conditions (until clickable, visible)
 # TODO: add ReadonlyCourse class
-class MemriseCourseSyncer:
+class MemriseCourseSyncher:
     MEMRISE_LOGIN_PAGE = 'https://www.memrise.com/login/'
 
     def __init__(self, course_url, filename):
@@ -273,6 +271,7 @@ class ElementUnchangedWithin:
     def __call__(self):
         """
         :return: True if element has not been changed within the duration.
+        :rtype: bool
         """
         new_state = self._get_element()
         now = time()
@@ -652,6 +651,7 @@ class Level(WaitableWithDriver):
         first. When you click Show/Hide, level words are loaded.
 
         :return: True if the level has not been completely loaded yet.
+        :rtype: bool
         """
         by = (By.CLASS_NAME, self.CLASS_LEVEL_LOADING)
         return self._element_present(self._element(), by)
@@ -705,11 +705,11 @@ def interactive(filename=None):
     url = 'https://www.memrise.com/course/1776472/bz-testing-course/edit/'
     if filename is None:
         filename = './sample2.txt'
-    syncer = MemriseCourseSyncer(url, filename)
+    syncher = MemriseCourseSyncher(url, filename)
     _logger.info('Starting sync...')
-    syncer.sync()
+    syncher.sync()
     _logger.info('Sync has finished')
-    return syncer
+    return syncher
 
 
 def main():
