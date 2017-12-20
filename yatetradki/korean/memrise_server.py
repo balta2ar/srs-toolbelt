@@ -39,7 +39,7 @@ except ImportError:
     from urllib import unquote
 from base64 import b64encode
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 
 from fill_audio import create_master_table, create_forced_alignment_table
 
@@ -65,6 +65,16 @@ def escape(text):
     return ESCAPE_RX.sub('_', text)
 
 
+# NOTE: it turned out that I don't need this method because I inject
+# JS in memrise_sync manually. Still, I left this method for possible
+# convenience.
+@app.route("/api/get_file/<path:filename>")
+def get_file(filename):
+    filename = escape(unquote(filename))
+    logging.info('requested filename: %s', filename)
+    return send_from_directory('.', filename)
+
+
 @app.route("/api/get_audio/<string:word>")
 def get_audio(word):
     word = escape(unquote(word))
@@ -83,15 +93,19 @@ def get_audio(word):
         }
         #logging.info('word: %s', word)
         logging.info('word size (bytes): %s, %s', word, len(data))
-        return jsonify(result)
+        result = jsonify(result)
     else:
         result = {
             'success': False,
             'word': word,
         }
         logging.info('word not found: %s', word)
-        return jsonify(result)
+        result = jsonify(result)
+
+    result.headers['Access-Control-Allow-Origin'] = '*'
+    return result
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True, ssl_context='adhoc')
+    # app.run(debug=True)

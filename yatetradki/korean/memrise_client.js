@@ -72,7 +72,8 @@
      */
     function getAudioForWord(word, onsuccess) {
         callAjax("GET",
-                 "http://localhost:5000/api/get_audio/" + encodeURIComponent(word),
+                //  "http://localhost:5000/api/get_audio/" + encodeURIComponent(word),
+                 "https://localhost:5000/api/get_audio/" + encodeURIComponent(word),
                  onsuccess,
                  null,
                  null);
@@ -383,7 +384,11 @@
 
         var customUploadButton = document.createElement('div');
         //<div class="btn btn-mini open-recorder">Record</div>
-        customUploadButton.setAttribute('class', 'btn btn-mini');
+
+        // I use additional class "btn-bz-add-audio" to make it easier
+        // to find these buttons later in memrise_syncher when adding
+        // pronunciation automatically.
+        customUploadButton.setAttribute('class', 'btn btn-mini btn-bz-add-audio');
         customUploadButton.setAttribute('title', 'AddAudio');
         //customUploadButton.setAttribute('onclick', 'onAddAudio(' + word + ')');
         customUploadButton.addEventListener('click', function(event) {

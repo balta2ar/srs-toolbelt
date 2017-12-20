@@ -36,6 +36,9 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait as wait
 
+from requests import get
+from requests.exceptions import RequestException
+
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 _logger = logging.getLogger(__name__)
@@ -178,8 +181,52 @@ def read_credentials_from_netrc():
     return username, password
 
 
-# DONE: extract EditableCourse class from Syncer
-# switch from delays to waits on conditions (until clickable, visible)
+class UserScriptInjector:
+    SERVER_STATUS_URL = 'https://localhost:5000/api/get_audio/집'
+    # SERVER_FILE_TEMPLATE = 'https://localhost:5000/api/get_file/%s'
+    FILES_TO_INJECT = [
+        'jquery.min.js',
+        'userscript_stubs.js',  # Provides a replacement for GM_xmlhttpRequest
+        'memrise_client.js'
+    ]
+    SCRIPT_TEMPLATE = '''
+var s = window.document.createElement('script');
+s.src = '%s';
+window.document.head.appendChild(s);
+'''
+
+    def __init__(self, driver):
+        self._driver = driver
+
+    def _server_available(self):
+        try:
+            response = get(self.SERVER_STATUS_URL, verify=False)
+            return response.status_code == 200 \
+                and response.json()['success'] is True
+        except RequestException as e:
+            _logger.info('Pronunciation server is not available: %s', e)
+        return False
+
+    def _inject_js_file(self, filename):
+        # url = self.SERVER_FILE_TEMPLATE % filename
+        # script = self.SCRIPT_TEMPLATE % url
+        with open(filename) as file_:
+            script = file_.read()
+        self._driver.execute_script(script)
+
+    def inject(self):
+        if not self._server_available():
+            return False
+
+        _logger.info('Pronunciation server is available, proceeding...')
+        for filename in self.FILES_TO_INJECT:
+            _logger.info('Injecting file %s', filename)
+            self._inject_js_file(filename)
+
+        _logger.info('UserScript JS files have been injected')
+        return True
+
+
 # TODO: add ReadonlyCourse class
 class MemriseCourseSyncher:
     MEMRISE_LOGIN_PAGE = 'https://www.memrise.com/login/'
@@ -187,10 +234,11 @@ class MemriseCourseSyncher:
     def __init__(self, course_url, filename):
         self._course_url = course_url
         self._filename = filename
-        # self._driver = webdriver.Chrome()
-        self._driver = webdriver.PhantomJS()
+        self._driver = webdriver.Chrome()
+        # self._driver = webdriver.PhantomJS()
         self._driver.implicitly_wait(UI_LARGE_DELAY)
         # self._driver.implicitly_wait(UI_TINY_DELAY)
+        self._userscript_injector = UserScriptInjector(self._driver)
 
         self._course = EditableCourse(course_url, self._driver)
 
@@ -269,6 +317,9 @@ class MemriseCourseSyncher:
         _logger.info('Applying difference: %s', pformat(diff_actions))
         self._apply_diff_actions(diff_actions)
 
+        if self._userscript_injector.inject():
+            pass
+
 
 class ElementUnchangedWithin:
     def __init__(self, get_element, duration_ms):
@@ -346,6 +397,9 @@ class EditableCourse(WaitableWithDriver):
 
         self._driver = driver
         self._levels = None
+
+    def add_pronunciation(self):
+        pass
 
     def create_word(self, level_name, word, meaning):
         level = self.find_level(level_name)
@@ -432,6 +486,7 @@ class EditableCourse(WaitableWithDriver):
                                for level in self._levels])
 
     def _remove_header(self):
+        return
         # This method is safe to call even if header is missing.
         self._driver.execute_script(
             'var header = document.getElementById(arguments[0]);'
@@ -519,6 +574,9 @@ class Level(WaitableWithDriver):
 
         raise AttributeError('Cant find word "%s" in level "%s"' %
                              (word, self.name))
+
+    def add_pronunciation(self):
+        pass
 
     def create_word(self, word, meaning):
         self.ensure_expanded()
@@ -679,11 +737,9 @@ class Level(WaitableWithDriver):
         # button.click()
 
         if was_collapsed:
-            _logger.info('Waiting for expansion')
             self._wait_condition(lambda _driver: self._safe_expanded)
 
             if lazy_loaded:
-                _logger.info('Waiting for the element to change')
                 self._wait_condition(
                     lambda _driver: self._element_changed(
                         old_element,
@@ -691,9 +747,7 @@ class Level(WaitableWithDriver):
 
     def ensure_expanded(self):
         if self.collapsed:
-            _logger.info('ensure_expanded: need to expand')
             self.show_hide()
-            _logger.info('ensure_expanded: expand done')
 
     def delete(self):
         level_id = self.id
@@ -716,12 +770,17 @@ class Level(WaitableWithDriver):
 def interactive(filename=None):
     url = 'https://www.memrise.com/course/1776472/bz-testing-course/edit/'
     if filename is None:
-        filename = './sample2.txt'
+        filename = './sample.txt'
     syncher = MemriseCourseSyncher(url, filename)
     _logger.info('Starting sync...')
     syncher.sync()
     _logger.info('Sync has finished')
     return syncher
+
+
+def pronunciation():
+    pronunciation = UserScriptInjector(None)
+    pronunciation.inject()
 
 
 def main():
