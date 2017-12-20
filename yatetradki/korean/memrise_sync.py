@@ -10,7 +10,7 @@ from collections import OrderedDict, namedtuple
 from functools import partial
 from itertools import zip_longest
 from contextlib import contextmanager
-from typing import List
+from typing import List, Callable
 # from enum import Enum, auto
 from pprint import pformat
 
@@ -19,8 +19,10 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support.ui import WebDriverWait as wait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.remote.webdriver import WebDriver
 
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
@@ -174,14 +176,15 @@ class MemriseCourseSyncer:
     def __init__(self, course_url, filename):
         self._course_url = course_url
         self._filename = filename
-        self._driver = webdriver.Chrome()
-        # self._driver = webdriver.PhantomJS()
+        # self._driver = webdriver.Chrome()
+        self._driver = webdriver.PhantomJS()
         self._driver.implicitly_wait(UI_LARGE_DELAY)
         # self._driver.implicitly_wait(UI_TINY_DELAY)
 
         self._course = EditableCourse(course_url, self._driver)
 
     def _login(self, username, password):
+        _logger.info('Logging in')
         self._driver.get(self.MEMRISE_LOGIN_PAGE)
 
         login_field = self._driver.find_element_by_xpath(
@@ -195,6 +198,7 @@ class MemriseCourseSyncer:
         login_button = self._driver.find_element_by_xpath(
             '//*[@id="login"]/input[3]')
         login_button.click()
+        _logger.info('Logging in done')
 
     @property
     def _file_words(self):
@@ -246,24 +250,46 @@ class MemriseCourseSyncer:
 
         self._course.load()
 
-        # _logger.info('Calculating difference')
-        # diff_actions = get_course_difference(
-        #     self._course.words,
-        #     self._file_words)
+        _logger.info('Calculating difference')
+        diff_actions = get_course_difference(
+            self._course.words,
+            self._file_words)
 
-        # _logger.info('Applying difference: %s', diff_actions)
-        # self._apply_diff_actions(diff_actions)
+        _logger.info('Applying difference: %s', diff_actions)
+        self._apply_diff_actions(diff_actions)
 
         # return self._driver
         # input('wait')
 
 
-class EditableCourse:
+class WaitableWithDriver:
+    def __init__(self):
+        self._driver = None
+
+    def _wait_condition(self, condition: Callable[[WebDriver], bool]):
+        w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
+        return w.until(condition)
+
+    def _element_missing(self, where, by):
+        return not self._element_present(where, by)
+
+    def _element_present(self, where, by):
+        with without_implicit_wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT):
+            try:
+                where.find_element(*by)
+                return True
+            except NoSuchElementException:
+                return False
+
+
+class EditableCourse(WaitableWithDriver):
     TAG_A = 'a'
     SELECTOR_ADD_LEVEL_MENU = '.btn-group.pull-left'
     ID_HEADER = 'header'
 
     def __init__(self, course_url, driver):
+        super().__init__()
+
         self.course_url = course_url
 
         self._driver = driver
@@ -284,6 +310,9 @@ class EditableCourse:
     def _js_click(self, element):
         self._driver.execute_script('arguments[0].click();', element)
 
+    def _last_level(self):
+        return self._levels[-1]
+
     def _wait_level_count_changed(self, initial_level_count):
         def _level_count_changed(_driver):
             return self._reload_levels() != initial_level_count
@@ -291,6 +320,14 @@ class EditableCourse:
         w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
         # w = wait(self._driver, UI_SMALL_DELAY)
         w.until(_level_count_changed)
+
+    def _wait_level_created(self):
+        # 1. Wait until new level appeared.
+        self._wait_level_count_changed(len(self._levels))
+
+        # 2. Now wait until there is a tag with 'level-name' class.
+        self._wait_condition(
+            lambda _driver: self._last_level().level_name_present())
 
     def create_level(self, level_name):
         # We're using JavaScript-powered method to initiate click event
@@ -307,11 +344,12 @@ class EditableCourse:
         self._js_click(li)
 
         # Wait a little before request reaches the server and UI updates.
-        self._wait_level_count_changed(len(self._levels))
+        # self._wait_level_count_changed(len(self._levels))
+        self._wait_level_created()
         # TODO: wait not for the count changed, but for availability of the
         # level name entry on the last level.
         # snooze(UI_TINY_DELAY)
-        snooze(UI_SMALL_DELAY)
+        # snooze(UI_SMALL_DELAY)
 
         # I noticed that after creating a level, header reappears.
         # So let's remove it.
@@ -329,9 +367,9 @@ class EditableCourse:
         self._reload_levels()
 
     def _expand_all_levels(self):
-        for level in self._levels:
+        for index, level in enumerate(self._levels):
             if level.collapsed:
-                _logger.info('Expanding level')
+                _logger.info('Expanding level %s. %s', index + 1, level.name)
                 level.show_hide()
 
     @property
@@ -381,7 +419,7 @@ class EditableCourse:
         return None
 
 
-class Level:
+class Level(WaitableWithDriver):
     CLASS_LEVEL = 'level'
     CLASS_LEVEL_NAME = 'level-name'
     CLASS_COLLAPSED = 'collapsed'
@@ -399,6 +437,8 @@ class Level:
     TAG_INPUT = 'input'
 
     def __init__(self, driver, index):
+        super().__init__()
+
         self._driver = driver
         self._index = index
 
@@ -411,6 +451,10 @@ class Level:
     def _element(self):
         elements = self._driver.find_elements_by_class_name(self.CLASS_LEVEL)
         return elements[self._index]
+
+    def level_name_present(self):
+        by = (By.CLASS_NAME, self.CLASS_LEVEL_NAME)
+        return self._element_present(self._element(), by)
 
     @property
     def _things(self):
@@ -462,21 +506,6 @@ class Level:
     def _wait_gone(self, by):
         w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
         return w.until(lambda _driver: self._element_missing(self._driver, by))
-
-    def _wait_condition(self, condition):
-        w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
-        return w.until(condition)
-
-    def _element_missing(self, where, by):
-        return not self._element_present(where, by)
-
-    def _element_present(self, where, by):
-        with without_implicit_wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT):
-            try:
-                where.find_element(*by)
-                return True
-            except NoSuchElementException:
-                return False
 
     def delete_word(self, word):
         self.ensure_expanded()
@@ -555,7 +584,7 @@ class Level:
     def collapsed(self):
         """
         This method is not exact opposite of expanded because when we collapse
-        level, <input> tag is not removed. Thus to conside the level to be
+        level, <input> tag is not removed. Thus to consider the level to be
         collapsed, we only check the class.
         """
         class_ = self._element().get_attribute('class')
@@ -572,6 +601,17 @@ class Level:
         input_present = self._element_present(self._element(), by)
         return (not self.collapsed) and input_present
 
+    def _safe_expanded(self):
+        """
+        From my observations, Memrise after expanding a level reinserts
+        the div that represents. Thus we should be ready to meet stale elements
+        and retry in that case.
+        """
+        try:
+            return self.expanded
+        except StaleElementReferenceException:
+            return False
+
     def show_hide(self):
         button = self._element().find_element_by_css_selector(
             self.SELECTOR_SHOW_HIDE)
@@ -579,7 +619,7 @@ class Level:
         # button.click()
         # TODO: turn it into a conditional wait
         # snooze(UI_SMALL_DELAY)
-        self._wait_condition(lambda _driver: self.expanded)
+        self._wait_condition(lambda _driver: self._safe_expanded)
 
     def ensure_expanded(self):
         if self.collapsed:
