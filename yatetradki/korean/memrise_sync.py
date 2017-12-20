@@ -202,7 +202,7 @@ class MemriseCourseSyncer:
         _logger.info('Logging in done')
 
     @property
-    def _file_words(self):
+    def _file_word_pairs(self):
         return load_file_with_words(self._filename)
 
     def _apply_single_diff_action(self, action):
@@ -243,7 +243,7 @@ class MemriseCourseSyncer:
                 _logger.exception('Diff action failed "%s": %s', action, e)
 
     def sync(self):
-        words = self._file_words
+        words = self._file_word_pairs
         _logger.info(pformat(words))
 
         username, password = read_credentials_from_netrc()
@@ -253,8 +253,8 @@ class MemriseCourseSyncer:
 
         _logger.info('Calculating difference')
         diff_actions = get_course_difference(
-            self._course.words,
-            self._file_words)
+            self._course.word_pairs,
+            self._file_word_pairs)
 
         _logger.info('Applying difference: %s', pformat(diff_actions))
         self._apply_diff_actions(diff_actions)
@@ -274,22 +274,15 @@ class ElementUnchangedWithin:
         """
         :return: True if element has not been changed within the duration.
         """
-        _logger.info('checking element state')
         new_state = self._get_element()
         now = time()
         if new_state != self._current_state:
-            _logger.info('element has changed %s', now - self._last_modified)
             self._current_state = new_state
             self._last_modified = now
             return False
 
         diff = now - self._last_modified
-        result = diff > self._duration_ms
-        if result:
-            _logger.info('element has not changed within %s', diff)
-        else:
-            _logger.info('element not ready yet %s', diff)
-        return result
+        return diff > self._duration_ms
 
 
 class WaitableWithDriver:
@@ -371,16 +364,13 @@ class EditableCourse(WaitableWithDriver):
             return self._reload_levels() != initial_level_count
 
         w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
-        # w = wait(self._driver, UI_SMALL_DELAY)
         w.until(_level_count_changed)
 
     def _wait_level_created(self):
         # 1. Wait until new level appears.
-        _logger.info('_wait_level_created, wait level count changed')
         self._wait_level_count_changed(len(self._levels))
 
         # 2. Now wait until there is a tag with 'level-name' class.
-        _logger.info('_wait_level_created, wait level name present')
         self._wait_condition(
             lambda _driver: self._last_level.level_name_present())
 
@@ -388,11 +378,8 @@ class EditableCourse(WaitableWithDriver):
         # only that. Level header gets changed after a while after page reload.
         # Thus we need to wait until level header has NOT been been changed for
         # some period of time.
-        _logger.info('_wait_level_created, wait header unchanged')
         self._wait_element_unchanged_within(
             self._last_level.header, UI_TINY_DELAY)
-
-        _logger.info('_wait_level_created, wait done')
 
     def create_level(self, level_name):
         # We're using JavaScript-powered method to initiate click event
@@ -409,13 +396,7 @@ class EditableCourse(WaitableWithDriver):
         self._js_click(li)
 
         # Wait a little before request reaches the server and UI updates.
-        # self._wait_level_count_changed(len(self._levels))
         self._wait_level_created()
-        # TODO: wait not for the count changed, but for availability of the
-        # level name entry on the last level.
-        # snooze(UI_TINY_DELAY)
-        # snooze(UI_SMALL_DELAY)
-        _logger.info('Level has been created, changing name')
 
         # I noticed that after creating a level, header reappears.
         # So let's remove it.
@@ -439,15 +420,11 @@ class EditableCourse(WaitableWithDriver):
                 level.show_hide()
 
     @property
-    def words(self):
-        # TODO: why is this method so slow? investigate
-        return WordCollection([(level.name, level.words)
+    def word_pairs(self):
+        return WordCollection([(level.name, level.word_pairs)
                                for level in self._levels])
 
     def _remove_header(self):
-        # header = self._driver.find_element_by_id(self.ID_HEADER)
-        # self._driver.execute_script(
-        #     'arguments[0].parentNode.removeChild(arguments[0]);', header)
         # This method is safe to call even if header is missing.
         self._driver.execute_script(
             'var header = document.getElementById(arguments[0]);'
@@ -458,21 +435,11 @@ class EditableCourse(WaitableWithDriver):
         self._driver.get(self.course_url)
         self._remove_header()
 
-        # input('expand now')
         self._reload_levels()
         self._expand_all_levels()
         _logger.info('Expanded all')
-        # snooze(UI_LARGE_DELAY)
 
         self._reload_levels()
-        # for i, level in enumerate(self._levels):
-        #     _logger.info('Level %s name "%s"', level.name, i)
-        #     level.name = 'level_%s' % i
-        #     _logger.info('Level %s name %s', level.name, i)
-
-        # Expand non-exanded levels
-        # Find current level names
-        # For each level find all words
 
     def _reload_levels(self):
         self._levels = Level.load_all(self._driver)
@@ -530,12 +497,9 @@ class Level(WaitableWithDriver):
 
     @property
     def _things(self):
-        _logger.info('getting things')
         with without_implicit_wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT):
-            result = self._element().find_elements_by_class_name(
+            return self._element().find_elements_by_class_name(
                 self.CLASS_THING)
-        _logger.info('getting things done')
-        return result
 
     def _cells(self, thing):
         return thing.find_elements_by_css_selector(self.SELECTOR_CELL)
@@ -568,7 +532,6 @@ class Level(WaitableWithDriver):
 
         thing = self._find_thing(old_word)
         cells = self._cells(thing)
-        _logger.info(cells)
         self._text(cells[0]).click()
         self._set_input(self._get_input(cells[0]), new_word)
         self._text(cells[1]).click()
@@ -596,11 +559,10 @@ class Level(WaitableWithDriver):
         self._wait_gone(by)
 
     @property
-    def words(self):
+    def word_pairs(self):
         self.ensure_expanded()
 
         _logger.info('Getting level words')
-        # TODO: find out why it's slow
         result = []
         for thing in self._things:
             cells = self._cells(thing)
@@ -645,25 +607,11 @@ class Level(WaitableWithDriver):
             self.CLASS_LEVEL_NAME)
         # name.click()
         self._js_click(name)
-        # When it comes to input, delay is necessary with PhantomJS:
-        # https://github.com/detro/ghostdriver/issues/249
-        # TODO: weird shit going on here. Sometimes it breaks without sleep,
-        # sometimes it doesn't.
-        # snooze(UI_TINY_DELAY)
-        _logger.info('Waiting for input to emerge')
+
         by = (By.TAG_NAME, self.TAG_INPUT)
         self._wait_element_present(self.header(), by)
-
-        # name = self._element().find_element_by_class_name(
-            # self.CLASS_LEVEL_NAME)
-        _logger.info('Changing input')
         self._set_input(self._get_input(self.header()), value)
-
-        _logger.info('Waiting for input to perish')
         self._wait_element_missing(self.header(), by)
-        # Delay is due to PhantomJS bug:
-        # # https://github.com/detro/ghostdriver/issues/249
-        # snooze(UI_TINY_DELAY)
 
     @property
     def collapsed(self):
@@ -718,8 +666,6 @@ class Level(WaitableWithDriver):
         self._js_click(button)
         # button.click()
 
-        # TODO: turn it into a conditional wait
-        # snooze(UI_SMALL_DELAY)
         if was_collapsed:
             _logger.info('Waiting for expansion')
             self._wait_condition(lambda _driver: self._safe_expanded)
