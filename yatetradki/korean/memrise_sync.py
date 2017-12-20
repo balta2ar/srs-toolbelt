@@ -1,6 +1,19 @@
 """
 This script synchronises given Memrise course (--course-url) with the given
 text file (--filename).
+
+Input text file should have the following format:
+
+    # Level name 1
+    @ this line is a comment and is ignored
+
+    some word; meaning
+
+    # Level name 2
+    another word;meaning
+
+Make sure all your level names are distinct. Duplicate level names are not
+supported.
 """
 
 import logging
@@ -11,7 +24,6 @@ from collections import OrderedDict, namedtuple
 from itertools import zip_longest
 from contextlib import contextmanager
 from typing import List, Callable
-# from enum import Enum, auto
 from pprint import pformat
 
 from selenium import webdriver
@@ -257,9 +269,6 @@ class MemriseCourseSyncher:
         _logger.info('Applying difference: %s', pformat(diff_actions))
         self._apply_diff_actions(diff_actions)
 
-        # return self._driver
-        # input('wait')
-
 
 class ElementUnchangedWithin:
     def __init__(self, get_element, duration_ms):
@@ -321,7 +330,6 @@ class WaitableWithDriver:
             lambda _driver: self._element_missing(where, by))
 
     def _wait_element_unchanged_within(self, get_element, duration_ms):
-        _logger.info('_wait_element_unchanged_within %s', duration_ms)
         unchanged = ElementUnchangedWithin(get_element, duration_ms)
         self._wait_condition(lambda _driver: unchanged())
 
@@ -397,8 +405,8 @@ class EditableCourse(WaitableWithDriver):
         # Wait a little before request reaches the server and UI updates.
         self._wait_level_created()
 
-        # I noticed that after creating a level, header reappears.
-        # So let's remove it.
+        # I noticed that after creating a level, header reappears (this is
+        # because course page gets reloaded. So let's remove the header again.
         self._remove_header()
 
         self._reload_levels()
@@ -521,10 +529,13 @@ class Level(WaitableWithDriver):
         self._set_input(input_fields[1], meaning, send_return=False)
         adding.find_element_by_class_name(self.CLASS_ICO_PLUS).click()
 
-        snooze(UI_TINY_DELAY)
+        self._wait_word_present(word)
 
     def _text(self, element):
         return element.find_element_by_class_name(self.CLASS_TEXT)
+
+    def _wait_word_present(self, word):
+        self._wait_condition(lambda _driver: word in self.words_only)
 
     def change_word(self, old_word, new_word, new_meaning):
         self.ensure_expanded()
@@ -536,7 +547,7 @@ class Level(WaitableWithDriver):
         self._text(cells[1]).click()
         self._set_input(self._get_input(cells[1]), new_meaning)
 
-        snooze(UI_TINY_DELAY)
+        self._wait_word_present(new_word)
 
     def _wait_clickable(self, by):
         w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
@@ -558,16 +569,18 @@ class Level(WaitableWithDriver):
         self._wait_gone(by)
 
     @property
+    def words_only(self):
+        return [pair.word for pair in self.word_pairs]
+
+    @property
     def word_pairs(self):
         self.ensure_expanded()
 
-        _logger.info('Getting level words')
         result = []
         for thing in self._things:
             cells = self._cells(thing)
             word = cells[0].text
             meaning = cells[1].text
-            # _logger.info('word: "%s"', word)
             result.append(WordPair(word, meaning))
         return result
 
@@ -601,7 +614,6 @@ class Level(WaitableWithDriver):
 
     @name.setter
     def name(self, value):
-        _logger.info('Changing name')
         name = self._element().find_element_by_class_name(
             self.CLASS_LEVEL_NAME)
         # name.click()
@@ -714,6 +726,7 @@ def interactive(filename=None):
 
 def main():
     # TODO: add CLI with flexible options
+    # TODO: add support for memrise_server to automatically add pronunciation
     interactive()
 
 
