@@ -6,6 +6,7 @@ text file (--filename).
 import logging
 import netrc
 from time import sleep
+from time import time
 from collections import OrderedDict, namedtuple
 from functools import partial
 from itertools import zip_longest
@@ -15,15 +16,15 @@ from typing import List, Callable
 from pprint import pformat
 
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
-from selenium.webdriver.support.ui import WebDriverWait as wait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.webdriver import WebDriver
-
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait as wait
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -255,14 +256,47 @@ class MemriseCourseSyncer:
             self._course.words,
             self._file_words)
 
-        _logger.info('Applying difference: %s', diff_actions)
+        _logger.info('Applying difference: %s', pformat(diff_actions))
         self._apply_diff_actions(diff_actions)
 
         # return self._driver
         # input('wait')
 
 
+class ElementUnchangedWithin:
+    def __init__(self, get_element, duration_ms):
+        self._get_element = get_element
+        self._duration_ms = duration_ms
+        self._current_state = get_element()
+        self._last_modified = time()
+
+    def __call__(self):
+        """
+        :return: True if element has not been changed within the duration.
+        """
+        _logger.info('checking element state')
+        new_state = self._get_element()
+        now = time()
+        if new_state != self._current_state:
+            _logger.info('element has changed %s', now - self._last_modified)
+            self._current_state = new_state
+            self._last_modified = now
+            return False
+
+        diff = now - self._last_modified
+        result = diff > self._duration_ms
+        if result:
+            _logger.info('element has not changed within %s', diff)
+        else:
+            _logger.info('element not ready yet %s', diff)
+        return result
+
+
 class WaitableWithDriver:
+    """
+    Adds several common helper methods that allow more convenient waiting on
+    conditions.
+    """
     def __init__(self):
         self._driver = None
 
@@ -280,6 +314,24 @@ class WaitableWithDriver:
                 return True
             except NoSuchElementException:
                 return False
+
+    def _element_changed(self,
+                         old_element: WebElement,
+                         get_new_element: Callable[[], WebElement]):
+        return old_element != get_new_element()
+
+    def _wait_element_present(self, where, by):
+        self._wait_condition(
+            lambda _driver: self._element_present(where, by))
+
+    def _wait_element_missing(self, where, by):
+        self._wait_condition(
+            lambda _driver: self._element_missing(where, by))
+
+    def _wait_element_unchanged_within(self, get_element, duration_ms):
+        _logger.info('_wait_element_unchanged_within %s', duration_ms)
+        unchanged = ElementUnchangedWithin(get_element, duration_ms)
+        self._wait_condition(lambda _driver: unchanged())
 
 
 class EditableCourse(WaitableWithDriver):
@@ -310,6 +362,7 @@ class EditableCourse(WaitableWithDriver):
     def _js_click(self, element):
         self._driver.execute_script('arguments[0].click();', element)
 
+    @property
     def _last_level(self):
         return self._levels[-1]
 
@@ -322,12 +375,24 @@ class EditableCourse(WaitableWithDriver):
         w.until(_level_count_changed)
 
     def _wait_level_created(self):
-        # 1. Wait until new level appeared.
+        # 1. Wait until new level appears.
+        _logger.info('_wait_level_created, wait level count changed')
         self._wait_level_count_changed(len(self._levels))
 
         # 2. Now wait until there is a tag with 'level-name' class.
+        _logger.info('_wait_level_created, wait level name present')
         self._wait_condition(
-            lambda _driver: self._last_level().level_name_present())
+            lambda _driver: self._last_level.level_name_present())
+
+        # 3. Creating a new level actually reloads current page. But it's not
+        # only that. Level header gets changed after a while after page reload.
+        # Thus we need to wait until level header has NOT been been changed for
+        # some period of time.
+        _logger.info('_wait_level_created, wait header unchanged')
+        self._wait_element_unchanged_within(
+            self._last_level.header, UI_TINY_DELAY)
+
+        _logger.info('_wait_level_created, wait done')
 
     def create_level(self, level_name):
         # We're using JavaScript-powered method to initiate click event
@@ -350,6 +415,7 @@ class EditableCourse(WaitableWithDriver):
         # level name entry on the last level.
         # snooze(UI_TINY_DELAY)
         # snooze(UI_SMALL_DELAY)
+        _logger.info('Level has been created, changing name')
 
         # I noticed that after creating a level, header reappears.
         # So let's remove it.
@@ -422,6 +488,8 @@ class EditableCourse(WaitableWithDriver):
 class Level(WaitableWithDriver):
     CLASS_LEVEL = 'level'
     CLASS_LEVEL_NAME = 'level-name'
+    CLASS_LEVEL_HEADER = 'level-header'
+    CLASS_LEVEL_LOADING = 'level-loading'
     CLASS_COLLAPSED = 'collapsed'
     CLASS_ICO_PLUS = 'ico-plus'
     CLASS_ICO_CLOSE = 'ico-close'
@@ -452,13 +520,22 @@ class Level(WaitableWithDriver):
         elements = self._driver.find_elements_by_class_name(self.CLASS_LEVEL)
         return elements[self._index]
 
+    def header(self):
+        return self._element().find_element_by_class_name(
+            self.CLASS_LEVEL_HEADER)
+
     def level_name_present(self):
         by = (By.CLASS_NAME, self.CLASS_LEVEL_NAME)
         return self._element_present(self._element(), by)
 
     @property
     def _things(self):
-        return self._element().find_elements_by_class_name(self.CLASS_THING)
+        _logger.info('getting things')
+        with without_implicit_wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT):
+            result = self._element().find_elements_by_class_name(
+                self.CLASS_THING)
+        _logger.info('getting things done')
+        return result
 
     def _cells(self, thing):
         return thing.find_elements_by_css_selector(self.SELECTOR_CELL)
@@ -522,6 +599,7 @@ class Level(WaitableWithDriver):
     def words(self):
         self.ensure_expanded()
 
+        _logger.info('Getting level words')
         # TODO: find out why it's slow
         result = []
         for thing in self._things:
@@ -572,10 +650,17 @@ class Level(WaitableWithDriver):
         # TODO: weird shit going on here. Sometimes it breaks without sleep,
         # sometimes it doesn't.
         # snooze(UI_TINY_DELAY)
+        _logger.info('Waiting for input to emerge')
+        by = (By.TAG_NAME, self.TAG_INPUT)
+        self._wait_element_present(self.header(), by)
 
-        name = self._element().find_element_by_class_name(
-            self.CLASS_LEVEL_NAME)
-        self._set_input(self._get_input(name), value)
+        # name = self._element().find_element_by_class_name(
+            # self.CLASS_LEVEL_NAME)
+        _logger.info('Changing input')
+        self._set_input(self._get_input(self.header()), value)
+
+        _logger.info('Waiting for input to perish')
+        self._wait_element_missing(self.header(), by)
         # Delay is due to PhantomJS bug:
         # # https://github.com/detro/ghostdriver/issues/249
         # snooze(UI_TINY_DELAY)
@@ -612,18 +697,45 @@ class Level(WaitableWithDriver):
         except StaleElementReferenceException:
             return False
 
+    @property
+    def _lazy_loaded(self) -> bool:
+        """
+        Levels are not fully loaded initially. Only the header is shown at
+        first. When you click Show/Hide, level words are loaded.
+
+        :return: True if the level has not been completely loaded yet.
+        """
+        by = (By.CLASS_NAME, self.CLASS_LEVEL_LOADING)
+        return self._element_present(self._element(), by)
+
     def show_hide(self):
+        was_collapsed = self.collapsed
+        lazy_loaded = self._lazy_loaded
+        old_element = self._element()
+
         button = self._element().find_element_by_css_selector(
             self.SELECTOR_SHOW_HIDE)
         self._js_click(button)
         # button.click()
+
         # TODO: turn it into a conditional wait
         # snooze(UI_SMALL_DELAY)
-        self._wait_condition(lambda _driver: self._safe_expanded)
+        if was_collapsed:
+            _logger.info('Waiting for expansion')
+            self._wait_condition(lambda _driver: self._safe_expanded)
+
+            if lazy_loaded:
+                _logger.info('Waiting for the element to change')
+                self._wait_condition(
+                    lambda _driver: self._element_changed(
+                        old_element,
+                        self._element))
 
     def ensure_expanded(self):
         if self.collapsed:
+            _logger.info('ensure_expanded: need to expand')
             self.show_hide()
+            _logger.info('ensure_expanded: expand done')
 
     def delete(self):
         level_id = self.id
@@ -655,6 +767,7 @@ def interactive(filename=None):
 
 
 def main():
+    # TODO: add CLI with flexible options
     interactive()
 
 
