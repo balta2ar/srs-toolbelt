@@ -229,6 +229,10 @@
      *    2. find words without an audio and add "Upload" button to the button group.
      */
     function addButtons() {
+        // TODO: add buttons not only to header but also to AddLevel panel
+        // so that when header is removed in memrise_syncher, buttons are
+        // still available.
+
         var header = document.querySelector('ul.header-nav');
         // <li class="header-nav-item plain ">
         // <a href="/home/" class="nav-item-btn">

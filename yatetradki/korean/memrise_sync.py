@@ -29,6 +29,7 @@ from pprint import pformat
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -49,7 +50,7 @@ MARK_LEVEL_NAME = '#'
 UI_LARGE_DELAY = 3.0
 UI_SMALL_DELAY = 1.0
 UI_TINY_DELAY = 0.5
-UI_MAX_IMPLICIT_TIMEOUT = 5.0
+UI_MAX_IMPLICIT_TIMEOUT = 10.0
 
 
 def snooze(delay):
@@ -218,7 +219,7 @@ window.document.head.appendChild(s);
         if not self._server_available():
             return False
 
-        _logger.info('Pronunciation server is available, proceeding...')
+        _logger.info('Pronunciation server is available, proceeding')
         for filename in self.FILES_TO_INJECT:
             _logger.info('Injecting file %s', filename)
             self._inject_js_file(filename)
@@ -234,8 +235,13 @@ class MemriseCourseSyncher:
     def __init__(self, course_url, filename):
         self._course_url = course_url
         self._filename = filename
-        self._driver = webdriver.Chrome()
-        # self._driver = webdriver.PhantomJS()
+
+        options = webdriver.ChromeOptions()
+        options.add_argument('--ignore-certificate-errors')
+        self._driver = webdriver.Chrome(chrome_options=options)
+
+        # self._driver = webdriver.PhantomJS(service_args=['--ignore-ssl-errors=true'])
+
         self._driver.implicitly_wait(UI_LARGE_DELAY)
         # self._driver.implicitly_wait(UI_TINY_DELAY)
         self._userscript_injector = UserScriptInjector(self._driver)
@@ -243,7 +249,6 @@ class MemriseCourseSyncher:
         self._course = EditableCourse(course_url, self._driver)
 
     def _login(self, username, password):
-        _logger.info('Logging in')
         self._driver.get(self.MEMRISE_LOGIN_PAGE)
 
         login_field = self._driver.find_element_by_xpath(
@@ -257,7 +262,6 @@ class MemriseCourseSyncher:
         login_button = self._driver.find_element_by_xpath(
             '//*[@id="login"]/input[3]')
         login_button.click()
-        _logger.info('Logging in done')
 
     @property
     def _file_word_pairs(self):
@@ -305,8 +309,8 @@ class MemriseCourseSyncher:
         _logger.info(pformat(words))
 
         username, password = read_credentials_from_netrc()
+        _logger.info('Logging in')
         self._login(username, password)
-
         self._course.load()
 
         _logger.info('Calculating difference')
@@ -318,7 +322,10 @@ class MemriseCourseSyncher:
         self._apply_diff_actions(diff_actions)
 
         if self._userscript_injector.inject():
-            pass
+            # Wait a little before injected code adds buttons that should
+            # be clicked.
+            snooze(UI_LARGE_DELAY)
+            self._course.add_pronunciation()
 
 
 class ElementUnchangedWithin:
@@ -384,6 +391,13 @@ class WaitableWithDriver:
         unchanged = ElementUnchangedWithin(get_element, duration_ms)
         self._wait_condition(lambda _driver: unchanged())
 
+    def _wait_number_changed(self, initial_number, get_new_number):
+        def _number_changed(_driver):
+            return get_new_number() != initial_number
+
+        w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
+        w.until(_number_changed)
+
 
 class EditableCourse(WaitableWithDriver):
     TAG_A = 'a'
@@ -399,7 +413,8 @@ class EditableCourse(WaitableWithDriver):
         self._levels = None
 
     def add_pronunciation(self):
-        pass
+        for level in self._levels:
+            level.add_pronunciation()
 
     def create_word(self, level_name, word, meaning):
         level = self.find_level(level_name)
@@ -421,11 +436,7 @@ class EditableCourse(WaitableWithDriver):
         return self._levels[-1]
 
     def _wait_level_count_changed(self, initial_level_count):
-        def _level_count_changed(_driver):
-            return self._reload_levels() != initial_level_count
-
-        w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
-        w.until(_level_count_changed)
+        self._wait_number_changed(self._reload_levels, initial_level_count)
 
     def _wait_level_created(self):
         # 1. Wait until new level appears.
@@ -486,7 +497,6 @@ class EditableCourse(WaitableWithDriver):
                                for level in self._levels])
 
     def _remove_header(self):
-        return
         # This method is safe to call even if header is missing.
         self._driver.execute_script(
             'var header = document.getElementById(arguments[0]);'
@@ -523,6 +533,7 @@ class Level(WaitableWithDriver):
     CLASS_ICO_PLUS = 'ico-plus'
     CLASS_ICO_CLOSE = 'ico-close'
     CLASS_ADDING = 'adding'
+    CLASS_ADD_AUDIO = 'btn-bz-add-audio'
     # This class is used by a row of words
     CLASS_THING = 'thing'
     CLASS_TEXT = 'text'
@@ -575,8 +586,30 @@ class Level(WaitableWithDriver):
         raise AttributeError('Cant find word "%s" in level "%s"' %
                              (word, self.name))
 
+    def _find_add_audio_buttons(self):
+        with without_implicit_wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT):
+            return self._element().find_elements_by_class_name(
+                self.CLASS_ADD_AUDIO)
+
+    def _wait_add_audio_button_count_changed(self, initial_count):
+        self._wait_number_changed(initial_count,
+                                  lambda: len(self._find_add_audio_buttons()))
+
     def add_pronunciation(self):
-        pass
+        _logger.info('Adding pronunciation to level %s', self.name)
+        self.ensure_expanded()
+
+        started = time()
+        buttons = self._find_add_audio_buttons()
+        while buttons:
+            _logger.info('Clicking AddAudio button (%s more remains)',
+                         len(buttons))
+            first_button = buttons[0]
+            first_button.click()
+
+            # TODO: handle possible TimeoutException
+            self._wait_add_audio_button_count_changed(len(buttons))
+            buttons = self._find_add_audio_buttons()
 
     def create_word(self, word, meaning):
         self.ensure_expanded()
@@ -770,9 +803,9 @@ class Level(WaitableWithDriver):
 def interactive(filename=None):
     url = 'https://www.memrise.com/course/1776472/bz-testing-course/edit/'
     if filename is None:
-        filename = './sample.txt'
+        filename = './sample3.txt'
     syncher = MemriseCourseSyncher(url, filename)
-    _logger.info('Starting sync...')
+    _logger.info('Starting sync')
     syncher.sync()
     _logger.info('Sync has finished')
     return syncher
