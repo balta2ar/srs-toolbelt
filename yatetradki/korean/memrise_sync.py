@@ -9,6 +9,7 @@ from time import sleep
 from collections import OrderedDict, namedtuple
 from functools import partial
 from itertools import zip_longest
+from contextlib import contextmanager
 from typing import List
 # from enum import Enum, auto
 from pprint import pformat
@@ -17,6 +18,7 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait as wait
 from selenium.webdriver.support import expected_conditions as EC
 
@@ -37,6 +39,15 @@ UI_MAX_IMPLICIT_TIMEOUT = 5.0
 def snooze(delay):
     _logger.info('Sleeping %s', delay)
     sleep(delay)
+
+
+@contextmanager
+def without_implicit_wait(driver, old_delay):
+    driver.implicitly_wait(0)
+    try:
+        yield
+    finally:
+        driver.implicitly_wait(old_delay)
 
 
 # TODO: REPLACE OrderedDict WITH SOMETHING ELSE!
@@ -164,6 +175,7 @@ class MemriseCourseSyncer:
         self._course_url = course_url
         self._filename = filename
         self._driver = webdriver.Chrome()
+        # self._driver = webdriver.PhantomJS()
         self._driver.implicitly_wait(UI_LARGE_DELAY)
         # self._driver.implicitly_wait(UI_TINY_DELAY)
 
@@ -233,12 +245,15 @@ class MemriseCourseSyncer:
         self._login(username, password)
 
         self._course.load()
+
+        # _logger.info('Calculating difference')
         # diff_actions = get_course_difference(
         #     self._course.words,
         #     self._file_words)
-        # _logger.info('Applying difference: %s', diff_actions)
 
+        # _logger.info('Applying difference: %s', diff_actions)
         # self._apply_diff_actions(diff_actions)
+
         # return self._driver
         # input('wait')
 
@@ -283,7 +298,7 @@ class EditableCourse:
         # site header covering "Add level" drop-down button. There is
         # _remove_header() helper, but even after calling it, the header
         # sometimes reappears so I've taught the script to add levels
-        # independing of that annoying header.
+        # independent of that annoying header.
         add_level_menu = self._driver.find_element_by_css_selector(
             self.SELECTOR_ADD_LEVEL_MENU)
         self._js_click(add_level_menu)
@@ -295,7 +310,8 @@ class EditableCourse:
         self._wait_level_count_changed(len(self._levels))
         # TODO: wait not for the count changed, but for availability of the
         # level name entry on the last level.
-        snooze(UI_TINY_DELAY)
+        # snooze(UI_TINY_DELAY)
+        snooze(UI_SMALL_DELAY)
 
         # I noticed that after creating a level, header reappears.
         # So let's remove it.
@@ -317,7 +333,6 @@ class EditableCourse:
             if level.collapsed:
                 _logger.info('Expanding level')
                 level.show_hide()
-                snooze(UI_SMALL_DELAY)
 
     @property
     def words(self):
@@ -446,7 +461,22 @@ class Level:
 
     def _wait_gone(self, by):
         w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
-        return w.until(EC.invisibility_of_element_located(by))
+        return w.until(lambda _driver: self._element_missing(self._driver, by))
+
+    def _wait_condition(self, condition):
+        w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
+        return w.until(condition)
+
+    def _element_missing(self, where, by):
+        return not self._element_present(where, by)
+
+    def _element_present(self, where, by):
+        with without_implicit_wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT):
+            try:
+                where.find_element(*by)
+                return True
+            except NoSuchElementException:
+                return False
 
     def delete_word(self, word):
         self.ensure_expanded()
@@ -461,6 +491,9 @@ class Level:
 
     @property
     def words(self):
+        self.ensure_expanded()
+
+        # TODO: find out why it's slow
         result = []
         for thing in self._things:
             cells = self._cells(thing)
@@ -480,7 +513,10 @@ class Level:
         input_field.clear()
         input_field.send_keys(value)
         if send_return:
-            input_field.send_keys(Keys.RETURN)
+            # input_field.send_keys(Keys.RETURN)
+            # Due to a bug, I send ENTER, not RETURN, see:
+            # https://github.com/detro/ghostdriver/issues/249
+            input_field.send_keys(Keys.ENTER)
 
     @property
     def id(self):
@@ -497,26 +533,53 @@ class Level:
 
     @name.setter
     def name(self, value):
+        _logger.info('Changing name')
         name = self._element().find_element_by_class_name(
             self.CLASS_LEVEL_NAME)
         # name.click()
         self._js_click(name)
+        # When it comes to input, delay is necessary with PhantomJS:
+        # https://github.com/detro/ghostdriver/issues/249
+        # TODO: weird shit going on here. Sometimes it breaks without sleep,
+        # sometimes it doesn't.
+        # snooze(UI_TINY_DELAY)
 
         name = self._element().find_element_by_class_name(
             self.CLASS_LEVEL_NAME)
         self._set_input(self._get_input(name), value)
+        # Delay is due to PhantomJS bug:
+        # # https://github.com/detro/ghostdriver/issues/249
+        # snooze(UI_TINY_DELAY)
 
     @property
     def collapsed(self):
+        """
+        This method is not exact opposite of expanded because when we collapse
+        level, <input> tag is not removed. Thus to conside the level to be
+        collapsed, we only check the class.
+        """
         class_ = self._element().get_attribute('class')
         return self.CLASS_COLLAPSED in class_
+
+    @property
+    def expanded(self):
+        """
+        Levels are lazy-loaded. Level becomes expanded when:
+            1. "collapsed" class is gone
+            2. AND <input> tag is added to the level.
+        """
+        by = (By.TAG_NAME, self.TAG_INPUT)
+        input_present = self._element_present(self._element(), by)
+        return (not self.collapsed) and input_present
 
     def show_hide(self):
         button = self._element().find_element_by_css_selector(
             self.SELECTOR_SHOW_HIDE)
         self._js_click(button)
         # button.click()
-        snooze(UI_SMALL_DELAY)
+        # TODO: turn it into a conditional wait
+        # snooze(UI_SMALL_DELAY)
+        self._wait_condition(lambda _driver: self.expanded)
 
     def ensure_expanded(self):
         if self.collapsed:
@@ -540,9 +603,10 @@ class Level:
         self._wait_gone(by)
 
 
-def interactive():
+def interactive(filename=None):
     url = 'https://www.memrise.com/course/1776472/bz-testing-course/edit/'
-    filename = './sample.txt'
+    if filename is None:
+        filename = './sample2.txt'
     syncer = MemriseCourseSyncer(url, filename)
     _logger.info('Starting sync...')
     syncer.sync()
