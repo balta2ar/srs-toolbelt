@@ -14,6 +14,13 @@ yatetradki/korean/cache_krdict
 .mypy_cache
 .vscode
 .tags
+.cache
 data3
 index
+__pycache__
+*.pyc
+*.mp3
+longman
+ignored
+tags
 
