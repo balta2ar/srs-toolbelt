@@ -40,11 +40,15 @@ from selenium.webdriver.support.ui import WebDriverWait as wait
 from requests import get
 from requests.exceptions import RequestException
 
+import fire
+
+
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 _logger = logging.getLogger(__name__)
 
 
+DEFAULT_DRIVER_NAME = 'phantomjs'
 MARK_COMMENT = '@'
 MARK_LEVEL_NAME = '#'
 UI_LARGE_DELAY = 3.0
@@ -229,19 +233,27 @@ window.document.head.appendChild(s);
         return True
 
 
+def _create_driver(driver_name):
+    if driver_name == 'phantomjs':
+        return webdriver.PhantomJS(
+            service_args=['--ignore-ssl-errors=true'])
+    elif driver_name == 'chrome':
+        options = webdriver.ChromeOptions()
+        options.add_argument('--ignore-certificate-errors')
+        return webdriver.Chrome(chrome_options=options)
+    else:
+        raise ValueError('Unknown driver name "%s". Please only use '
+                         '"phantomjs" or "chrome".' % driver_name)
+
+
 # TODO: add ReadonlyCourse class
 class MemriseCourseSyncher:
     MEMRISE_LOGIN_PAGE = 'https://www.memrise.com/login/'
 
-    def __init__(self, course_url, filename):
+    def __init__(self, filename, course_url, driver_name=DEFAULT_DRIVER_NAME):
         self._course_url = course_url
         self._filename = filename
-
-        options = webdriver.ChromeOptions()
-        options.add_argument('--ignore-certificate-errors')
-        self._driver = webdriver.Chrome(chrome_options=options)
-
-        # self._driver = webdriver.PhantomJS(service_args=['--ignore-ssl-errors=true'])
+        self._driver = _create_driver(driver_name)
 
         self._driver.implicitly_wait(UI_LARGE_DELAY)
         # self._driver.implicitly_wait(UI_TINY_DELAY)
@@ -306,8 +318,9 @@ class MemriseCourseSyncher:
                 _logger.exception('Diff action failed "%s": %s', action, e)
 
     def sync(self):
+        _logger.info('Starting sync')
+
         words = self._file_word_pairs
-        _logger.info(pformat(words))
 
         username, password = read_credentials_from_netrc()
         _logger.info('Logging in')
@@ -319,14 +332,18 @@ class MemriseCourseSyncher:
             self._course.word_pairs,
             self._file_word_pairs)
 
-        _logger.info('Applying difference: %s', pformat(diff_actions))
-        self._apply_diff_actions(diff_actions)
+        if diff_actions:
+            _logger.info('Applying %s difference: %s',
+                         len(diff_actions), pformat(diff_actions))
+            self._apply_diff_actions(diff_actions)
 
         if self._userscript_injector.inject():
             # Wait a little before injected code adds buttons that should
             # be clicked.
             snooze(UI_LARGE_DELAY)
             self._course.add_pronunciation()
+
+        _logger.info('Sync has finished')
 
 
 class ElementUnchangedWithin:
@@ -816,10 +833,8 @@ def interactive(filename=None):
     url = 'https://www.memrise.com/course/1776472/bz-testing-course/edit/'
     if filename is None:
         filename = './sample3.txt'
-    syncher = MemriseCourseSyncher(url, filename)
-    _logger.info('Starting sync')
+    syncher = MemriseCourseSyncher(filename, url)
     syncher.sync()
-    _logger.info('Sync has finished')
     return syncher
 
 
@@ -828,11 +843,32 @@ def pronunciation():
     pronunciation.inject()
 
 
+class Runner:
+    def __init__(self, log=None, driver=DEFAULT_DRIVER_NAME):
+        self.log = log
+        self.driver = driver
+
+    def upload(self, filename, course_url):
+        """
+        Upload contents of the given filename into the given course. Basically
+        it synchronizes from filename to course. Note that you have to have
+        edit access to the course.
+        """
+        syncher = MemriseCourseSyncher(filename, course_url, self.driver)
+        syncher.sync()
+
+    def save(self, filename, course_url):
+        """
+        Saves given course into a given filename. You don't need edit access
+        to do this operation.
+        """
+
+
 def main():
     # TODO: add CLI with flexible options
     # TODO: add support for memrise_server to automatically add pronunciation
-    interactive()
-
+    # interactive()
+    fire.Fire(Runner)
 
 if __name__ == '__main__':
     main()
