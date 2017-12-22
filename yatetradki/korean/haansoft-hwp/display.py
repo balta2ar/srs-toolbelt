@@ -58,9 +58,9 @@ def prettify(word, article):
 
         if index == 0 or prev_line == '':
             # print(word, file=sys.stderr)
-            fixed_line = '[m1][b]%s[/b][/m]' % clean_line
+            fixed_line = '[m1][c green]%s[/c][/m]' % clean_line
         elif clean_line.startswith(COLLOCATION_MARKER):
-            fixed_line = '[m2][i]%s[/i][/m]' % clean_line[len(COLLOCATION_MARKER):]
+            fixed_line = '[m2][c steelblue]%s[/c][/m]' % clean_line[len(COLLOCATION_MARKER):]
         elif clean_line.startswith(EXAMPLE_MARKER):
             fixed_line = '[m2][ex]%s[/ex][/m]' % clean_line[len(EXAMPLE_MARKER):]
         else:
@@ -101,8 +101,8 @@ def convert_to(data_filename, index_filename, output_file):
         output_file.write('\t\n')
 
         count += 1
-        if count > 100:
-            break
+        # if count > 100:
+            # break
 
 
 class Executor:
