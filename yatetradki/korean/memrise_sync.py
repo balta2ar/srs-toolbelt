@@ -51,6 +51,7 @@ UI_LARGE_DELAY = 3.0
 UI_SMALL_DELAY = 1.0
 UI_TINY_DELAY = 0.5
 UI_MAX_IMPLICIT_TIMEOUT = 10.0
+ADD_PRONUNCIATION_TIMEOUT = 10.0
 
 
 def snooze(delay):
@@ -592,8 +593,13 @@ class Level(WaitableWithDriver):
                 self.CLASS_ADD_AUDIO)
 
     def _wait_add_audio_button_count_changed(self, initial_count):
-        self._wait_number_changed(initial_count,
-                                  lambda: len(self._find_add_audio_buttons()))
+        try:
+            self._wait_number_changed(
+                initial_count,
+                lambda: len(self._find_add_audio_buttons()))
+            return True
+        except TimeoutError:
+            return False
 
     def add_pronunciation(self):
         _logger.info('Adding pronunciation to level %s', self.name)
@@ -607,8 +613,14 @@ class Level(WaitableWithDriver):
             first_button = buttons[0]
             first_button.click()
 
-            # TODO: handle possible TimeoutException
-            self._wait_add_audio_button_count_changed(len(buttons))
+            if self._wait_add_audio_button_count_changed(len(buttons)):
+                started = time()
+            else:
+                diff = time() - started
+                if diff > ADD_PRONUNCIATION_TIMEOUT:
+                    _logger.info('Timeout waiting for pronunciation at '
+                                 'level %s', self.name)
+                    break
             buttons = self._find_add_audio_buttons()
 
     def create_word(self, word, meaning):
