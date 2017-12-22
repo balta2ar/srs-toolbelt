@@ -234,6 +234,8 @@
         // still available.
 
         var header = document.querySelector('ul.header-nav');
+        var add_level_group = document.querySelector(
+            '.btn-group.pull-left').querySelector('.dropdown-menu');
         // <li class="header-nav-item plain ">
         // <a href="/home/" class="nav-item-btn">
         //            <span class="nav-item-btn-text">Home</span>
@@ -242,13 +244,15 @@
         //startButton.innerHTML = 'Add missing audio [bz]';
         startButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">+♫</span> </a>';
         startButton.addEventListener('click', function(event) { clickAllAddAudioButtons(); } );
-        header.appendChild(startButton);
+        if (header) header.appendChild(startButton);
+        if (add_level_group) add_level_group.appendChild(startButton);
 
         var deleteButton = document.createElement('li');
         deleteButton.setAttribute('class', 'header-nav-item plain');
         deleteButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">&ndash;♫</span> </a>';
         deleteButton.addEventListener('click', function(event) { clickAllDeleteButtons(); } );
-        header.appendChild(deleteButton);
+        if (header) header.appendChild(deleteButton);
+        if (add_level_group) add_level_group.appendChild(deleteButton);
 
         var MAX_EXPAND = 5;
         var SELECTOR_COLLAPSED = '.level.collapsed';
@@ -258,13 +262,15 @@
         expandButton.setAttribute('class', 'header-nav-item plain');
         expandButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">&lt;' + MAX_EXPAND + '&gt;</span> </a>';
         expandButton.addEventListener('click', function(event) { toggleExpandCollapseLevels(SELECTOR_COLLAPSED, MAX_EXPAND); } );
-        header.appendChild(expandButton);
+        if (header) header.appendChild(expandButton);
+        if (add_level_group) add_level_group.appendChild(expandButton);
 
         var collapseButton = document.createElement('li');
         collapseButton.setAttribute('class', 'header-nav-item plain');
         collapseButton.innerHTML = '<a class="nav-item-btn"> <span class="nav-item-btn-text">&gt;' + MAX_EXPAND + '&lt;</span> </a>';
         collapseButton.addEventListener('click', function(event) { toggleExpandCollapseLevels(SELECTOR_EXPANDED, MAX_EXPAND); } );
-        header.appendChild(collapseButton);
+        if (header) header.appendChild(collapseButton);
+        if (add_level_group) add_level_group.appendChild(collapseButton);
 
         //var bulkAddButton = document.createElement('li');
         //bulkAddButton.setAttribute('class', 'header-nav-item plain');
