@@ -20,6 +20,8 @@ index
 __pycache__
 *.pyc
 *.mp3
+*.index
+*.dsl
 longman
 ignored
 tags
