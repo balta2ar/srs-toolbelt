@@ -107,5 +107,6 @@ def get_audio(word):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, ssl_context='adhoc')
+    app.run(debug=False, ssl_context='adhoc')
+    # app.run(debug=True, ssl_context='adhoc')
     # app.run(debug=True)
