@@ -23,6 +23,9 @@ from time import time
 from collections import OrderedDict, namedtuple
 from itertools import zip_longest
 from contextlib import contextmanager
+from functools import lru_cache
+from urllib.parse import urlparse
+from urllib.parse import urljoin
 from typing import List, Callable
 from pprint import pformat
 
@@ -37,6 +40,8 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait as wait
 
+from bs4 import BeautifulSoup
+
 from requests import get
 from requests.exceptions import RequestException
 
@@ -48,6 +53,7 @@ logging.basicConfig(format=FORMAT, level=logging.INFO)
 _logger = logging.getLogger(__name__)
 
 
+BS_PARSER = 'html.parser'
 DEFAULT_DRIVER_NAME = 'phantomjs'
 MARK_COMMENT = '@'
 MARK_LEVEL_NAME = '#'
@@ -63,6 +69,10 @@ def snooze(delay):
     sleep(delay)
 
 
+def _get_page(url):
+    return get(url).content
+
+
 @contextmanager
 def without_implicit_wait(driver, old_delay):
     driver.implicitly_wait(0)
@@ -75,7 +85,14 @@ def without_implicit_wait(driver, old_delay):
 # TODO: REPLACE OrderedDict WITH SOMETHING ELSE!
 # problematic case: multiple levels with the same name
 class WordCollection(OrderedDict):
-    pass
+    def __str__(self):
+        lines = []
+
+        for level_name, word_pairs in self.items():
+            lines.append('\n# %s\n' % level_name)
+            for pair in word_pairs:
+                lines.append('%s; %s' % (pair.word, pair.meaning))
+        return '\n'.join(lines)
 
 
 WordPair = namedtuple('WordPair', 'word meaning')
@@ -246,7 +263,6 @@ def _create_driver(driver_name):
                          '"phantomjs" or "chrome".' % driver_name)
 
 
-# TODO: add ReadonlyCourse class
 class MemriseCourseSyncher:
     MEMRISE_LOGIN_PAGE = 'https://www.memrise.com/login/'
 
@@ -319,8 +335,6 @@ class MemriseCourseSyncher:
 
     def sync(self):
         _logger.info('Starting sync')
-
-        words = self._file_word_pairs
 
         username, password = read_credentials_from_netrc()
         _logger.info('Logging in')
@@ -829,6 +843,78 @@ class Level(WaitableWithDriver):
         self._wait_gone(by)
 
 
+class ReadonlyCourse:
+    def __init__(self, course_url):
+        self._course_url = course_url
+        self._body = _get_page(course_url)
+
+    def save_to_file(self, filename=None):
+        if filename is None:
+            filename = '%s.txt' % self.name
+        _logger.info('Saving course %s to filename %s', self.name, filename)
+
+        with open(filename, 'w') as file_:
+            file_.write(str(self.word_pairs))
+
+    def _make_level_url(self, short_level_url):
+        parsed = urlparse(self._course_url)
+        base = "%s://%s" % (parsed.scheme, parsed.netloc)
+        return urljoin(base, short_level_url)
+
+    @property
+    @lru_cache()
+    def name(self):
+        soup = BeautifulSoup(self._body, BS_PARSER)
+        return soup.select_one('h1.course-name').text.strip()
+
+    @property
+    @lru_cache()
+    def word_pairs(self):
+        _logger.info('Reading course %s (%s)', self.name, self._course_url)
+        result = WordCollection()
+
+        soup = BeautifulSoup(self._body, BS_PARSER)
+        a_levels = soup.find_all('a', class_='level')
+        for a_level in a_levels:
+            href = self._make_level_url(a_level['href'])
+            level = ReadonlyLevel(href)
+            if not level.name in result:
+                result[level.name] = []
+            result[level.name].extend(level.word_pairs)
+
+        return result
+
+
+class ReadonlyLevel:
+    def __init__(self, level_url):
+        self._level_url = level_url
+        self._body = _get_page(level_url)
+
+    @property
+    @lru_cache()
+    def name(self):
+        soup = BeautifulSoup(self._body, BS_PARSER)
+        infos = soup.find('div', class_='infos')
+        return infos.find('h3', class_='progress-box-title').text.strip()
+
+    @property
+    @lru_cache()
+    def word_pairs(self):
+        _logger.info('Reading level %s (%s)', self.name, self._level_url)
+
+        result = []
+
+        soup = BeautifulSoup(self._body, BS_PARSER)
+        things = soup.select('div.things div.thing')
+        for thing in things:
+            pair = WordPair(
+                thing.select_one('div.col_a.col.text').text.strip(),
+                thing.select_one('div.col_b.col.text').text.strip())
+            result.append(pair)
+
+        return result
+
+
 def interactive(filename=None):
     url = 'https://www.memrise.com/course/1776472/bz-testing-course/edit/'
     if filename is None:
@@ -839,8 +925,15 @@ def interactive(filename=None):
 
 
 def pronunciation():
-    pronunciation = UserScriptInjector(None)
-    pronunciation.inject()
+    injector = UserScriptInjector(None)
+    injector.inject()
+
+
+def backup():
+    course_url = 'https://www.memrise.com/course/1776472/bz-testing-course'
+    course = ReadonlyCourse(course_url)
+    # print(pformat(course.word_pairs))
+    return course
 
 
 class Runner:
@@ -862,11 +955,12 @@ class Runner:
         Saves given course into a given filename. You don't need edit access
         to do this operation.
         """
+        course = ReadonlyCourse(course_url)
+        print(pformat(course.word_pairs))
+        course.save_to_file(filename)
 
 
 def main():
-    # TODO: add CLI with flexible options
-    # TODO: add support for memrise_server to automatically add pronunciation
     # interactive()
     fire.Fire(Runner)
 
