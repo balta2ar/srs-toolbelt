@@ -468,7 +468,7 @@ class EditableCourse(WaitableWithDriver):
         return self._levels[-1]
 
     def _wait_level_count_changed(self, initial_level_count):
-        self._wait_number_changed(self._reload_levels, initial_level_count)
+        self._wait_number_changed(initial_level_count, self._reload_levels)
 
     def _wait_level_created(self):
         # 1. Wait until new level appears.
@@ -960,6 +960,8 @@ class Runner:
         course.save_to_file(filename)
 
 
+# TODO: add checker for duplicates (levels, words, meanings)
+# TODO: add option to enable pronunciation
 def main():
     # interactive()
     fire.Fire(Runner)
