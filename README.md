@@ -42,7 +42,7 @@ Script [anki_sync.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatet
 
 ## 2. Print recent hard cards from Anki DB
 
-I find it occasionally useful to display Anki cards that I answered "Hard" on my desktod. To do that, I use script [recent.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/tools/recent.py) to print out recent cards. To squeeze more words into the space, words are printied in multiple columns.
+I find it occasionally useful to display Anki cards that I answered "Hard" on my desktop. To do that, I use script [recent.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/tools/recent.py) to print out recent cards. To squeeze more words into the space, words are printed in multiple columns.
 
 ![Recent](https://i.imgur.com/9yDSeui.png)
 
@@ -63,7 +63,7 @@ deck:english::using-english rated:7:2   Word
 
 ## 3. Convert a list of new English words into Anki flash cards.
 
-I have two primary sources of new words: browser history (I use www.lingvolive.com dicionary) and history in GoldenDict mobile dictionary (I use "Save history" feature along with synchronization of that file using BTSync or Resilio Sync now). Every new word is looked in several DSL dictionaries by scripts [dsl.sh](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/reader/dsl.sh) and [dsl.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/reader/dsl.py). On top of that English pronunciation is added automatically using scripts [audio.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/tools/audio.py) and [load_from_csv.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/tools/load_from_csv.py). The latter one is a universal CSV loader, it can load into any Anki deck. `audio.py` is another hack that composes several pieces together: it calls parts of AwesomeTTS Anki plugin with a hardcoded configuration to obtain english pronunciation.
+I have two primary sources of new words: browser history (I use www.lingvolive.com dicionary) and history in GoldenDict mobile dictionary (I use "Save history" feature along with synchronization of that file using BTSync or Resilio Sync now). Every new word is looked up in several DSL dictionaries by scripts [dsl.sh](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/reader/dsl.sh) and [dsl.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/reader/dsl.py). On top of that English pronunciation is added automatically using scripts [audio.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/tools/audio.py) and [load_from_csv.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/tools/load_from_csv.py). The latter one is a universal CSV loader, it can load into any Anki deck. `audio.py` is another hack that composes several pieces together: it calls parts of AwesomeTTS Anki plugin with a hardcoded configuration to obtain english pronunciation.
 
 The resulting cards look as follows:
 
@@ -252,4 +252,4 @@ cat yatetradki/extract/lingvo-online.ru/history.txt | python -m yatetradki.reade
 
 ## Author
 
-(c) 2014-2017 Yuri Bochkarev
+(c) 2014-2018 Yuri Bochkarev
