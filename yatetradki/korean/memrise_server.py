@@ -31,7 +31,10 @@ if os.environ.get('TOR') == '1':
     # print(urllib2.urlopen("http://www.ifconfig.me/ip").read())
     IP_CHECKER = "http://icanhazip.com"
     # IP_CHECKER = "http://httpbin.org/ip"
-    logging.info('Current IP: %s', urllib2.urlopen(IP_CHECKER).read().strip())
+    try:
+        logging.info('Current IP: %s', urllib2.urlopen(IP_CHECKER).read().strip())
+    except urllib2.HTTPError as e:
+        logging.error('Cannot obtain current ip: %s', e)
 
 try:
     from urllib.parse import unquote
@@ -107,6 +110,9 @@ def get_audio(word):
 
 
 if __name__ == '__main__':
-    app.run(debug=False, ssl_context='adhoc')
+    if os.environ.get('SSL') == '1':
+        app.run(debug=False, ssl_context='adhoc')
+    else:
+        app.run(debug=False)
     # app.run(debug=True, ssl_context='adhoc')
     # app.run(debug=True)
