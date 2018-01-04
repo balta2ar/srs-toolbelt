@@ -63,17 +63,34 @@ deck:english::using-english rated:7:2   Word
 
 ## 3. Convert a list of new English words into Anki flash cards.
 
-I have two primary sources of new words: browser history (I use www.lingvolive.com dicionary) and history in GoldenDict mobile dictionary (I use "Save history" feature along with synchronization of that file using BTSync or Resilio Sync now). Every new word is looked up in several DSL dictionaries by scripts [dsl.sh](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/reader/dsl.sh) and [dsl.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/reader/dsl.py). On top of that English pronunciation is added automatically using scripts [audio.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/tools/audio.py) and [load_from_csv.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/tools/load_from_csv.py). The latter one is a universal CSV loader, it can load into any Anki deck. `audio.py` is another hack that composes several pieces together: it calls parts of AwesomeTTS Anki plugin with a hardcoded configuration to obtain english pronunciation.
+I have two primary sources of new words: browser history (I use
+www.lingvolive.com dicionary) and history in GoldenDict mobile dictionary (I use
+"Save history" feature along with synchronization of that file using BTSync or
+Resilio Sync now). Every new word is looked up in several DSL dictionaries by
+scripts
+[dsl.sh](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/reader/dsl.sh)
+and
+[dsl.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/reader/dsl.py).
+On top of that English pronunciation is added automatically using scripts
+[audio.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/tools/audio.py)
+and
+[load_from_csv.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/tools/load_from_csv.py).
+The latter one is a universal CSV loader, it can load into any Anki deck.
+`audio.py` is another hack that composes several pieces together: it calls parts
+of AwesomeTTS Anki plugin with a hardcoded configuration to obtain english
+pronunciation.
 
 The resulting cards look as follows:
 
 ![Automatic Card](https://i.imgur.com/af6UiMz.jpg)
 
-If course it's a long screenshot. In Anki only a small parts is displayed but it's scrollable.
+If course it's a long screenshot. In Anki only a small parts is displayed but
+it's scrollable.
 
 ## 4. Convert Korean sentences from Google Keep into Anki cards
 
-For me it's convenient to use Google Keep as a source of my data for Anki. For example, I have a note with the following structure:
+For me it's convenient to use Google Keep as a source of my data for Anki. For
+example, I have a note with the following structure:
 
 ``` text
 # Глава 8, 공공 예절
@@ -89,7 +106,10 @@ For me it's convenient to use Google Keep as a source of my data for Anki. For e
 Вас понял.
 ```
 
-It's convenient because when I do my Korean studies, I can easily dictate sentences in both languages into my phone and save it into Google Keep. Later Google Keep is syncronized onto my computer and I convert the received text file into an Anki card that looks like this:
+It's convenient because when I do my Korean studies, I can easily dictate
+sentences in both languages into my phone and save it into Google Keep. Later
+Google Keep is syncronized onto my computer and I convert the received text file
+into an Anki card that looks like this:
 
 ![korean-sentences](https://i.imgur.com/2zXaqad.jpg)
 
