@@ -213,6 +213,7 @@ python ./memrise_sync.py --driver phantomjs upload --only-log-changes --pronunci
 <!-- 3. Do forced alignment for korean sentences from my Korean textbook and convert
    them to Memrise course (flash cards). -->
 
+<!--
 ## Information below is outdated
 
 yandex-slovari-tetradki is a script to extract words from Yandex Slovari.Tetradki.
@@ -268,6 +269,7 @@ en -> ru | fraudulent          обманный, жульнический
      def : 1.  Engaging in fraud; deceitful.
            2.  Characterized by, constituting, or gained by fraud: fraudulent business practices.
 ```
+-->
 
 ## Screenshots of anki
 
@@ -283,6 +285,7 @@ en -> ru | fraudulent          обманный, жульнический
 
 ![Definitions](http://i.imgur.com/gePlqoU.png)
 
+<!--
 ### Usage
 
 Export words from cache into Jinja2-formatted deck:
@@ -309,6 +312,8 @@ python2 main.py fetch --fetcher Idioms --words-filename idioms.txt --cache idiom
 Picture:
 
 ![Usage](http://i.imgur.com/eiAk5or.png)
+
+-->
 
 Grab words from lingvo-online.ru and convert them into Anki cards taking
 articles from DSL dictionaries:
