@@ -151,8 +151,63 @@ Using [memrise_sync.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yat
 python ./memrise_sync.py \
       --driver phantomjs \
       upload \
+      --only-log-changes \
+      --pronunciation korean \
       --filename wg1-9.txt \
       --course-url 'https://www.memrise.com/course/1784675/junggeub-hangugeo-je1-9-gwa/edit/'
+```
+
+Sample execution log:
+
+``` text
+python ./memrise_sync.py --driver phantomjs upload --only-log-changes --pronunciation korean --filename sample2.txt --course-url 'https://www.memrise.com/course
+/1793248/wongwan-2-2-high-priority-bz-words/edit/'
+2018-01-04 21:29:22,857 INFO Program arguments: driver="<selenium.webdriver.phantomjs.webdriver.WebDriver (session="29bc6cf0-f17d-11e7-9307-f9bfc90e4e0c")>" only_log_changes=True pronunciation="korean" filename="sample2.txt" course_url="https://www.memrise.com/course/1793248/wongwan-2-2-high-priority-bz-words/edit/"
+2018-01-04 21:29:22,857 INFO Applying 12 difference: [DiffActionChangeLevel(level_name='January', new_level_name='1 урок'),
+ DiffActionChangeWord(level_name='1 урок', old_pair=WordPair(word='만큼', meaning='такой, как; так же, как; настолько; настолько ..., что; в такой мере ..., что; так ... чтобы; так как, поско
+льку; раз'), new_pair=WordPair(word='예매', meaning='предварительная покупка')),
+ DiffActionChangeWord(level_name='1 урок', old_pair=WordPair(word='구역', meaning='【區域】 район; сектор; зона; граница'), new_pair=WordPair(word='도착', meaning='прибытие')),
+ DiffActionChangeWord(level_name='1 урок', old_pair=WordPair(word='흡연', meaning='【吸煙】 курение'), new_pair=WordPair(word='매표소', meaning='билетная касса')),
+ DiffActionChangeLevel(level_name='February', new_level_name='2 урок'),
+ DiffActionCreateWord(level_name='2 урок', pair=WordPair(word='식구', meaning='член семьи')),
+ DiffActionCreateWord(level_name='2 урок', pair=WordPair(word='스케이트', meaning='коньки')),
+ DiffActionCreateWord(level_name='2 урок', pair=WordPair(word='야구', meaning='бейсбол')),
+ DiffActionChangeLevel(level_name='March', new_level_name='3 урок'),
+ DiffActionCreateWord(level_name='3 урок', pair=WordPair(word='답장', meaning='ответное письмо')),
+ DiffActionCreateWord(level_name='3 урок', pair=WordPair(word='답장하다', meaning='отвечать на письмо')),
+ DiffActionCreateWord(level_name='3 урок', pair=WordPair(word='우체통', meaning='почтовый ящик'))]
+2018-01-04 21:29:22,857 INFO Applying action: "DiffActionChangeLevel(level_name='January', new_level_name='1 урок')"
+2018-01-04 21:29:23,252 INFO Applying action: "DiffActionChangeWord(level_name='1 урок', old_pair=WordPair(word='만큼', meaning='такой, как; так же, как; настолько; настолько ..., что; в тако
+й мере ..., что; так ... чтобы; так как, поскольку; раз'), new_pair=WordPair(word='예매', meaning='предварительная покупка'))"
+2018-01-04 21:29:23,656 INFO Applying action: "DiffActionChangeWord(level_name='1 урок', old_pair=WordPair(word='구역', meaning='【區域】 район; сектор; зона; граница'), new_pair=WordPair(word='도착', meaning='прибытие'))"
+2018-01-04 21:29:24,067 INFO Applying action: "DiffActionChangeWord(level_name='1 урок', old_pair=WordPair(word='흡연', meaning='【吸煙】 курение'), new_pair=WordPair(word='매표소', meaning='
+билетная касса'))"
+2018-01-04 21:29:24,506 INFO Applying action: "DiffActionChangeLevel(level_name='February', new_level_name='2 урок')"
+2018-01-04 21:29:24,848 INFO Applying action: "DiffActionCreateWord(level_name='2 урок', pair=WordPair(word='식구', meaning='член семьи'))"
+2018-01-04 21:29:26,181 INFO Applying action: "DiffActionCreateWord(level_name='2 урок', pair=WordPair(word='스케이트', meaning='коньки'))"
+2018-01-04 21:29:27,501 INFO Applying action: "DiffActionCreateWord(level_name='2 урок', pair=WordPair(word='야구', meaning='бейсбол'))"
+2018-01-04 21:29:28,326 INFO Applying action: "DiffActionChangeLevel(level_name='March', new_level_name='3 урок')"
+2018-01-04 21:29:28,683 INFO Applying action: "DiffActionCreateWord(level_name='3 урок', pair=WordPair(word='답장', meaning='ответное письмо'))"
+2018-01-04 21:29:30,028 INFO Applying action: "DiffActionCreateWord(level_name='3 урок', pair=WordPair(word='답장하다', meaning='отвечать на письмо'))"
+2018-01-04 21:29:31,383 INFO Applying action: "DiffActionCreateWord(level_name='3 урок', pair=WordPair(word='우체통', meaning='почтовый ящик'))"
+/usr/lib/python3.6/site-packages/urllib3/connectionpool.py:858: InsecureRequestWarning: Unverified HTTPS request is being made. Adding certificate verification is strongly advised. See: http$://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings
+  InsecureRequestWarning)
+2018-01-04 21:29:32,292 INFO Pronunciation server is available, proceeding
+2018-01-04 21:29:32,292 INFO Injecting file jquery.min.js
+2018-01-04 21:29:32,312 INFO Injecting file userscript_stubs.js
+2018-01-04 21:29:32,317 INFO Injecting file memrise_client.js
+2018-01-04 21:29:32,323 INFO UserScript JS files have been injected
+2018-01-04 21:29:32,323 INFO Sleeping 3.0
+2018-01-04 21:29:35,342 INFO Adding pronunciation to level 1 урок
+2018-01-04 21:29:35,391 INFO Adding pronunciation to level 2 урок
+2018-01-04 21:29:35,419 INFO Clicking AddAudio button (3 more remains)
+2018-01-04 21:29:36,819 INFO Clicking AddAudio button (2 more remains)
+2018-01-04 21:29:38,015 INFO Clicking AddAudio button (1 more remains)
+2018-01-04 21:29:39,240 INFO Adding pronunciation to level 3 урок
+2018-01-04 21:29:39,272 INFO Clicking AddAudio button (3 more remains)
+2018-01-04 21:29:40,417 INFO Clicking AddAudio button (2 more remains)
+2018-01-04 21:29:41,574 INFO Clicking AddAudio button (1 more remains)
+2018-01-04 21:29:42,812 INFO Sync has finished
 ```
 
 <!-- 3. Do forced alignment for korean sentences from my Korean textbook and convert
