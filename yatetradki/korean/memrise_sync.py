@@ -53,6 +53,8 @@ logging.basicConfig(format=FORMAT, level=logging.INFO)
 _logger = logging.getLogger(__name__)
 
 
+DEFAULT_LOG_LEVEL = logging.INFO
+SILENT_LOG_LEVEL = logging.ERROR
 BS_PARSER = 'html.parser'
 DEFAULT_DRIVER_NAME = 'phantomjs'
 MARK_COMMENT = '@'
@@ -265,6 +267,7 @@ def _create_driver(driver_name):
 
 class MemriseCourseSyncher:
     MEMRISE_LOGIN_PAGE = 'https://www.memrise.com/login/'
+    PRONUNCIATION_KOREAN = 'korean'
 
     def __init__(self, filename, course_url, driver_name=DEFAULT_DRIVER_NAME):
         self._course_url = course_url
@@ -333,7 +336,11 @@ class MemriseCourseSyncher:
             except AttributeError as e:
                 _logger.exception('Diff action failed "%s": %s', action, e)
 
-    def sync(self):
+    def sync(self, pronunciation=None, only_log_changes=False):
+        if pronunciation not in (None, self.PRONUNCIATION_KOREAN):
+            raise ValueError('Unsupported pronunciation: %s. Supported: %s' %
+                             (pronunciation, self.PRONUNCIATION_KOREAN))
+
         _logger.info('Starting sync')
 
         username, password = read_credentials_from_netrc()
@@ -347,11 +354,26 @@ class MemriseCourseSyncher:
             self._file_word_pairs)
 
         if diff_actions:
+            # If we see changes and we would like to log them, make logging
+            # level more verbose. We expect that if this option is set,
+            # someone else had already set logging level to WARNING earlier.
+            if only_log_changes:
+                _logger.setLevel(DEFAULT_LOG_LEVEL)
+
+                # Log current arguments because we couldn't have a chance before.
+                _logger.info(
+                    'Program arguments: driver="%s" '
+                    'only_log_changes=%s pronunciation="%s" '
+                    'filename="%s" course_url="%s"',
+                    self._driver, only_log_changes, pronunciation,
+                    self._filename, self._course_url)
+
             _logger.info('Applying %s difference: %s',
                          len(diff_actions), pformat(diff_actions))
             self._apply_diff_actions(diff_actions)
 
-        if self._userscript_injector.inject():
+        if (pronunciation == self.PRONUNCIATION_KOREAN) and \
+                self._userscript_injector.inject():
             # Wait a little before injected code adds buttons that should
             # be clicked.
             snooze(UI_LARGE_DELAY)
@@ -920,11 +942,11 @@ def interactive(filename=None):
     if filename is None:
         filename = './sample3.txt'
     syncher = MemriseCourseSyncher(filename, url)
-    syncher.sync()
+    syncher.sync(MemriseCourseSyncher.PRONUNCIATION_KOREAN)
     return syncher
 
 
-def pronunciation():
+def test_pronunciation():
     injector = UserScriptInjector(None)
     injector.inject()
 
@@ -941,14 +963,18 @@ class Runner:
         self.log = log
         self.driver = driver
 
-    def upload(self, filename, course_url):
+    def upload(self, filename, course_url, pronunciation=None,
+               only_log_changes=False):
         """
         Upload contents of the given filename into the given course. Basically
         it synchronizes from filename to course. Note that you have to have
         edit access to the course.
         """
+        if only_log_changes:
+            _logger.setLevel(SILENT_LOG_LEVEL)
+
         syncher = MemriseCourseSyncher(filename, course_url, self.driver)
-        syncher.sync()
+        syncher.sync(pronunciation, only_log_changes)
 
     def save(self, filename, course_url):
         """
