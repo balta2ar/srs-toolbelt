@@ -54,11 +54,14 @@ class DSLRawReader(object):
         return self._file.seek(offset, from_what)
 
     def read_header(self):
-        # logging.info('Reading header')
+        logging.info('Reading header')
         while True:
             pos = self._file.tell()
             line = self._file.readline()
-            if line.startswith('#'):
+            if line == '':
+                # unexpected EOF
+                break
+            elif line.startswith('#'):
                 continue # header
             elif len(line.strip()) == 0:
                 continue # empty line delimiter
@@ -66,6 +69,7 @@ class DSLRawReader(object):
                 #logging.error('Unexpected line: %s', line)
                 self._file.seek(pos)
                 break
+        logging.info('Reading header done')
 
     def get_next_word(self, convert=True):
         logging.info('Reading next word')
@@ -115,42 +119,47 @@ class DSLIndexer(object):
         if exists(filename):
             with open(filename, 'rb') as index_file:
                 self._index = pickle.load(index_file)
+            return
             # logging.info('Loaded %d entries from index file (%s)',
             #              len(self._index), filename)
-        else:
-            logging.info('Indexing to file %s', filename)
 
+        logging.info('Indexing to file %s', filename)
+
+        pos = dsl_raw_reader.tell()
+        dsl_raw_reader.seek(0, 2)
+        size = dsl_raw_reader.tell()
+        dsl_raw_reader.seek(pos)
+        logging.info('File size is %d', size)
+
+        dsl_raw_reader.read_header()
+        last_percent = 0
+        while True:
             pos = dsl_raw_reader.tell()
-            dsl_raw_reader.seek(0, 2)
-            size = dsl_raw_reader.tell()
-            dsl_raw_reader.seek(pos)
-            logging.info('File size is %d', size)
+            current_word, _article = dsl_raw_reader.get_next_word(convert=False)
+            if current_word is None: # eof
+                logging.info('current word is none')
+                break
+            self._index[current_word] = pos
+            # if len(self._index) > 100:
+            #     break
+            percent = float(pos) / size * 100.
+            logging.info('word %s pos %s', current_word, pos)
+            if percent - last_percent > 5:
+                last_percent = percent
+                logging.info('Indexing... %%%d', percent)
 
-            dsl_raw_reader.read_header()
-            last_percent = 0
-            while True:
-                pos = dsl_raw_reader.tell()
-                current_word, _article = dsl_raw_reader.get_next_word(convert=False)
-                if current_word is None: # eof
-                    logging.info('current word is none')
-                    break
-                self._index[current_word] = pos
-                # if len(self._index) > 100:
-                #     break
-                percent = float(pos) / size * 100.
-                logging.info('word %s pos %s', current_word, pos)
-                if percent - last_percent > 5:
-                    last_percent = percent
-                    logging.info('Indexing... %%%d', percent)
-            try:
-                makedirs(dirname(filename))
-            except OSError:
-                pass
+        try:
+            makedirs(dirname(filename))
+        except OSError:
+            pass
 
-            with open(filename, 'wb') as index_file:
-                pickle.dump(self._index, index_file)
-            logging.info('Indexing done (%s)', filename)
-        # from ipdb import set_trace; set_trace()
+        with open(filename, 'wb') as index_file:
+            pickle.dump(self._index, index_file)
+        logging.info('Indexing done (%s entries, %s)',
+                     len(self._index), filename)
+
+    def __len__(self):
+        return len(self._index)
 
     def get_pos(self, word):
         return self._index.get(word)
