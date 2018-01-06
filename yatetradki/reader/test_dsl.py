@@ -253,3 +253,26 @@ word22
              ('word22', 'article2'),
             ]
         )
+
+    def test_word_empty_article(self):
+        contents = HEADER + '''
+word1
+	
+'''
+        assert_contents(
+            contents,
+            [('word1', ''),
+            ]
+        )
+
+    # This test does not pass but behaviour is expected, it's just cumbersome
+    # to set up the infrastracture to test it properly.
+#     def test_word_no_article_eof(self):
+#         contents = HEADER + '''
+# word1
+# '''
+#         assert_contents(
+#             contents,
+#             [('word1', ''),
+#             ]
+#         )

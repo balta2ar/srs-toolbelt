@@ -32,8 +32,6 @@ MAX_ARTICLE_LEN = 100000
 class DSLRawReader(object):
     def __init__(self, filename, encoding='utf-16',
                  article_header='<meta charset="utf-8">'):
-        # self._file = io.TextIOWrapper(io.BufferedReader(io.open(
-        #     filename, 'r', encoding='utf-16')))
         self._filename = filename
         self._article_header = [article_header]
 
@@ -61,7 +59,6 @@ class DSLRawReader(object):
         return size
 
     def read_header(self):
-        # logging.info('Reading header')
         while True:
             pos = self._file.tell()
             line = self._file.readline()
@@ -73,23 +70,19 @@ class DSLRawReader(object):
             elif len(line.strip()) == 0:
                 continue # empty line delimiter
             else:
-                #logging.error('Unexpected line: %s', line)
                 self._file.seek(pos)
                 break
-        # logging.info('Reading header done')
 
     def _skip_until_article_or_eof(self):
         initial_pos = self._file.tell()
         while True:
             saved_pos = self._file.tell()
             line = self._file.readline()
-            # logging.info('_skip_until_article_or_eof: >%s<', line)
             if line == '': # eof
                 break
             if line[0] in ' \t': # article body
                 self._file.seek(saved_pos)
                 break
-        # logging.info('initial_pos %s, tell %s', initial_pos, self._file.tell())
         return initial_pos != self._file.tell()
 
     def _read_article_lines(self, convert=True):
@@ -110,50 +103,25 @@ class DSLRawReader(object):
         return lines
 
     def get_next_word(self, convert=True):
-        logging.info('Reading next word')
         word = self._file.readline()
         if word == '': # eof
             return None, None
-        logging.info('word >%s<', word)
 
         saved_pos = self._file.tell()
         skipped_anything = self._skip_until_article_or_eof()
         article = self._read_article_lines(convert)
         if skipped_anything:
-            logging.info('>>>>>>>> skipped berofe, reverting pos')
             self._file.seek(saved_pos)
 
-        # while True:
-        #     saved_pos = self._file.tell()
+        # Be cautious that words may contain multiple titles, e.g.:
+        # En-En_American_Heritage_Dictionary.dsl:
+        # 'preeminence', 'preeminently'
+        # 'predominately', 'predomination', 'predominator'
+        # 'Eurocentrism', 'Eurocentrist'
+        #
 
-        #     line = self._file.readline()
-        #     logging.info('line >%s<', line)
-        #     if len(line) == 0: # eof
-        #         logging.info('EOF')
-        #         break
-        #     elif line[0] in ' \t': # article line
-        #         logging.info('Article line')
-        #         if convert:
-        #             line = _clean_tags(line.strip(), None)
-        #         article.append(line)
-        #         # logging.info('Append')
-        #     else: # start of the next article
-        #         logging.info('Start of the next article')
-        #         if article:
-        #             self._file.seek(saved_pos)
-        #             logging.info('Rewind to %s and break', saved_pos)
-        #             break
-                # we've just skipped a line and didn't accumulate arcticle
-                # this means we've met an empty word, e.g.
-                # En-En_American_Heritage_Dictionary.dsl:
-                # 'preeminence', 'preeminently'
-                # 'predominately', 'predomination', 'predominator'
-                # 'Eurocentrism', 'Eurocentrist'
-                #
-
-        logging.info('-------------------- Returning word %s, article %s',
-                     word.strip(), '\n'.join(self._article_header + article))
-        return word.strip(), '\n'.join(self._article_header + article)
+        article = '\n'.join(self._article_header + article)
+        return word.strip(), article
 
 
 class DSLIndexer(object):
@@ -165,12 +133,9 @@ class DSLIndexer(object):
             with open(filename, 'rb') as index_file:
                 self._index = pickle.load(index_file)
             return
-            # logging.info('Loaded %d entries from index file (%s)',
-            #              len(self._index), filename)
 
-        logging.info('Indexing to file %s', filename)
         size = len(dsl_raw_reader)
-        logging.info('Dictionary file size is %d', size)
+        logging.info('Indexing to file %s (dict size %s)', filename, size)
 
         dsl_raw_reader.read_header()
         last_percent = 0
@@ -178,13 +143,9 @@ class DSLIndexer(object):
             pos = dsl_raw_reader.tell()
             current_word, _article = dsl_raw_reader.get_next_word(convert=False)
             if current_word is None: # eof
-                logging.info('current word is none')
                 break
             self._index[current_word] = pos
-            # if len(self._index) > 100:
-            #     break
             percent = float(pos) / size * 100.
-            logging.info('word %s pos %s', current_word, pos)
             if percent - last_percent > 5:
                 last_percent = percent
                 logging.info('Indexing... %%%d', percent)
@@ -228,9 +189,6 @@ class DSLLookuper(object):
     def _find_word(self, word):
         while True:
             current_word, article = self._dsl_raw_reader.get_next_word()
-            # logging.info('Current word: %s', current_word)
-            #if current_word.startswith(word):
-            # if current_word.startswith(word):
             if word == current_word:
                 return article
             elif current_word is None:
@@ -240,7 +198,6 @@ class DSLLookuper(object):
     def lookup(self, word):
         self._dsl_raw_reader.seek(0, 0)
         self._dsl_raw_reader.read_header()
-        # if self._index is not None:
         pos = self._dsl_indexer.get_pos(word)
         if pos is None:
             return None
