@@ -3,6 +3,7 @@ from os.path import join
 from tempfile import TemporaryDirectory
 
 from yatetradki.reader.dsl import DSLRawReader, DSLIndexer, DSLLookuper
+from yatetradki.reader.dsl import _uniq_at
 
 
 HEADER = '''#NAME   "Test"
@@ -276,3 +277,9 @@ word1
 #             [('word1', ''),
 #             ]
 #         )
+
+class TestUtils:
+    def uniq_at(self):
+        all_words = ['a', 'b', 'c']
+        current_chunk = ['b', 'c', 'd']
+        assert ['d'] == _uniq_at(current_chunk, all_words)

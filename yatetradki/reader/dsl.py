@@ -264,12 +264,17 @@ def strip_russian_translation(text):
     return text
 
 
+def strip_dots(text):
+    return text.strip('.')
+
+
 def extract_examples(article):
     result = []
     soup = BeautifulSoup(article, 'html.parser')
     for tag in ('div', 'span'):
         for element in soup.findAll(tag, class_='sec ex'):
             text = strip_russian_translation(element.text.strip())
+            text = strip_dots(text)
             if text:
                 result.append(text)
     return result
@@ -294,12 +299,14 @@ def lookup_word(dsl_lookuper, word):
 
     return article, examples
 
+
 def _init_index(filename):
     """
     It does not work if this function is a closure. Keep it on
     the module level.
     """
     DSLLookuper(filename)
+
 
 def _ensure_indexes_present(dsl_filenames):
     """
@@ -309,6 +316,12 @@ def _ensure_indexes_present(dsl_filenames):
     """
     with Pool(processes=None) as pool:
         pool.map(_init_index, dsl_filenames)
+
+
+def _uniq_at(current_chunk, all_words):
+    uniq = set(current_chunk) - set(all_words)
+    return [word for word in current_chunk if word in uniq]
+
 
 def main():
     parser = ArgumentParser('Extract word articles from a DSL file')
@@ -333,7 +346,8 @@ def main():
             article, current_examples = lookup_word(dsl_reader, word)
             if article is not None:
                 articles.append(article)
-                examples.extend(current_examples[:EXAMPLES_PER_DICT])
+                uniq_examples = _uniq_at(current_examples, examples)
+                examples.extend(uniq_examples[:EXAMPLES_PER_DICT])
                 found = 1
         if found:
             articles = '<br>'.join(articles)
