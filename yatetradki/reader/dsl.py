@@ -29,8 +29,86 @@ EXAMPLES_PER_DICT = 3
 MAX_ARTICLE_LEN = 100000
 
 
-class DSLIndex(object):
-    def __init__(self, dsl_reader, filename):
+class DSLRawReader(object):
+    def __init__(self, filename, encoding='utf-16',
+                 article_header='<meta charset="utf-8">'):
+        # self._file = io.TextIOWrapper(io.BufferedReader(io.open(
+        #     filename, 'r', encoding='utf-16')))
+        self._filename = filename
+        self._article_header = [article_header]
+
+        self._file = open(filename, 'r', encoding=encoding)
+        self._file.seek(0)
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__, self._filename)
+
+    @property
+    def filename(self):
+        return self._filename
+
+    def tell(self):
+        return self._file.tell()
+
+    def seek(self, offset, from_what=0):
+        return self._file.seek(offset, from_what)
+
+    def read_header(self):
+        # logging.info('Reading header')
+        while True:
+            pos = self._file.tell()
+            line = self._file.readline()
+            if line.startswith('#'):
+                continue # header
+            elif len(line.strip()) == 0:
+                continue # empty line delimiter
+            else:
+                #logging.error('Unexpected line: %s', line)
+                self._file.seek(pos)
+                break
+
+    def get_next_word(self, convert=True):
+        logging.info('Reading next word')
+        word = self._file.readline()
+        if len(word) == 0: # eof
+            return None, None
+        logging.info('word >%s<', word)
+
+        article = []
+        while True:
+            pos = self._file.tell()
+            line = self._file.readline()
+            logging.info('line >%s<', line)
+            if len(line) == 0: # eof
+                logging.info('EOF')
+                break
+            elif line[0] in ' \t': # article line
+                logging.info('Article line')
+                if convert:
+                    line = _clean_tags(line.strip(), None)
+                    article.append(line)
+                # logging.info('Append')
+            else: # start of the next article
+                logging.info('Start of the next article')
+                if article:
+                    self._file.seek(pos)
+                    # logging.info('Rewind and break')
+                    break
+                # we've just skipped a line and didn't accumulate arcticle
+                # this means we've met an empty word, e.g.
+                # En-En_American_Heritage_Dictionary.dsl:
+                # 'preeminence', 'preeminently'
+                # 'predominately', 'predomination', 'predominator'
+                # 'Eurocentrism', 'Eurocentrist'
+                #
+
+        logging.info('Returning word %s, article %s',
+                     word.strip(), '\n'.join(self._article_header + article))
+        return word.strip(), '\n'.join(self._article_header + article)
+
+
+class DSLIndexer(object):
+    def __init__(self, filename, dsl_raw_reader):
 
         self._index = dict()
 
@@ -42,24 +120,25 @@ class DSLIndex(object):
         else:
             logging.info('Indexing to file %s', filename)
 
-            pos = dsl_reader._file.tell()
-            dsl_reader._file.seek(0, 2)
-            size = dsl_reader._file.tell()
-            dsl_reader._file.seek(pos)
+            pos = dsl_raw_reader.tell()
+            dsl_raw_reader.seek(0, 2)
+            size = dsl_raw_reader.tell()
+            dsl_raw_reader.seek(pos)
             logging.info('File size is %d', size)
 
-            dsl_reader._read_header()
+            dsl_raw_reader.read_header()
             last_percent = 0
             while True:
-                pos = dsl_reader._file.tell()
-                current_word, _article = dsl_reader._get_next_word(convert=False)
+                pos = dsl_raw_reader.tell()
+                current_word, _article = dsl_raw_reader.get_next_word(convert=False)
                 if current_word is None: # eof
+                    logging.info('current word is none')
                     break
                 self._index[current_word] = pos
                 # if len(self._index) > 100:
                 #     break
                 percent = float(pos) / size * 100.
-                # logging.info('word %s pos %s delta %s', current_word, pos, delta)
+                logging.info('word %s pos %s', current_word, pos)
                 if percent - last_percent > 5:
                     last_percent = percent
                     logging.info('Indexing... %%%d', percent)
@@ -77,69 +156,28 @@ class DSLIndex(object):
         return self._index.get(word)
 
 
-class DSLReader(object):
-    def __init__(self, filename):
-        # self._file = io.TextIOWrapper(io.BufferedReader(io.open(
-        #     filename, 'r', encoding='utf-16')))
+class DSLLookuper(object):
+    def __init__(self, filename, dsl_raw_reader=None, dsl_indexer=None):
         self._filename = filename
-        self._file = open(filename, 'r', encoding='utf-16')
-        self._index_path = expanduser(expandvars('~/.cache/dsl_index/'))
-        self._index_path = join(self._index_path, basename(filename) + '.index')
-        self._index = DSLIndex(self, self._index_path)
-        self._file.seek(0)
+
+        self._dsl_raw_reader = dsl_raw_reader
+        if self._dsl_raw_reader is None:
+            self._dsl_raw_reader = DSLRawReader(filename)
+
+        self._dsl_indexer = dsl_indexer
+        if self._dsl_indexer is None:
+            index_path = expanduser(expandvars('~/.cache/dsl_index/'))
+            index_path = join(index_path, basename(filename) + '.index')
+            self._dsl_indexer = DSLIndexer(index_path, self._dsl_raw_reader)
+
+        self._dsl_raw_reader.seek(0)
 
     def __repr__(self):
         return '%s(%s)' % (self.__class__, self._filename)
 
-    def _read_header(self):
-        # logging.info('Reading header')
-        while True:
-            pos = self._file.tell()
-            line = self._file.readline()
-            if line.startswith('#'):
-                continue # header
-            elif len(line.strip()) == 0:
-                continue # empty line delimiter
-            else:
-                #logging.error('Unexpected line: %s', line)
-                self._file.seek(pos)
-                break
-
-    def _get_next_word(self, convert=True):
-        # logging.info('Reading next word')
-        word = self._file.readline()
-        if len(word) == 0: # eof
-            return None, None
-        # logging.info('word %s', word.strip())
-
-        header = ['<meta charset="utf-8">']
-        article = []
-        while True:
-            pos = self._file.tell()
-            line = self._file.readline()
-            # logging.info('line %s', line.strip())
-            if len(line) == 0: # eof
-                # logging.info('EOF')
-                break
-            elif line[0] in ' \t': # article line
-                if convert:
-                    line = _clean_tags(line.strip(), None)
-                    article.append(line)
-                # logging.info('Append')
-            else: # start of the next article
-                if article:
-                    self._file.seek(pos)
-                    # logging.info('Rewind and break')
-                    break
-                # we've just skipped a line and didn't accumulate arcticle
-                # this means we've men an empty word, e.g. 'preeminence'
-                # in En-En_American_Heritage_Dictionary.dsl
-
-        return word.strip(), '\n'.join(header + article)
-
     def _find_word(self, word):
         while True:
-            current_word, article = self._get_next_word()
+            current_word, article = self._dsl_raw_reader.get_next_word()
             # logging.info('Current word: %s', current_word)
             #if current_word.startswith(word):
             # if current_word.startswith(word):
@@ -150,25 +188,25 @@ class DSLReader(object):
                 return None
 
     def lookup(self, word):
-        self._file.seek(0, 0)
-        self._read_header()
+        self._dsl_raw_reader.seek(0, 0)
+        self._dsl_raw_reader.read_header()
         # if self._index is not None:
-        pos = self._index.get_pos(word)
+        pos = self._dsl_indexer.get_pos(word)
         if pos is None:
             return None
 
-        self._file.seek(pos)
+        self._dsl_raw_reader.seek(pos)
         result = self._find_word(word)
         return result
 
 
-def check_reference(dsl_reader, word, article):
+def check_reference(dsl_lookuper, word, article):
     # Special case for articles in En-En-Longman_DOCE5.dsl
     text = BeautifulSoup(article, 'html.parser').text
     if text.startswith(STR_SEE_MAIN_ENTRY):
         referenced_word = text[len(STR_SEE_MAIN_ENTRY):].strip()
         logging.info('Detected reference from "%s" to "%s" (LongmanDOCE5)', word, referenced_word)
-        return lookup_word(dsl_reader, referenced_word)
+        return lookup_word(dsl_lookuper, referenced_word)
 
     # Special case for CambridgeAdvancedLearners
     main_entry_start = article.find(STR_MAIN_ENTRY)
@@ -179,7 +217,7 @@ def check_reference(dsl_reader, word, article):
             referenced_word = match.group(1)
             if referenced_word != word:
                 logging.info('Detected reference from "%s" to "%s" (CambridgeAdvancedLearners)', word, referenced_word)
-                more_article, more_examples = lookup_word(dsl_reader, referenced_word)
+                more_article, more_examples = lookup_word(dsl_lookuper, referenced_word)
                 return article + more_article, more_examples
 
     # Special case for LingvoUniversal
@@ -191,7 +229,7 @@ def check_reference(dsl_reader, word, article):
                 logging.warning('Self reference from "%s" to "%s", skipping (LingvoUniversal)', word, referenced_word)
             else:
                 logging.info('Detected reference from "%s" to "%s" (LingvoUniversal)', word, referenced_word)
-                return lookup_word(dsl_reader, referenced_word)
+                return lookup_word(dsl_lookuper, referenced_word)
 
     # Special case for En-En_American_Heritage_Dictionary.dsl
     match = RE_SEE_OTHER.search(text)
@@ -199,7 +237,7 @@ def check_reference(dsl_reader, word, article):
         referenced_word = match.group(1)
         if referenced_word != word:
             logging.info('Detected reference from "%s" to "%s" (AmericanHeritageDictionary)', word, referenced_word)
-            return lookup_word(dsl_reader, referenced_word)
+            return lookup_word(dsl_lookuper, referenced_word)
 
     return article, None
 
@@ -229,16 +267,16 @@ def extract_examples(article):
     return result
 
 
-def lookup_word(dsl_reader, word):
-    article = dsl_reader.lookup(word)
+def lookup_word(dsl_lookuper, word):
+    article = dsl_lookuper.lookup(word)
     if article is None:
         return None, None
 
-    # print(dsl_reader, file=stderr)
+    # print(dsl_lookuper, file=stderr)
     # print(article, file=stderr)
 
     article = cleanup_article(article)
-    article, _examples = check_reference(dsl_reader, word, article)
+    article, _examples = check_reference(dsl_lookuper, word, article)
 
     # print('----------------', file=stderr)
     examples = None
@@ -256,7 +294,7 @@ def main():
 
     #path = '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/long-8.dsl'
     #path = '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
-    dsl_readers = [DSLReader(dsl) for dsl in args.dsl]
+    dsl_lookupers = [DSLLookuper(dsl) for dsl in args.dsl]
     # print(dsl_reader.lookup('abrade'))
     words_found = 0
     words_missing = 0
@@ -266,7 +304,7 @@ def main():
         articles = []
         examples = []
         word = word.strip()
-        for dsl_reader in dsl_readers:
+        for dsl_reader in dsl_lookupers:
             article, current_examples = lookup_word(dsl_reader, word)
             if article is not None:
                 articles.append(article)
