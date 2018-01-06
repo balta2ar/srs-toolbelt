@@ -61,7 +61,7 @@ class DSLRawReader(object):
         return size
 
     def read_header(self):
-        logging.info('Reading header')
+        # logging.info('Reading header')
         while True:
             pos = self._file.tell()
             line = self._file.readline()
@@ -76,35 +76,73 @@ class DSLRawReader(object):
                 #logging.error('Unexpected line: %s', line)
                 self._file.seek(pos)
                 break
-        logging.info('Reading header done')
+        # logging.info('Reading header done')
+
+    def _skip_until_article_or_eof(self):
+        initial_pos = self._file.tell()
+        while True:
+            saved_pos = self._file.tell()
+            line = self._file.readline()
+            # logging.info('_skip_until_article_or_eof: >%s<', line)
+            if line == '': # eof
+                break
+            if line[0] in ' \t': # article body
+                self._file.seek(saved_pos)
+                break
+        # logging.info('initial_pos %s, tell %s', initial_pos, self._file.tell())
+        return initial_pos != self._file.tell()
+
+    def _read_article_lines(self, convert=True):
+        lines = []
+        while True:
+            saved_pos = self._file.tell()
+            line = self._file.readline()
+            if line == '': # eof
+                break
+            elif line[0] in ' \t': # article body
+                if convert:
+                    line = _clean_tags(line.strip(), None)
+                lines.append(line)
+            else:
+                # we've reached next word title, probably
+                self._file.seek(saved_pos)
+                break
+        return lines
 
     def get_next_word(self, convert=True):
         logging.info('Reading next word')
         word = self._file.readline()
-        if len(word) == 0: # eof
+        if word == '': # eof
             return None, None
         logging.info('word >%s<', word)
 
-        article = []
-        while True:
-            pos = self._file.tell()
-            line = self._file.readline()
-            logging.info('line >%s<', line)
-            if len(line) == 0: # eof
-                logging.info('EOF')
-                break
-            elif line[0] in ' \t': # article line
-                logging.info('Article line')
-                if convert:
-                    line = _clean_tags(line.strip(), None)
-                article.append(line)
-                # logging.info('Append')
-            else: # start of the next article
-                logging.info('Start of the next article')
-                if article:
-                    self._file.seek(pos)
-                    logging.info('Rewind to %s and break', pos)
-                    break
+        saved_pos = self._file.tell()
+        skipped_anything = self._skip_until_article_or_eof()
+        article = self._read_article_lines(convert)
+        if skipped_anything:
+            logging.info('>>>>>>>> skipped berofe, reverting pos')
+            self._file.seek(saved_pos)
+
+        # while True:
+        #     saved_pos = self._file.tell()
+
+        #     line = self._file.readline()
+        #     logging.info('line >%s<', line)
+        #     if len(line) == 0: # eof
+        #         logging.info('EOF')
+        #         break
+        #     elif line[0] in ' \t': # article line
+        #         logging.info('Article line')
+        #         if convert:
+        #             line = _clean_tags(line.strip(), None)
+        #         article.append(line)
+        #         # logging.info('Append')
+        #     else: # start of the next article
+        #         logging.info('Start of the next article')
+        #         if article:
+        #             self._file.seek(saved_pos)
+        #             logging.info('Rewind to %s and break', saved_pos)
+        #             break
                 # we've just skipped a line and didn't accumulate arcticle
                 # this means we've met an empty word, e.g.
                 # En-En_American_Heritage_Dictionary.dsl:

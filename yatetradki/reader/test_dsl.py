@@ -78,7 +78,66 @@ def assert_contents(contents, expected):
         assert article == reader.dsl_lookuper.lookup(word)
 
 
-class TestDslReader(TestCase):
+class TestDslReader:
+    def test_multi_title_words(self):
+        contents = HEADER + '''
+word1
+word11
+	article1
+word2
+word21
+word22
+	article2
+'''
+        expected = [
+            ('word1', 'article1'),
+            ('word11', 'article1'),
+            ('word2', 'article2'),
+            ('word21', 'article2'),
+            ('word22', 'article2'),
+        ]
+        decorated = decorate(expected)
+        reader = ContentReader()
+        _result = reader(contents)
+
+        reader.dsl_raw_reader.seek(0)
+        reader.dsl_raw_reader.read_header()
+        for word, article in decorated:
+            next_pair = reader.dsl_raw_reader.get_next_word(convert=True)
+            print('expected %s, actual %s' % ((word, article), next_pair))
+            assert (word, article) == next_pair
+        # assert decorated == reader(contents)
+        assert len(expected) == len(reader.dsl_indexer)
+
+
+class TestDslIndexer:
+    def test_multi_title_words(self):
+        contents = HEADER + '''
+word1
+word11
+	article1
+word2
+word21
+word22
+	article2
+'''
+        expected = [
+            ('word1', 'article1'),
+            ('word11', 'article1'),
+            ('word2', 'article2'),
+            ('word21', 'article2'),
+            ('word22', 'article2'),
+        ]
+        decorated = decorate(expected)
+        reader = ContentReader()
+        _result = reader(contents)
+
+        for word, _article in decorated:
+            print('checking word %s' % word)
+            assert reader.dsl_indexer.get_pos(word) >= len(HEADER)
+
+
+class TestIntegration(TestCase):
     def test_header_only(self):
         contents = '''#NAME   "Test"
 #INDEX_LANGUAGE "English"
@@ -174,3 +233,23 @@ word2
             contents,
             [('word1', 'article1\narticle1_part2\n'),
              ('word2', 'article2\narticle2_part2')])
+
+    def test_multi_title_words(self):
+        contents = HEADER + '''
+word1
+word11
+	article1
+word2
+word21
+word22
+	article2
+'''
+        assert_contents(
+            contents,
+            [('word1', 'article1'),
+             ('word11', 'article1'),
+             ('word2', 'article2'),
+             ('word21', 'article2'),
+             ('word22', 'article2'),
+            ]
+        )
