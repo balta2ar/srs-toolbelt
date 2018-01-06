@@ -1,7 +1,7 @@
 #import codecs
 #import io
 from os import makedirs
-from os.path import exists, basename, dirname, join
+from os.path import exists, basename, dirname, join, expanduser, expandvars
 import re
 from sys import stderr
 import logging
@@ -83,7 +83,9 @@ class DSLReader(object):
         #     filename, 'r', encoding='utf-16')))
         self._filename = filename
         self._file = open(filename, 'r', encoding='utf-16')
-        self._index = DSLIndex(self, join('index', basename(filename) + '.index'))
+        self._index_path = expanduser(expandvars('~/.cache/dsl_index/'))
+        self._index_path = join(self._index_path, basename(filename) + '.index')
+        self._index = DSLIndex(self, self._index_path)
         self._file.seek(0)
 
     def __repr__(self):

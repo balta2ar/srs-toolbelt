@@ -990,7 +990,7 @@ class Runner:
 
 
 # TODO: add checker for duplicates (levels, words, meanings)
-# TODO: add option to enable pronunciation
+# TODO: cleanup words (remove extra, trimming) before submitting/reading from file
 def main():
     # interactive()
     fire.Fire(Runner)
