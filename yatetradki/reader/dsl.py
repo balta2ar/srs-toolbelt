@@ -3,11 +3,11 @@
 from os import makedirs
 from os.path import exists, basename, dirname, join, expanduser, expandvars
 import re
-from sys import stderr
 import logging
 import pickle
 import fileinput
 from argparse import ArgumentParser
+from multiprocessing import Pool
 
 from bs4 import BeautifulSoup
 
@@ -136,6 +136,7 @@ class DSLIndexer(object):
 
         size = len(dsl_raw_reader)
         logging.info('Indexing to file %s (dict size %s)', filename, size)
+        base_filename = basename(filename)
 
         dsl_raw_reader.read_header()
         last_percent = 0
@@ -146,9 +147,9 @@ class DSLIndexer(object):
                 break
             self._index[current_word] = pos
             percent = float(pos) / size * 100.
-            if percent - last_percent > 5:
+            if percent - last_percent > 10:
                 last_percent = percent
-                logging.info('Indexing... %%%d', percent)
+                logging.info('Indexing %s... %%%d', base_filename, percent)
 
         try:
             makedirs(dirname(filename))
@@ -293,6 +294,22 @@ def lookup_word(dsl_lookuper, word):
 
     return article, examples
 
+def _init_index(filename):
+    """
+    It does not work if this function is a closure. Keep it on
+    the module level.
+    """
+    DSLLookuper(filename)
+
+def _ensure_indexes_present(dsl_filenames):
+    """
+    This functions is only called for its side effects. It creates DSLLookupers
+    for each DSL file in parallel processes to make user DSLIndexers are also
+    created in parallel.
+    """
+    with Pool(processes=None) as pool:
+        pool.map(_init_index, dsl_filenames)
+
 def main():
     parser = ArgumentParser('Extract word articles from a DSL file')
     parser.add_argument('--dsl', dest='dsl', type=str, action='append',
@@ -301,6 +318,7 @@ def main():
 
     #path = '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/long-8.dsl'
     #path = '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
+    _ensure_indexes_present(args.dsl)
     dsl_lookupers = [DSLLookuper(dsl) for dsl in args.dsl]
     # print(dsl_reader.lookup('abrade'))
     words_found = 0
