@@ -53,6 +53,13 @@ class DSLRawReader(object):
     def seek(self, offset, from_what=0):
         return self._file.seek(offset, from_what)
 
+    def __len__(self):
+        pos = self.tell()
+        self.seek(0, 2)
+        size = self.tell()
+        self.seek(pos)
+        return size
+
     def read_header(self):
         logging.info('Reading header')
         while True:
@@ -90,13 +97,13 @@ class DSLRawReader(object):
                 logging.info('Article line')
                 if convert:
                     line = _clean_tags(line.strip(), None)
-                    article.append(line)
+                article.append(line)
                 # logging.info('Append')
             else: # start of the next article
                 logging.info('Start of the next article')
                 if article:
                     self._file.seek(pos)
-                    # logging.info('Rewind and break')
+                    logging.info('Rewind to %s and break', pos)
                     break
                 # we've just skipped a line and didn't accumulate arcticle
                 # this means we've met an empty word, e.g.
@@ -106,7 +113,7 @@ class DSLRawReader(object):
                 # 'Eurocentrism', 'Eurocentrist'
                 #
 
-        logging.info('Returning word %s, article %s',
+        logging.info('-------------------- Returning word %s, article %s',
                      word.strip(), '\n'.join(self._article_header + article))
         return word.strip(), '\n'.join(self._article_header + article)
 
@@ -124,12 +131,8 @@ class DSLIndexer(object):
             #              len(self._index), filename)
 
         logging.info('Indexing to file %s', filename)
-
-        pos = dsl_raw_reader.tell()
-        dsl_raw_reader.seek(0, 2)
-        size = dsl_raw_reader.tell()
-        dsl_raw_reader.seek(pos)
-        logging.info('File size is %d', size)
+        size = len(dsl_raw_reader)
+        logging.info('Dictionary file size is %d', size)
 
         dsl_raw_reader.read_header()
         last_percent = 0
