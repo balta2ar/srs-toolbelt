@@ -1,16 +1,25 @@
 import pytest
 from collections import OrderedDict
 
-from memrise_sync import get_course_difference
-from memrise_sync import load_string_with_words
-from memrise_sync import WordPair
+from yatetradki.korean.memrise_sync import get_course_difference
+from yatetradki.korean.memrise_sync import load_string_with_words
+from yatetradki.korean.memrise_sync import WordPair
 
-from memrise_sync import DiffActionDeleteLevel
-from memrise_sync import DiffActionCreateLevel
-from memrise_sync import DiffActionDeleteWord
-from memrise_sync import DiffActionCreateWord
-from memrise_sync import DiffActionChangeLevel
-from memrise_sync import DiffActionChangeWord
+from yatetradki.korean.memrise_sync import DiffActionDeleteLevel
+from yatetradki.korean.memrise_sync import DiffActionCreateLevel
+from yatetradki.korean.memrise_sync import DiffActionDeleteWord
+from yatetradki.korean.memrise_sync import DiffActionCreateWord
+from yatetradki.korean.memrise_sync import DiffActionChangeLevel
+from yatetradki.korean.memrise_sync import DiffActionChangeWord
+
+from yatetradki.korean.memrise_sync import cleanup
+
+
+class TestCleanup:
+    def test_cleanup(self):
+        assert 'word up' == cleanup(' word up ')
+        assert '무료; 【無料】 бесплатный' == \
+            cleanup('   무료;   【無料】    бесплатный   ')
 
 
 class TestCourseDifference:

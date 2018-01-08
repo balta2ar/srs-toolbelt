@@ -18,6 +18,7 @@ supported.
 
 import logging
 import netrc
+import re
 from time import sleep
 from time import time
 from collections import OrderedDict, namedtuple
@@ -172,6 +173,10 @@ def contains_deletions(actions):
     return False
 
 
+def cleanup(text):
+    return re.sub(r'\s+', ' ', text.strip())
+
+
 def load_string_with_words(words_string):
     # key: level name
     # value: [(word, meaning)]
@@ -198,8 +203,8 @@ def load_string_with_words(words_string):
             raise ValueError('Invalid line format, <word>;<meaning> '
                              'expected, got %s: %s' % (line, e))
 
-        word = word.strip()
-        meaning = meaning.strip()
+        word = cleanup(word)
+        meaning = cleanup(meaning)
         words[current_level].append(WordPair(word, meaning))
 
     return words
@@ -757,8 +762,8 @@ class Level(WaitableWithDriver):
         result = []
         for thing in self._things:
             cells = self._cells(thing)
-            word = cells[0].text
-            meaning = cells[1].text
+            word = cleanup(cells[0].text)
+            meaning = cleanup(cells[1].text)
             result.append(WordPair(word, meaning))
         return result
 
@@ -952,8 +957,8 @@ class ReadonlyLevel:
         things = soup.select('div.things div.thing')
         for thing in things:
             pair = WordPair(
-                thing.select_one('div.col_a.col.text').text.strip(),
-                thing.select_one('div.col_b.col.text').text.strip())
+                cleanup(thing.select_one('div.col_a.col.text').text),
+                cleanup(thing.select_one('div.col_b.col.text').text))
             result.append(pair)
 
         return result
@@ -1013,7 +1018,6 @@ class Runner:
 
 
 # TODO: add checker for duplicates (levels, words, meanings)
-# TODO: cleanup words (remove extra, trimming) before submitting/reading from file
 # TODO: pretty print change log (applied actions)
 def main():
     # interactive()
