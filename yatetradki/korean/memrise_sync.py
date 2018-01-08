@@ -346,7 +346,8 @@ class MemriseCourseSyncher:
             except AttributeError as e:
                 _logger.exception('Diff action failed "%s": %s', action, e)
 
-    def sync(self, pronunciation=None, only_log_changes=False, no_delete=False):
+    def sync(self, pronunciation=None, only_log_changes=False,
+             no_delete=False, dry_run=False):
         if pronunciation not in (None, self.PRONUNCIATION_KOREAN):
             raise ValueError('Unsupported pronunciation: %s. Supported: %s' %
                              (pronunciation, self.PRONUNCIATION_KOREAN))
@@ -384,14 +385,21 @@ class MemriseCourseSyncher:
                 _logger.info('Flag --no-delete is set and there are deletions '
                              'in the actions, thus teminating sync early...')
                 return
-            self._apply_diff_actions(diff_actions)
+
+            if dry_run:
+                _logger.info('Not applying actions because of --dry-run option')
+            else:
+                self._apply_diff_actions(diff_actions)
 
         if (pronunciation == self.PRONUNCIATION_KOREAN) and \
                 self._userscript_injector.inject():
             # Wait a little before injected code adds buttons that should
             # be clicked.
-            snooze(UI_LARGE_DELAY)
-            self._course.add_pronunciation()
+            if dry_run:
+                _logger.info('Not adding pronunciation because of --dry-run option')
+            else:
+                snooze(UI_LARGE_DELAY)
+                self._course.add_pronunciation()
 
         _logger.info('Sync has finished')
 
@@ -978,7 +986,8 @@ class Runner:
         self.driver = driver
 
     def upload(self, filename, course_url, pronunciation=None,
-               only_log_changes=False, no_delete=False):
+               only_log_changes=False, no_delete=False,
+               dry_run=False):
         """
         Upload contents of the given filename into the given course. Basically
         it synchronizes from filename to course. Note that you have to have
@@ -990,7 +999,8 @@ class Runner:
         syncher = MemriseCourseSyncher(filename, course_url, self.driver)
         syncher.sync(pronunciation=pronunciation,
                      only_log_changes=only_log_changes,
-                     no_delete=no_delete)
+                     no_delete=no_delete,
+                     dry_run=dry_run)
 
     def save(self, filename, course_url):
         """
