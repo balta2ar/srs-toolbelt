@@ -13,13 +13,32 @@ from yatetradki.korean.memrise_sync import DiffActionChangeLevel
 from yatetradki.korean.memrise_sync import DiffActionChangeWord
 
 from yatetradki.korean.memrise_sync import cleanup
+from yatetradki.korean.memrise_sync import pretty_print_actions
 
 
 class TestCleanup:
     def test_cleanup(self):
-        assert 'word up' == cleanup(' word up ')
-        assert '무료; 【無料】 бесплатный' == \
-            cleanup('   무료;   【無料】    бесплатный   ')
+        assert cleanup(' word up ') == 'word up'
+        assert cleanup('   무료;   【無料】    бесплатный   ') == \
+            '무료; 【無料】 бесплатный'
+
+class TestPrettyPrintDiffActions:
+    def test_pretty_print(self):
+        actions = [
+            DiffActionCreateLevel('l1'),
+            DiffActionChangeLevel('l1', 'l2'),
+            DiffActionDeleteLevel('l1'),
+            DiffActionCreateWord('l1', WordPair('w1', 'm1')),
+            DiffActionChangeWord('l1', WordPair('w1', 'm1'), WordPair('w2', 'm2')),
+            DiffActionDeleteWord('l1', WordPair('w1', 'm1')),
+        ]
+        expected = '''+#l1
+*#l1 ===> #l2
+-#l1
++w1; m1
+*w1; m1 ===> w2; m2
+-w1; m1'''
+        assert pretty_print_actions(actions) == expected
 
 
 class TestCourseDifference:

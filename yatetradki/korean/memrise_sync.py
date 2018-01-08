@@ -173,6 +173,37 @@ def contains_deletions(actions):
     return False
 
 
+def pretty_print_action(action):
+    if isinstance(action, DiffActionCreateLevel):
+        return '+#%s' % action.level_name
+
+    elif isinstance(action, DiffActionChangeLevel):
+        return '*#%s ===> #%s' % (action.level_name, action.new_level_name)
+
+    elif isinstance(action, DiffActionDeleteLevel):
+        return '-#%s' % action.level_name
+
+    elif isinstance(action, DiffActionCreateWord):
+        return '+%s; %s' % (action.pair.word, action.pair.meaning)
+
+    elif isinstance(action, DiffActionChangeWord):
+        return '*%s; %s ===> %s; %s' % (
+            action.old_pair.word,
+            action.old_pair.meaning,
+            action.new_pair.word,
+            action.new_pair.meaning)
+
+    elif isinstance(action, DiffActionDeleteWord):
+        return '-%s; %s' % (action.pair.word, action.pair.meaning)
+
+    else:
+        return 'Unknown action: %s' % action
+
+
+def pretty_print_actions(actions):
+    return '\n'.join(map(pretty_print_action, actions))
+
+
 def cleanup(text):
     return re.sub(r'\s+', ' ', text.strip())
 
@@ -386,6 +417,8 @@ class MemriseCourseSyncher:
 
             _logger.info('%s actions to apply: %s',
                          len(diff_actions), pformat(diff_actions))
+            _logger.info('Pretty printing actions: \n%s',
+                         pretty_print_actions(diff_actions))
             if no_delete and contains_deletions(diff_actions):
                 _logger.info('Flag --no-delete is set and there are deletions '
                              'in the actions, thus teminating sync early...')
@@ -1018,7 +1051,6 @@ class Runner:
 
 
 # TODO: add checker for duplicates (levels, words, meanings)
-# TODO: pretty print change log (applied actions)
 def main():
     # interactive()
     fire.Fire(Runner)
