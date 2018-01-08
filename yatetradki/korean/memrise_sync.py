@@ -165,6 +165,13 @@ def get_course_difference(course_words: WordCollection, file_words: WordCollecti
     return actions
 
 
+def contains_deletions(actions):
+    for action in actions:
+        if isinstance(action, (DiffActionDeleteLevel, DiffActionDeleteWord)):
+            return True
+    return False
+
+
 def load_string_with_words(words_string):
     # key: level name
     # value: [(word, meaning)]
@@ -339,7 +346,7 @@ class MemriseCourseSyncher:
             except AttributeError as e:
                 _logger.exception('Diff action failed "%s": %s', action, e)
 
-    def sync(self, pronunciation=None, only_log_changes=False):
+    def sync(self, pronunciation=None, only_log_changes=False, no_delete=False):
         if pronunciation not in (None, self.PRONUNCIATION_KOREAN):
             raise ValueError('Unsupported pronunciation: %s. Supported: %s' %
                              (pronunciation, self.PRONUNCIATION_KOREAN))
@@ -371,8 +378,12 @@ class MemriseCourseSyncher:
                     self._driver, only_log_changes, pronunciation,
                     self._filename, self._course_url)
 
-            _logger.info('Applying %s difference: %s',
+            _logger.info('%s actions to apply: %s',
                          len(diff_actions), pformat(diff_actions))
+            if no_delete and contains_deletions(diff_actions):
+                _logger.info('Flag --no-delete is set and there are deletions '
+                             'in the actions, thus teminating sync early...')
+                return
             self._apply_diff_actions(diff_actions)
 
         if (pronunciation == self.PRONUNCIATION_KOREAN) and \
@@ -945,7 +956,7 @@ def interactive(filename=None):
     if filename is None:
         filename = './sample3.txt'
     syncher = MemriseCourseSyncher(filename, url)
-    syncher.sync(MemriseCourseSyncher.PRONUNCIATION_KOREAN)
+    syncher.sync(pronunciation=MemriseCourseSyncher.PRONUNCIATION_KOREAN)
     return syncher
 
 
@@ -967,7 +978,7 @@ class Runner:
         self.driver = driver
 
     def upload(self, filename, course_url, pronunciation=None,
-               only_log_changes=False):
+               only_log_changes=False, no_delete=False):
         """
         Upload contents of the given filename into the given course. Basically
         it synchronizes from filename to course. Note that you have to have
@@ -977,7 +988,9 @@ class Runner:
             _logger.setLevel(SILENT_LOG_LEVEL)
 
         syncher = MemriseCourseSyncher(filename, course_url, self.driver)
-        syncher.sync(pronunciation, only_log_changes)
+        syncher.sync(pronunciation=pronunciation,
+                     only_log_changes=only_log_changes,
+                     no_delete=no_delete)
 
     def save(self, filename, course_url):
         """
@@ -991,6 +1004,7 @@ class Runner:
 
 # TODO: add checker for duplicates (levels, words, meanings)
 # TODO: cleanup words (remove extra, trimming) before submitting/reading from file
+# TODO: pretty print change log (applied actions)
 def main():
     # interactive()
     fire.Fire(Runner)
