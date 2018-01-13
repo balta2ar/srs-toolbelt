@@ -162,7 +162,8 @@ Using [memrise_sync.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yat
 python ./memrise_sync.py \
       --driver phantomjs \
       upload \
-      --only-log-changes \
+      --only-log-changes=True \
+      --no-duplicate=True \
       --pronunciation korean \
       --filename wg1-9.txt \
       --course-url 'https://www.memrise.com/course/1784675/junggeub-hangugeo-je1-9-gwa/edit/'
