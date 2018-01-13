@@ -1,19 +1,26 @@
+"""
+Usage:
+
+    $ PYTHONPATH=. py.test yatetradki/korean/test_memrise_sync.py -s -vv
+
+"""
+
 import pytest
 from collections import OrderedDict
 
-from yatetradki.korean.memrise_sync import get_course_difference
-from yatetradki.korean.memrise_sync import load_string_with_words
-from yatetradki.korean.memrise_sync import WordPair
+from yatetradki.korean.memrise.diff import get_course_difference
+from yatetradki.korean.memrise.io import load_string_with_words
+from yatetradki.korean.memrise.action import pretty_print_actions
 
-from yatetradki.korean.memrise_sync import DiffActionDeleteLevel
-from yatetradki.korean.memrise_sync import DiffActionCreateLevel
-from yatetradki.korean.memrise_sync import DiffActionDeleteWord
-from yatetradki.korean.memrise_sync import DiffActionCreateWord
-from yatetradki.korean.memrise_sync import DiffActionChangeLevel
-from yatetradki.korean.memrise_sync import DiffActionChangeWord
+from yatetradki.korean.memrise.types import WordPair
+from yatetradki.korean.memrise.types import DiffActionDeleteLevel
+from yatetradki.korean.memrise.types import DiffActionCreateLevel
+from yatetradki.korean.memrise.types import DiffActionDeleteWord
+from yatetradki.korean.memrise.types import DiffActionCreateWord
+from yatetradki.korean.memrise.types import DiffActionChangeLevel
+from yatetradki.korean.memrise.types import DiffActionChangeWord
 
-from yatetradki.korean.memrise_sync import cleanup
-from yatetradki.korean.memrise_sync import pretty_print_actions
+from yatetradki.korean.memrise.text import cleanup
 
 
 class TestCleanup:
