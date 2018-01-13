@@ -3,7 +3,10 @@ import logging
 from requests import get
 from requests.exceptions import RequestException
 
-_logger = logging.getLogger(__name__)
+from yatetradki.korean.memrise.common import DEFAULT_LOGGER_NAME
+
+
+_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 class UserScriptInjector:

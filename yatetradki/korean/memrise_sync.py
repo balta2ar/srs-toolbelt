@@ -40,6 +40,7 @@ from yatetradki.korean.memrise.model import ReadonlyCourse
 from yatetradki.korean.memrise.injector import UserScriptInjector
 from yatetradki.korean.memrise.common import DEFAULT_DRIVER_NAME
 from yatetradki.korean.memrise.common import DEFAULT_LOG_LEVEL
+from yatetradki.korean.memrise.common import DEFAULT_LOGGER_NAME
 
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -47,7 +48,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=DEFAULT_LOG_LEVEL)
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 SILENT_LOG_LEVEL = logging.ERROR
@@ -81,7 +82,7 @@ class Runner:
 
     def upload(self, filename, course_url, pronunciation=None,
                only_log_changes=False, no_delete=False,
-               dry_run=False):
+               no_duplicate=False, dry_run=False):
         """
         Upload contents of the given filename into the given course. Basically
         it synchronizes from filename to course. Note that you have to have
@@ -94,6 +95,7 @@ class Runner:
         syncher.sync(pronunciation=pronunciation,
                      only_log_changes=only_log_changes,
                      no_delete=no_delete,
+                     no_duplicate=no_duplicate,
                      dry_run=dry_run)
 
     def save(self, filename, course_url):

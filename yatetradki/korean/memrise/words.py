@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from yatetradki.korean.memrise.types import WordCollection
 from yatetradki.korean.memrise.types import WordPair
 from yatetradki.korean.memrise.text import cleanup
@@ -43,3 +45,41 @@ def load_string_with_words(words_string):
 def load_file_with_words(filename):
     with open(filename) as file_:
         return load_string_with_words(file_.read())
+
+
+class DuplicateWords:
+    def __init__(self, words: WordCollection):
+        pair = self._find_duplicates(words)
+        self._duplicate_keys, self._duplicate_values = pair
+
+    def _find_duplicates(self, words: WordCollection):
+        keys = defaultdict(list)
+        values = defaultdict(list)
+
+        for _level_name, word_pairs in words.items():
+            for pair in word_pairs:
+                both = '%s; %s' % (pair.word, pair.meaning)
+                keys[pair.word].append(both)
+                values[pair.meaning].append(both)
+
+        keys = {k: v for k, v in keys.items() if len(v) > 1}
+        values = {k: v for k, v in values.items() if len(v) > 1}
+
+        return keys, values
+
+    def __len__(self):
+        return len(self._duplicate_keys) + len(self._duplicate_values)
+
+    def __str__(self):
+        message = ''
+        if self._duplicate_keys:
+            message += '*** Duplicate keys found:\n'
+            message += '\n'.join(sum(self._duplicate_keys.values(), []))
+            message += '\n'
+
+        if self._duplicate_values:
+            message += '*** Duplicate values found:\n'
+            message += '\n'.join(sum(self._duplicate_values.values(), []))
+            message += '\n'
+
+        return message

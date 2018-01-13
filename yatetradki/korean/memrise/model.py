@@ -33,13 +33,14 @@ from yatetradki.korean.memrise.injector import UserScriptInjector
 from yatetradki.korean.memrise.io import read_credentials_from_netrc
 from yatetradki.korean.memrise.io import get_page
 from yatetradki.korean.memrise.words import load_file_with_words
+from yatetradki.korean.memrise.words import DuplicateWords
 from yatetradki.korean.memrise.diff import get_course_difference
 from yatetradki.korean.memrise.action import contains_deletions
 from yatetradki.korean.memrise.action import pretty_print_actions
 from yatetradki.korean.memrise.text import cleanup
 from yatetradki.korean.memrise.common import DEFAULT_LOG_LEVEL
 from yatetradki.korean.memrise.common import DEFAULT_DRIVER_NAME
-
+from yatetradki.korean.memrise.common import DEFAULT_LOGGER_NAME
 
 UI_LARGE_DELAY = 3.0
 UI_SMALL_DELAY = 1.0
@@ -49,7 +50,7 @@ ADD_PRONUNCIATION_TIMEOUT = 10.0
 BS_PARSER = 'html.parser'
 
 
-_logger = logging.getLogger(__name__)
+_logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 def snooze(delay):
@@ -151,7 +152,7 @@ class MemriseCourseSyncher:
                 _logger.exception('Diff action failed "%s": %s', action, e)
 
     def sync(self, pronunciation=None, only_log_changes=False,
-             no_delete=False, dry_run=False):
+             no_delete=False, no_duplicate=False, dry_run=False):
         if pronunciation not in (None, self.PRONUNCIATION_KOREAN):
             raise ValueError('Unsupported pronunciation: %s. Supported: %s' %
                              (pronunciation, self.PRONUNCIATION_KOREAN))
@@ -183,17 +184,26 @@ class MemriseCourseSyncher:
                     self._driver, only_log_changes, pronunciation,
                     self._filename, self._course_url)
 
+            duplicates = DuplicateWords(self._file_word_pairs)
+            if duplicates:
+                _logger.warning('Found %s duplicates: %s',
+                                len(duplicates), duplicates)
+                if no_duplicate:
+                    _logger.warning('Flag --no-duplicate is set and there are '
+                                    'duplicates, thus terniating sync early...')
+                    return
+
             _logger.info('%s actions to apply: %s',
                          len(diff_actions), pformat(diff_actions))
             _logger.info('Pretty printing actions: \n%s',
                          pretty_print_actions(diff_actions))
             if no_delete and contains_deletions(diff_actions):
-                _logger.info('Flag --no-delete is set and there are deletions '
-                             'in the actions, thus teminating sync early...')
+                _logger.warning('Flag --no-delete is set and there are deletions '
+                                'in the actions, thus teminating sync early...')
                 return
 
             if dry_run:
-                _logger.info('Not applying actions because of --dry-run option')
+                _logger.warning('Not applying actions because of --dry-run option')
             else:
                 self._apply_diff_actions(diff_actions)
 
@@ -202,7 +212,7 @@ class MemriseCourseSyncher:
             # Wait a little before injected code adds buttons that should
             # be clicked.
             if dry_run:
-                _logger.info('Not adding pronunciation because of --dry-run option')
+                _logger.warning('Not adding pronunciation because of --dry-run option')
             else:
                 snooze(UI_LARGE_DELAY)
                 self._course.add_pronunciation()
