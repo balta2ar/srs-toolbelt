@@ -31,8 +31,8 @@ from yatetradki.korean.memrise.types import DiffActionChangeWord
 from yatetradki.korean.memrise.types import DiffActionDeleteWord
 from yatetradki.korean.memrise.injector import UserScriptInjector
 from yatetradki.korean.memrise.io import read_credentials_from_netrc
-from yatetradki.korean.memrise.io import load_file_with_words
 from yatetradki.korean.memrise.io import get_page
+from yatetradki.korean.memrise.words import load_file_with_words
 from yatetradki.korean.memrise.diff import get_course_difference
 from yatetradki.korean.memrise.action import contains_deletions
 from yatetradki.korean.memrise.action import pretty_print_actions

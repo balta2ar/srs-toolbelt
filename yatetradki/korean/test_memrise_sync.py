@@ -9,7 +9,7 @@ import pytest
 from collections import OrderedDict
 
 from yatetradki.korean.memrise.diff import get_course_difference
-from yatetradki.korean.memrise.io import load_string_with_words
+from yatetradki.korean.memrise.words import load_string_with_words
 from yatetradki.korean.memrise.action import pretty_print_actions
 
 from yatetradki.korean.memrise.types import WordPair
