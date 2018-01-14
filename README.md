@@ -13,6 +13,10 @@ srs-toolbelt (former yandex-slovari-tetradki)
 - [4. Convert Korean sentences from Google Keep into Anki cards](#4-convert-korean-sentences-from-google-keep-into-anki-cards)
 - [5. Easily add pronunciation to Korean words in Memrise](#5-easily-add-pronunciation-to-korean-words-in-memrise)
 - [6. Convert Google Keep note with Korean words into Memrise course with pronunciation](#6-convert-google-keep-note-with-korean-words-into-memrise-course-with-pronunciation)
+- [7. Do forced alignment for korean sentences from my Korean textbook and convert them to Memrise course (flash cards).](#7-do-forced-alignment-for-korean-sentences-from-my-korean-textbook-and-convert-them-to-memrise-course-flash-cards)
+- [My decks](#my-decks)
+    - [Anki](#anki)
+    - [Memrise](#memrise)
 - [Screenshots of anki](#screenshots-of-anki)
 - [Screenshots of conky](#screenshots-of-conky)
     - [Translation & syn & ant](#translation--syn--ant)
@@ -222,8 +226,47 @@ python ./memrise_sync.py --driver phantomjs upload --only-log-changes --pronunci
 2018-01-04 21:29:42,812 INFO Sync has finished
 ```
 
-<!-- 3. Do forced alignment for korean sentences from my Korean textbook and convert
-   them to Memrise course (flash cards). -->
+## 7. Do forced alignment for korean sentences from my Korean textbook and convert them to Memrise course (flash cards).
+
+TODO.
+
+## My decks
+
+### Anki
+
+Here are my Anki decks: [Anki decks](https://yadi.sk/d/8fycApLs3KDE5K)
+
+They are a collection that I've gathered from various sites over the years and
+that I'm currently steadily studying. There are about 40000 cards including
+words, phrasal verbs, expressions, idioms, phrases and so on.
+
+Most of my Anki collection contains English cards. I also have few decks in
+Korean, but it's really nothing to write home about, so I'm not sharing. If
+you're still interested, let me know.
+
+### Memrise
+
+Here are my Memrise courses:
+
+[Baltazar Korean
+Words](https://www.memrise.com/course/1344980/baltazar-korean-words/) &mdash; I
+made this deck during my first year of studies at [Won Gwan](http://wonkwang.ru).
+
+[WonGwan 2-1 High Priority Bz Words](https://www.memrise.com/course/1630943/wongwan-2-1-high-priority-bz-words/),
+[WonGwan 2-2 High Priority Bz Words](https://www.memrise.com/course/1793248/wongwan-2-2-high-priority-bz-words/) &mdash;
+these two decks were made during the second year of my studies at WonGwan.
+
+[중급 한국어 제1-9 과](https://www.memrise.com/course/1784675/junggeub-hangugeo-je1-9-gwa/) &mdash;
+this isn't my piece of work, I simply merged two decks together, [중급 한국어 제1-5 과](https://www.memrise.com/course/653322/1-5-7/) and 
+[중급 한국어 제6-9 과](https://www.memrise.com/course/751253/6-9-6/).
+
+These two: [4 Седжон](https://www.memrise.com/course/1197169/4-sedzhon/),
+[5 Седжон](https://www.memrise.com/course/1336543/5-sedzhon/) are not mine,
+I simply helped to add Korean pronunciation.
+
+Same with these: [Gauss webtoon word list](https://www.memrise.com/course/905498/gauss-webtoon-word-list/),
+[HowtoStudyKorean.com Unit 1](https://www.memrise.com/course/150816/howtostudykoreancom-unit-1-2/) &mdash;
+I only helped course authors add complete pronunciation in Korean.
 
 ## Screenshots of anki
 
