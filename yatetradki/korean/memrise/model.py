@@ -64,11 +64,18 @@ def _create_driver(driver_name):
             service_args=['--ignore-ssl-errors=true'])
     elif driver_name == 'chrome':
         options = webdriver.ChromeOptions()
-        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('ignore-certificate-errors')
+        return webdriver.Chrome(chrome_options=options)
+    elif driver_name == 'headless-chrome':
+        options = webdriver.ChromeOptions()
+        options.add_argument('headless')
+        options.add_argument('ignore-certificate-errors')
+        options.add_argument('window-size=1280,1024')
         return webdriver.Chrome(chrome_options=options)
     else:
         raise ValueError('Unknown driver name "%s". Please only use '
-                         '"phantomjs" or "chrome".' % driver_name)
+                         '"phantomjs", "chrome" or "headless-chrome".'
+                         % driver_name)
 
 
 @contextmanager
