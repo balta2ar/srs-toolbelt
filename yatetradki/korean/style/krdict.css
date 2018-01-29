@@ -44,8 +44,11 @@ ul {
   padding-left: 0px;
 }
 ul ul {
-  padding-left: 10px;
+  padding-left: 5px;
 }
+//ul.search_list.printArea > li > p {
+//  margin-top: 5px;
+//}
 ol {
 //  color: red;
 }
@@ -55,11 +58,15 @@ ol {
 strong {
   font-weight:400;
   color: green;
+  border-left: 3px solid green;
+  padding-left: 5px;
 }
 b {
   font-weight:400;
   color: teal;
 }
 div.examples {
-  border-left: 3px solid grey;
+  border-left: 3px solid lightgrey;
+  margin-top: 5px;
+  margin-bottom: 5px;
 }
