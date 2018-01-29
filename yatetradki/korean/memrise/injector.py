@@ -10,7 +10,8 @@ _logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 class UserScriptInjector:
-    SERVER_STATUS_URL = 'https://localhost:5000/api/get_audio/집'
+    # SERVER_STATUS_URL = 'https://localhost:5000/api/get_audio/집'
+    SERVER_STATUS_URL = 'http://localhost:5000/api/get_audio/집'
     # SERVER_FILE_TEMPLATE = 'https://localhost:5000/api/get_file/%s'
     FILES_TO_INJECT = [
         'jquery.min.js',

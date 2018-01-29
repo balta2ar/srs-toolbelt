@@ -72,8 +72,8 @@
      */
     function getAudioForWord(word, onsuccess) {
         callAjax("GET",
-                //  "http://localhost:5000/api/get_audio/" + encodeURIComponent(word),
-                 "https://localhost:5000/api/get_audio/" + encodeURIComponent(word),
+                 "http://localhost:5000/api/get_audio/" + encodeURIComponent(word),
+                 // "https://localhost:5000/api/get_audio/" + encodeURIComponent(word),
                  onsuccess,
                  null,
                  null);
