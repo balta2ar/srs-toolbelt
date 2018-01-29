@@ -10,6 +10,7 @@ longman/blocks
 yatetradki/korean/tts_cache_naver
 yatetradki/korean/tts_cache_neospeech
 yatetradki/korean/cache_krdict
+yatetradki/korean/cache_krdict_html
 
 .mypy_cache
 .vscode

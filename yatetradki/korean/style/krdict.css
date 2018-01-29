@@ -1,0 +1,65 @@
+/*
+{{Audio}}<br>
+{{Word}}<br>
+<hr class="hr-dotted">
+{{Example}}
+
+{{FrontSide}}
+<hr class="hr-dashed">
+{{Description}}
+*/
+
+.card {
+ font-family: arial;
+ font-size: 22px;
+ text-align: left;
+ color: black;
+ background-color: white;
+}
+.hr-dashed {
+  border-top: 1px dashed;
+  height: 0px;
+  margin: 3px;
+  padding: 0px;
+}
+.hr-dotted {
+  border-top: 1px dotted;
+  height: 0px;
+  margin: 3px;
+  padding: 0px;
+}
+ul {
+  margin: 0px;
+}
+p, li, ul, ol {
+  margin: 0px;
+  line-height: 1;
+}
+div ul {
+  list-style-type: none;
+  padding-left: 0px;
+}
+ul {
+  list-style-type: none;
+  padding-left: 0px;
+}
+ul ul {
+  padding-left: 10px;
+}
+ol {
+//  color: red;
+}
+.sub_p1 {
+  color: darkblue;
+}
+strong {
+  font-weight:400;
+  color: green;
+}
+b {
+  font-weight:400;
+  color: teal;
+}
+div.examples {
+  border-left: 3px solid grey;
+}

@@ -44,6 +44,10 @@ class WordTable(object):
     korean_word, russian_word, path_to_file, ...
     """
 
+    def _make_default_entry(self, from_name, to_name):
+        mp3to = join(MEDIA_DIR, to_name)
+        return TableEntry(from_name, mp3to, to_name)
+
     def _make_entry(self, entry_dict):
         mp3from = join(self._mp3dir, entry_dict['mp3base'])
         mp3tobase = self._copied_prefix + entry_dict['mp3base']
@@ -242,7 +246,8 @@ class CachingWordTable(WordTable):
         else:
             self._logger.info('Cache hit: %s', value)
 
-        return [TableEntry(filename, None, basename)]
+        #return [TableEntry(filename, None, basename)]
+        return [self._make_default_entry(filename, basename)]
 
 
 class NeoSpeechService(WordTable):
@@ -261,7 +266,8 @@ class NeoSpeechService(WordTable):
         neospeech.net_reset()
         #value = value.decode('utf-8')
         result = neospeech.run(value, {'voice': 'Jihun'}, 'neo.mp3')
-        return [TableEntry('neo.mp3', None, 'neo.mp3')]
+        #return [TableEntry('neo.mp3', None, 'neo.mp3')]
+        return [self._make_default_entry('neo.mp3', 'neo.mp3')]
 
 
 class NaverService(WordTable):
@@ -280,7 +286,8 @@ class NaverService(WordTable):
         neospeech.net_reset()
         #value = value.decode('utf-8')
         result = neospeech.run(value, {'voice': 'ko'}, 'naver.mp3')
-        return [TableEntry('naver.mp3', None, 'naver.mp3')]
+        #return [TableEntry('naver.mp3', None, 'naver.mp3')]
+        return [self._make_default_entry('naver.mp3', 'naver.mp3')]
 
 
 class KrdictService(WordTable):
@@ -302,7 +309,8 @@ class KrdictService(WordTable):
         #value = value.decode('utf-8')
         result = krdict.run(value, {'voice': 'ko'}, 'krdict.mp3')
         if result is not None:
-            return [TableEntry('krdict.mp3', None, 'krdict.mp3')]
+            #return [TableEntry('krdict.mp3', None, 'krdict.mp3')]
+            return [self._make_default_entry('krdict.mp3', 'krdict.mp3')]
         return None
 
 
@@ -387,18 +395,19 @@ def main():
     if args.dry_run:
         logging.info('Dry run mode')
 
-    korean_class_table = KoreanClass101WordTable(
-        KOREAN_CLASS_LOOKUP_TABLE_FILENAME,
-        KOREAN_CLASS_MP3_DIR,
-        MEDIA_DIR,
-        KOREAN_CLASS_COPIED_PREFIX
-    )
-    hosgeldi_table = HosgeldiWordTable(
-        HOSGELDI_LOOKUP_TABLE_FILENAME,
-        HOSGELDI_MP3_DIR,
-        MEDIA_DIR,
-        HOSGELDI_COPIED_PREFIX
-    )
+    # korean_class_table = KoreanClass101WordTable(
+    #     KOREAN_CLASS_LOOKUP_TABLE_FILENAME,
+    #     KOREAN_CLASS_MP3_DIR,
+    #     MEDIA_DIR,
+    #     KOREAN_CLASS_COPIED_PREFIX
+    # )
+    # hosgeldi_table = HosgeldiWordTable(
+    #     HOSGELDI_LOOKUP_TABLE_FILENAME,
+    #     HOSGELDI_MP3_DIR,
+    #     MEDIA_DIR,
+    #     HOSGELDI_COPIED_PREFIX
+    # )
+    master_table = create_master_table()
 
     from anki import Collection
     col = Collection(args.collection)
@@ -410,7 +419,7 @@ def main():
     deck['mid'] = model['id']
     col.decks.save(deck)
 
-    cardids = col.findCards('deck:"%s"' % args.deck_name)
+    cardids = col.findCards('deck:"%s" Audio:' % args.deck_name)
     #noteids = col.findNotes('deck:"%s"' % args.deck_name)
     logging.info('Found %d cards in "%s" deck', len(cardids), args.deck_name)
 
@@ -434,11 +443,12 @@ def main():
         # note.flush()
 
         logging.info('Another card: id:"%s" Korean:"%s" audio:"%s" Translated:"%s"',
-                     cardid, word, note[args.korean_audio_field], note[args.translated_word_field])
+                     cardid, word, note[args.korean_audio_field], note[args.translated_word_field][:10])
 
         new_audio_field = ''
-        entries = korean_class_table.lookup(word)[:MAX_AUDIO_COUNT]
-        entries += hosgeldi_table.lookup(word)[:MAX_AUDIO_COUNT]
+        # entries = korean_class_table.lookup(word)[:MAX_AUDIO_COUNT]
+        # entries += hosgeldi_table.lookup(word)[:MAX_AUDIO_COUNT]
+        entries = master_table.lookup(word)[:1]
         for entry in entries:
             logging.info('Entry: "%s"', entry)
 
