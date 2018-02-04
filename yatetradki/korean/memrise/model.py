@@ -433,6 +433,7 @@ class Level(WaitableWithDriver):
     CLASS_ICO_CLOSE = 'ico-close'
     CLASS_ADDING = 'adding'
     CLASS_ADD_AUDIO = 'btn-bz-add-audio'
+    CLASS_ICON_TRASH = 'ico-trash'
     # This class is used by a row of words
     CLASS_THING = 'thing'
     CLASS_TEXT = 'text'
@@ -477,6 +478,10 @@ class Level(WaitableWithDriver):
         return thing.find_elements_by_css_selector(self.SELECTOR_CELL)
 
     def _find_thing(self, word):
+        """
+        Thing is a block of HTML that contains the word, description, audio and
+        all other columns.
+        """
         for thing in self._things:
             cells = self._cells(thing)
             if cells[0].text == word:
@@ -538,6 +543,16 @@ class Level(WaitableWithDriver):
     def _wait_word_present(self, word):
         self._wait_condition(lambda _driver: word in self.words_only)
 
+    def _find_trash_icons(self, word):
+        thing = self._find_thing(word)
+        with without_implicit_wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT):
+            return thing.find_elements_by_class_name(self.CLASS_ICON_TRASH)
+
+    def _remove_all_audios(self, word):
+        for trash_icon in self._find_trash_icons(word):
+            self._js_click(trash_icon)
+        self._wait_condition(lambda _driver: not self._find_trash_icons(word))
+
     def change_word(self, old_word, new_word, new_meaning):
         self.ensure_expanded()
 
@@ -549,6 +564,8 @@ class Level(WaitableWithDriver):
         self._set_input(self._get_input(cells[1]), new_meaning)
 
         self._wait_word_present(new_word)
+        _logger.info('Word "%s" has changed, removing all audios', new_word)
+        self._remove_all_audios(new_word)
 
     def _wait_clickable(self, by):
         w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
