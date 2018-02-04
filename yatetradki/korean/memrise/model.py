@@ -30,7 +30,6 @@ from yatetradki.korean.memrise.types import DiffActionCreateWord
 from yatetradki.korean.memrise.types import DiffActionChangeWord
 from yatetradki.korean.memrise.types import DiffActionDeleteWord
 from yatetradki.korean.memrise.injector import UserScriptInjector
-from yatetradki.korean.memrise.io import read_credentials_from_netrc
 from yatetradki.korean.memrise.io import get_page
 from yatetradki.korean.memrise.words import load_file_with_words
 from yatetradki.korean.memrise.words import DuplicateWords
@@ -91,18 +90,14 @@ class MemriseCourseSyncher:
     MEMRISE_LOGIN_PAGE = 'https://www.memrise.com/login/'
     PRONUNCIATION_KOREAN = 'korean'
 
-    def __init__(self, filename, course_url, driver_name=DEFAULT_DRIVER_NAME):
-        self._course_url = course_url
-        self._filename = filename
+    def __init__(self, driver_name=DEFAULT_DRIVER_NAME):
         self._driver = _create_driver(driver_name)
 
         self._driver.implicitly_wait(UI_LARGE_DELAY)
         # self._driver.implicitly_wait(UI_TINY_DELAY)
         self._userscript_injector = UserScriptInjector(self._driver)
 
-        self._course = EditableCourse(course_url, self._driver)
-
-    def _login(self, username, password):
+    def login(self, username, password):
         self._driver.get(self.MEMRISE_LOGIN_PAGE)
 
         login_field = self._driver.find_element_by_xpath(
@@ -158,17 +153,19 @@ class MemriseCourseSyncher:
             except AttributeError as e:
                 _logger.exception('Diff action failed "%s": %s', action, e)
 
-    def sync(self, pronunciation=None, only_log_changes=False,
+    def sync(self, filename, course_url,
+             pronunciation=None, only_log_changes=False,
              no_delete=False, no_duplicate=False, dry_run=False):
         if pronunciation not in (None, self.PRONUNCIATION_KOREAN):
             raise ValueError('Unsupported pronunciation: %s. Supported: %s' %
                              (pronunciation, self.PRONUNCIATION_KOREAN))
 
-        _logger.info('Starting sync')
+        _logger.info('Syncing from filename %s to course url %s',
+            filename, course_url)
 
-        username, password = read_credentials_from_netrc()
-        _logger.info('Logging in')
-        self._login(username, password)
+        self._course_url = course_url
+        self._filename = filename
+        self._course = EditableCourse(course_url, self._driver)
         self._course.load()
 
         _logger.info('Calculating difference')

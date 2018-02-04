@@ -30,6 +30,7 @@ Sample usage:
 
 import logging
 from pprint import pformat
+from collections import namedtuple
 
 
 import fire
@@ -41,6 +42,8 @@ from yatetradki.korean.memrise.injector import UserScriptInjector
 from yatetradki.korean.memrise.common import DEFAULT_DRIVER_NAME
 from yatetradki.korean.memrise.common import DEFAULT_LOG_LEVEL
 from yatetradki.korean.memrise.common import DEFAULT_LOGGER_NAME
+from yatetradki.korean.memrise.io import read_credentials_from_netrc
+from yatetradki.korean.memrise.io import read_course_collection
 
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -52,6 +55,7 @@ _logger = logging.getLogger(DEFAULT_LOGGER_NAME)
 
 
 SILENT_LOG_LEVEL = logging.ERROR
+CoursePair = namedtuple('CoursePair', 'filename course_url')
 
 
 def interactive(filename=None):
@@ -80,7 +84,22 @@ class Runner:
         self.log = log
         self.driver = driver
 
-    def upload(self, filename, course_url, pronunciation=None,
+    def _validate_input(self, course_collection_filename, filename, course_url):
+        if filename and course_url:
+            return [CoursePair(filename, course_url)]
+        elif course_collection_filename:
+            return [CoursePair(filename, course_url)
+                    for filename, course_url in read_course_collection(
+                        course_collection_filename)]
+        else:
+            _logger.info('Invalid parameters: either use --course-collection-filename '
+                         'argument with a path to yaml file or use both '
+                         '--filename and --course-url')
+            return None
+
+    def upload(self, course_collection_filename=None,
+               filename=None, course_url=None,
+               pronunciation=None,
                only_log_changes=False, no_delete=False,
                no_duplicate=False, dry_run=False):
         """
@@ -91,12 +110,26 @@ class Runner:
         if only_log_changes:
             _logger.setLevel(SILENT_LOG_LEVEL)
 
-        syncher = MemriseCourseSyncher(filename, course_url, self.driver)
-        syncher.sync(pronunciation=pronunciation,
-                     only_log_changes=only_log_changes,
-                     no_delete=no_delete,
-                     no_duplicate=no_duplicate,
-                     dry_run=dry_run)
+        courses = self._validate_input(course_collection_filename, filename, course_url)
+        if not courses:
+            return
+        _logger.info('%d courses to sync', len(courses))
+
+        username, password = read_credentials_from_netrc()
+        syncher = MemriseCourseSyncher(self.driver)
+        _logger.info('Logging in')
+        syncher.login(username, password)
+
+        for course_pair in courses:
+            syncher.sync(filename=course_pair.filename,
+                         course_url=course_pair.course_url,
+                         pronunciation=pronunciation,
+                         only_log_changes=only_log_changes,
+                         no_delete=no_delete,
+                         no_duplicate=no_duplicate,
+                         dry_run=dry_run)
+
+        _logger.info('Finished syncing %d courses', len(courses))
 
     def save(self, filename, course_url):
         """
