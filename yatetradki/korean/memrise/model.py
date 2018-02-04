@@ -194,7 +194,7 @@ class MemriseCourseSyncher:
                                 len(duplicates), duplicates)
                 if no_duplicate:
                     _logger.warning('Flag --no-duplicate is set and there are '
-                                    'duplicates, thus terniating sync early...')
+                                    'duplicates, thus terminating sync early...')
                     return
 
             _logger.info('%s actions to apply: %s',
