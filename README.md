@@ -21,6 +21,7 @@ srs-toolbelt (former yandex-slovari-tetradki)
 - [Screenshots of conky](#screenshots-of-conky)
     - [Translation & syn & ant](#translation--syn--ant)
     - [Defs](#defs)
+- [Related materials](#related-materials)
 - [Author](#author)
 
 <!-- /TOC -->
@@ -281,6 +282,14 @@ I only helped course authors add complete pronunciation in Korean.
 ### Defs
 
 ![Definitions](http://i.imgur.com/gePlqoU.png)
+
+## Related materials
+
+Here are some links to other materials related to Anki advanced configuration that helped me or inspired me somehow.
+
+1. https://www.juliensobczak.com/tell/2016/12/26/anki-scripting.html
+1. https://gist.github.com/androidfred/5562973ac1ae5ce58d305a2e81c0ebd1
+1. https://github.com/nheinric/addToAnki
 
 ## Author
 

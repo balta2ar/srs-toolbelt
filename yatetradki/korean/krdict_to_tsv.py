@@ -152,7 +152,6 @@ def fetch_word(word):
     #examples = [clean(e.prettify()) for e in examples]
     examples = [clean(str(e)) for e in examples]
     examples = '<ul>' + ''.join(examples) + '</ul>'
-    print(examples)
 
     # examples = soup.select('p[class="sub_p1"]')
     # examples = '<ul>' + ''.join(['<li>%s</li>' % e.text.strip() for e in examples]) + '</ul>'
