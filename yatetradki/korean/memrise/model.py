@@ -40,6 +40,8 @@ from yatetradki.korean.memrise.text import cleanup
 from yatetradki.korean.memrise.common import DEFAULT_LOG_LEVEL
 from yatetradki.korean.memrise.common import DEFAULT_DRIVER_NAME
 from yatetradki.korean.memrise.common import DEFAULT_LOGGER_NAME
+from yatetradki.korean.memrise.common import grouper
+
 
 UI_LARGE_DELAY = 3.0
 UI_SMALL_DELAY = 1.0
@@ -438,6 +440,7 @@ class Level(WaitableWithDriver):
     CLASS_BTN = 'btn'
     SELECTOR_SHOW_HIDE = '.show-hide.btn.btn-small'
     SELECTOR_CELL = '.cell.text.column'
+    SELECTOR_THINGS_CELLS = '.thing > .cell.text.column'
     SELECTOR_MODAL_YESNO = '#modal-yesno .btn-yes'
     TAG_INPUT = 'input'
 
@@ -474,18 +477,36 @@ class Level(WaitableWithDriver):
     def _cells(self, thing):
         return thing.find_elements_by_css_selector(self.SELECTOR_CELL)
 
+    @property
+    def _things_cells(self):
+        with without_implicit_wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT):
+            result = self._element().find_elements_by_css_selector(
+                self.SELECTOR_THINGS_CELLS)
+            return list(grouper(result, 2))
+
     def _find_thing(self, word):
         """
         Thing is a block of HTML that contains the word, description, audio and
         all other columns.
         """
-        for thing in self._things:
-            cells = self._cells(thing)
-            if cells[0].text == word:
-                return thing
+        cells = self._find_cells(word)
+        if cells[0].text == word:
+            return self._parent(cells[0])
 
-        raise AttributeError('Cant find word "%s" in level "%s"' %
+        raise AttributeError('Cant find word "%s" in level "%s" (_find_thing)' %
                              (word, self.name))
+
+    def _find_cells(self, word):
+        """
+        Similar to _find_thing but uses faster _things_cells.
+        """
+        for cells in self._things_cells:
+            if cells[0].text == word:
+                return cells
+
+        raise AttributeError('Cant find word "%s" in level "%s" (_find_cells)' %
+                             (word, self.name))
+
 
     def _find_add_audio_buttons(self):
         with without_implicit_wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT):
@@ -537,6 +558,10 @@ class Level(WaitableWithDriver):
     def _text(self, element):
         return element.find_element_by_class_name(self.CLASS_TEXT)
 
+    def _parent(self, element):
+        return self._driver.execute_script(
+            'return arguments[0].parentNode;', element)
+
     def _wait_word_present(self, word):
         self._wait_condition(lambda _driver: word in self.words_only)
 
@@ -553,8 +578,7 @@ class Level(WaitableWithDriver):
     def change_word(self, old_word, new_word, new_meaning):
         self.ensure_expanded()
 
-        thing = self._find_thing(old_word)
-        cells = self._cells(thing)
+        cells = self._find_cells(old_word)
         self._text(cells[0]).click()
         self._set_input(self._get_input(cells[0]), new_word)
         self._text(cells[1]).click()
@@ -592,8 +616,7 @@ class Level(WaitableWithDriver):
         self.ensure_expanded()
 
         result = []
-        for thing in self._things:
-            cells = self._cells(thing)
+        for cells in self._things_cells:
             word = cleanup(cells[0].text)
             meaning = cleanup(cells[1].text)
             result.append(WordPair(word, meaning))
