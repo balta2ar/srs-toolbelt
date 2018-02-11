@@ -4,6 +4,7 @@ from yatetradki.korean.memrise.types import DiffActionDeleteLevel
 from yatetradki.korean.memrise.types import DiffActionCreateWord
 from yatetradki.korean.memrise.types import DiffActionChangeWord
 from yatetradki.korean.memrise.types import DiffActionDeleteWord
+from yatetradki.korean.memrise.types import DiffActionChangeWordAt
 
 
 def contains_deletions(actions):
@@ -28,6 +29,14 @@ def pretty_print_action(action):
 
     if isinstance(action, DiffActionChangeWord):
         return '*%s; %s ===> %s; %s' % (
+            action.old_pair.word,
+            action.old_pair.meaning,
+            action.new_pair.word,
+            action.new_pair.meaning)
+
+    if isinstance(action, DiffActionChangeWordAt):
+        return '* at index %s: %s; %s ===> %s; %s' % (
+            action.index,
             action.old_pair.word,
             action.old_pair.meaning,
             action.new_pair.word,

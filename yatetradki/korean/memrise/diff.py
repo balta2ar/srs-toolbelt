@@ -7,7 +7,8 @@ from yatetradki.korean.memrise.types import DiffActionCreateLevel
 from yatetradki.korean.memrise.types import DiffActionChangeLevel
 from yatetradki.korean.memrise.types import DiffActionDeleteLevel
 from yatetradki.korean.memrise.types import DiffActionCreateWord
-from yatetradki.korean.memrise.types import DiffActionChangeWord
+# from yatetradki.korean.memrise.types import DiffActionChangeWord
+from yatetradki.korean.memrise.types import DiffActionChangeWordAt
 from yatetradki.korean.memrise.types import DiffActionDeleteWord
 
 
@@ -15,6 +16,7 @@ def get_words_difference(level_name: str,
                          course_level_words: List[WordPair],
                          file_level_words: List[WordPair]):
     actions = []
+    index = 0
     for file_pair, course_pair \
             in zip_longest(file_level_words, course_level_words):
 
@@ -29,8 +31,10 @@ def get_words_difference(level_name: str,
 
         # Equal?
         elif file_pair != course_pair:
-            actions.append(DiffActionChangeWord(
-                level_name, course_pair, file_pair))
+            actions.append(DiffActionChangeWordAt(
+                level_name, index, course_pair, file_pair))
+
+        index += 1
 
     return actions
 

@@ -19,6 +19,7 @@ from yatetradki.korean.memrise.types import DiffActionDeleteWord
 from yatetradki.korean.memrise.types import DiffActionCreateWord
 from yatetradki.korean.memrise.types import DiffActionChangeLevel
 from yatetradki.korean.memrise.types import DiffActionChangeWord
+from yatetradki.korean.memrise.types import DiffActionChangeWordAt
 
 from yatetradki.korean.memrise.text import cleanup
 
@@ -29,6 +30,7 @@ class TestCleanup:
         assert cleanup('   무료;   【無料】    бесплатный   ') == \
             '무료; 【無料】 бесплатный'
 
+
 class TestPrettyPrintDiffActions:
     def test_pretty_print(self):
         actions = [
@@ -37,6 +39,7 @@ class TestPrettyPrintDiffActions:
             DiffActionDeleteLevel('l1'),
             DiffActionCreateWord('l1', WordPair('w1', 'm1')),
             DiffActionChangeWord('l1', WordPair('w1', 'm1'), WordPair('w2', 'm2')),
+            DiffActionChangeWordAt('l1', 42, WordPair('w1', 'm1'), WordPair('w2', 'm2')),
             DiffActionDeleteWord('l1', WordPair('w1', 'm1')),
         ]
         expected = '''+#l1
@@ -44,6 +47,7 @@ class TestPrettyPrintDiffActions:
 -#l1
 +w1; m1
 *w1; m1 ===> w2; m2
+* at index 42: w1; m1 ===> w2; m2
 -w1; m1'''
         assert pretty_print_actions(actions) == expected
 
@@ -96,8 +100,9 @@ class TestCourseDifference:
             'word1;\n')
         assert get_course_difference(course, file_) == [
             DiffActionChangeLevel('Chapter 1', 'Chapter 1.5'),
-            DiffActionChangeWord(
+            DiffActionChangeWordAt(
                 'Chapter 1.5',
+                0,
                 WordPair('word1', 'meaning1'),
                 WordPair('word1.5', 'meaning1')),
             DiffActionCreateWord('Chapter 1.5', WordPair('word2', 'meaning2'))

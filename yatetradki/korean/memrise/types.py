@@ -23,3 +23,5 @@ DiffActionCreateWord = namedtuple('DiffActionCreateWord', 'level_name pair')
 DiffActionDeleteWord = namedtuple('DiffActionDeleteWord', 'level_name pair')
 DiffActionChangeWord = namedtuple('DiffActionChangeWord',
                                   'level_name old_pair new_pair')
+DiffActionChangeWordAt = namedtuple('DiffActionChangeWord',
+                                    'level_name index old_pair new_pair')

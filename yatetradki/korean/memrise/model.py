@@ -27,7 +27,8 @@ from yatetradki.korean.memrise.types import DiffActionCreateLevel
 from yatetradki.korean.memrise.types import DiffActionChangeLevel
 from yatetradki.korean.memrise.types import DiffActionDeleteLevel
 from yatetradki.korean.memrise.types import DiffActionCreateWord
-from yatetradki.korean.memrise.types import DiffActionChangeWord
+# from yatetradki.korean.memrise.types import DiffActionChangeWord
+from yatetradki.korean.memrise.types import DiffActionChangeWordAt
 from yatetradki.korean.memrise.types import DiffActionDeleteWord
 from yatetradki.korean.memrise.injector import UserScriptInjector
 from yatetradki.korean.memrise.io import get_page
@@ -135,11 +136,18 @@ class MemriseCourseSyncher:
                                      action.pair.word,
                                      action.pair.meaning)
 
-        elif isinstance(action, DiffActionChangeWord):
-            self._course.change_word(action.level_name,
-                                     action.old_pair.word,
-                                     action.new_pair.word,
-                                     action.new_pair.meaning)
+        # elif isinstance(action, DiffActionChangeWord):
+        #     self._course.change_word(action.level_name,
+        #                              action.old_pair.word,
+        #                              action.new_pair.word,
+        #                              action.new_pair.meaning)
+
+        elif isinstance(action, DiffActionChangeWordAt):
+            self._course.change_word_at(action.level_name,
+                                        action.index,
+                                        action.old_pair.word,
+                                        action.new_pair.word,
+                                        action.new_pair.meaning)
 
         elif isinstance(action, DiffActionDeleteWord):
             self._course.delete_word(action.level_name,
@@ -321,6 +329,10 @@ class EditableCourse(WaitableWithDriver):
     def change_word(self, level_name, old_word, new_word, new_meaning):
         level = self.find_level(level_name)
         level.change_word(old_word, new_word, new_meaning)
+
+    def change_word_at(self, level_name, index, _old_word, new_word, new_meaning):
+        level = self.find_level(level_name)
+        level.change_word_at(index, new_word, new_meaning)
 
     def delete_word(self, level_name, word):
         level = self.find_level(level_name)
@@ -575,10 +587,7 @@ class Level(WaitableWithDriver):
             self._js_click(trash_icon)
         self._wait_condition(lambda _driver: not self._find_trash_icons(word))
 
-    def change_word(self, old_word, new_word, new_meaning):
-        self.ensure_expanded()
-
-        cells = self._find_cells(old_word)
+    def _change_cells(self, cells, new_word, new_meaning):
         self._text(cells[0]).click()
         self._set_input(self._get_input(cells[0]), new_word)
         self._text(cells[1]).click()
@@ -587,6 +596,18 @@ class Level(WaitableWithDriver):
         self._wait_word_present(new_word)
         _logger.info('Word "%s" has changed, removing all audios', new_word)
         self._remove_all_audios(new_word)
+
+    def change_word(self, old_word, new_word, new_meaning):
+        self.ensure_expanded()
+
+        cells = self._find_cells(old_word)
+        self._change_cells(cells, new_word, new_meaning)
+
+    def change_word_at(self, index, new_word, new_meaning):
+        self.ensure_expanded()
+
+        cells = self._things_cells[index]
+        self._change_cells(cells, new_word, new_meaning)
 
     def _wait_clickable(self, by):
         w = wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT)
