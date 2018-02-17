@@ -50,10 +50,13 @@ def get_cached_word(word):
         return slurp(filename)
 
     url = KRDICT_URL % word
-    _logger.info('getting word %s (%s)', word, url)
-    request = get(url)
-    spit(filename, request.text)
-    return request.text
+    _logger.info('getting word "%s" (%s)', word, url)
+    try:
+        request = get(url)
+        spit(filename, request.text)
+        return request.text
+    except FileNotFoundError:
+        return ''
 
 
 def get_cached_subword(word, subword):
@@ -163,6 +166,8 @@ def fetch_word(word):
 
 
 def word_to_entry(word):
+    if not word:
+        return None
     examples, article = fetch_word(word)
     examples = examples if examples is not None else ''
     if article is None:
