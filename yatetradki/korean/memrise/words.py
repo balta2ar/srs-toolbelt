@@ -7,6 +7,9 @@ from yatetradki.korean.memrise.text import cleanup
 
 MARK_COMMENT = '@'
 MARK_LEVEL_NAME = '#'
+# Google Docs inserts such marks
+# BYTE_ORDER_MARK = '\xef\xbb\xbf'
+BYTE_ORDER_MARK = '\ufeff'
 
 
 def load_string_with_words(words_string):
@@ -14,6 +17,8 @@ def load_string_with_words(words_string):
     # value: [(word, meaning)]
     words = WordCollection()
     current_level = None
+    if words_string.startswith(BYTE_ORDER_MARK):
+        words_string = words_string[len(BYTE_ORDER_MARK):]
     lines = words_string.split('\n')
     for line in (l.strip() for l in lines if l.strip()):
         if line.startswith(MARK_COMMENT):

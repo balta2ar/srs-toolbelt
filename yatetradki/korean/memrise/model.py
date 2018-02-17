@@ -42,6 +42,7 @@ from yatetradki.korean.memrise.common import DEFAULT_LOG_LEVEL
 from yatetradki.korean.memrise.common import DEFAULT_DRIVER_NAME
 from yatetradki.korean.memrise.common import DEFAULT_LOGGER_NAME
 from yatetradki.korean.memrise.common import grouper
+from yatetradki.korean.memrise.telegram import append_telegram_message
 
 
 UI_LARGE_DELAY = 3.0
@@ -200,20 +201,30 @@ class MemriseCourseSyncher:
 
             duplicates = DuplicateWords(self._file_word_pairs)
             if duplicates:
-                _logger.warning('Found %s duplicates: %s',
-                                len(duplicates), duplicates)
+                msg = 'Found %s duplicates: %s' % (len(duplicates), duplicates)
+                _logger.warning(msg)
+                append_telegram_message(msg)
                 if no_duplicate:
-                    _logger.warning('Flag --no-duplicate is set and there are '
-                                    'duplicates, thus terminating sync early...')
+                    msg = 'Flag --no-duplicate is set and there are '\
+                          'duplicates, thus terminating sync early...'
+                    _logger.warning(msg)
+                    append_telegram_message(msg)
                     return
 
             _logger.info('%s actions to apply: %s',
                          len(diff_actions), pformat(diff_actions))
+            pretty_diff_actions = pretty_print_actions(diff_actions)
             _logger.info('Pretty printing actions: \n%s',
-                         pretty_print_actions(diff_actions))
+                         pretty_diff_actions)
+
+            append_telegram_message('Trying to apply the following diff:')
+            append_telegram_message(pretty_diff_actions)
+
             if no_delete and contains_deletions(diff_actions):
-                _logger.warning('Flag --no-delete is set and there are deletions '
-                                'in the actions, thus teminating sync early...')
+                msg = 'Flag --no-delete is set and there are deletions '\
+                      'in the actions, thus teminating sync early...'
+                _logger.warning(msg)
+                append_telegram_message(msg)
                 return
 
             if dry_run:

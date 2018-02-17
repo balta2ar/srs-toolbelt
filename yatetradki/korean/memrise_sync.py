@@ -44,6 +44,9 @@ from yatetradki.korean.memrise.common import DEFAULT_LOG_LEVEL
 from yatetradki.korean.memrise.common import DEFAULT_LOGGER_NAME
 from yatetradki.korean.memrise.io import read_credentials_from_netrc
 from yatetradki.korean.memrise.io import read_course_collection
+from yatetradki.korean.memrise.telegram import read_telegram_notification_settings
+from yatetradki.korean.memrise.telegram import start_session
+from yatetradki.korean.memrise.telegram import finish_session
 
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -62,8 +65,8 @@ def interactive(filename=None):
     url = 'https://www.memrise.com/course/1776472/bz-testing-course/edit/'
     if filename is None:
         filename = './sample3.txt'
-    syncher = MemriseCourseSyncher(filename, url)
-    syncher.sync(pronunciation=MemriseCourseSyncher.PRONUNCIATION_KOREAN)
+    syncher = MemriseCourseSyncher()
+    syncher.sync(filename, url, pronunciation=MemriseCourseSyncher.PRONUNCIATION_KOREAN)
     return syncher
 
 
@@ -113,6 +116,8 @@ class Runner:
         courses = self._validate_input(course_collection_filename, filename, course_url)
         if not courses:
             return
+
+        start_session()
         _logger.info('%d courses to sync', len(courses))
 
         username, password = read_credentials_from_netrc()
@@ -130,6 +135,11 @@ class Runner:
                          dry_run=dry_run)
 
         _logger.info('Finished syncing %d courses', len(courses))
+
+        telegram_settings = read_telegram_notification_settings(course_collection_filename)
+        if telegram_settings is not None:
+            _logger.info('Trying to send a notification to telegram')
+            finish_session(telegram_settings)
 
     def save(self, filename, course_url):
         """
