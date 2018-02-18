@@ -103,8 +103,8 @@ class Runner:
     def upload(self, course_collection_filename=None,
                filename=None, course_url=None,
                pronunciation=None,
-               only_log_changes=False, no_delete=False,
-               no_duplicate=False, dry_run=False):
+               only_log_changes=False, no_delete=True,
+               no_duplicate=True, dry_run=False):
         """
         Upload contents of the given filename into the given course. Basically
         it synchronizes from filename to course. Note that you have to have
@@ -151,7 +151,6 @@ class Runner:
         course.save_to_file(filename)
 
 
-# TODO: add checker for duplicates (levels, words, meanings)
 def main():
     # interactive()
     fire.Fire(Runner)

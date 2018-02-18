@@ -193,11 +193,14 @@ class MemriseCourseSyncher:
 
                 # Log current arguments because we couldn't have a chance before.
                 _logger.info(
-                    'Program arguments: driver="%s" '
-                    'only_log_changes=%s pronunciation="%s" '
-                    'filename="%s" course_url="%s"',
-                    self._driver, only_log_changes, pronunciation,
-                    self._filename, self._course_url)
+                    'Program arguments: filename="%s" course_url="%s" '
+                    'driver="%s" pronunciation="%s" '
+                    'only_log_changes="%s" no_delete="%s" '
+                    'no_duplicate="%s" dry_run="%s"',
+                    self._filename, self._course_url,
+                    self._driver, pronunciation,
+                    only_log_changes, no_delete,
+                    no_duplicate, dry_run)
 
             duplicates = DuplicateWords(self._file_word_pairs)
             if duplicates:
