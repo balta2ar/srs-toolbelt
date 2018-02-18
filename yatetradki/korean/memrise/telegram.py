@@ -26,6 +26,9 @@ TelegramNotificationSettings = namedtuple(
 
 
 def read_telegram_notification_settings(filename):
+    if filename is None:
+        return None
+
     with open(filename) as file_:
         settings = yaml.load(file_)['notification']['telegram']
         return TelegramNotificationSettings(settings['token'], settings['chat_id'])
