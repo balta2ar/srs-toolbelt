@@ -22,6 +22,11 @@ srs-toolbelt (former yandex-slovari-tetradki)
     - [Translation & syn & ant](#translation--syn--ant)
     - [Defs](#defs)
 - [Related materials](#related-materials)
+- [Theory and methods](#theory-and-methods)
+    - [SRS Flash Cards](#srs-flash-cards)
+    - [Method by Anastasia Kuznetsova](#method-by-anastasia-kuznetsova)
+    - [Method by Maru Kachko](#method-by-maru-kachko)
+    - [Goldlist method](#goldlist-method)
 - [Author](#author)
 
 <!-- /TOC -->
@@ -290,6 +295,34 @@ Here are some links to other materials related to Anki advanced configuration th
 1. https://www.juliensobczak.com/tell/2016/12/26/anki-scripting.html
 1. https://gist.github.com/androidfred/5562973ac1ae5ce58d305a2e81c0ebd1
 1. https://github.com/nheinric/addToAnki
+
+## Theory and methods
+
+In this section I'd like to mention a few methods that I used in my studies, which method suited better and how I used it.
+
+### SRS Flash Cards
+
+The number one method is of course using Spaced Repetition Software. I only used Anki and Memrise. I am aware of Duolingo, Quizlet, and others, but I never been seriously using anything but these two. Surprisingly, Anki worked best for English, and Memrise worked best for Korean. That's personal preference, of course, you don't have to have the same usage patterns. What's important about Memrise is that it makes you type Korean words. I stongly suggest avoid the temptation of using the built-in buttons that contain whole Korean syllables. Instead -- just type using your regular keyboard, type the whole words.
+
+In Anki, on the other hand, I do no typing checks when I study English words. I did some experiments with typing Korean in Korean decks, but it didn't go well.
+
+This is the only high-tech method that I've used. The methods below are low-tech but it doesn't make them any worse (maybe even better).
+
+### Method by Anastasia Kuznetsova
+
+This method is good for remembering a bunch of words into your short-term memory. Even though the original author claims that all the words that she studied using this method she can still remember years later, I leave this statement without judgement because there is nothing in the method that trains your long-term memory. I guess the author remembered the words so well because this was just one of the tools in the language learning.
+
+As said above, this method is good for learning words. Due to the suggested layout of the words on the paper this method isn't really good for sentenses. What you need to do is to write all your words that you'd like to remember into
+a column. Take a piece of A4 paper and place it horizontally. Now write the words in foreign language in the first column. I usually write from top to bottom until I have space left.
+
+### Method by Maru Kachko
+
+This method is good for remembering words in context or whole sentences. It's somewhere in between in terms of short-term vs long-term memory.
+
+### Goldlist method
+
+This method is good for remembering in long-term memory.
+
 
 ## Author
 
