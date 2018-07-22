@@ -12,6 +12,7 @@ from anki import Collection
 
 MIN_COLUMN_WIDTH = 10
 MIN_HEADER_WIDTH = 80
+DENSIFY_PADDING = 5
 COLUMN_SEPARATOR = ' '
 
 # rated:n:m
@@ -37,6 +38,7 @@ QUERIES_AND_FIELDS = [
     ('deck:english::outcomes-vocabulary rated:7:2', 'Word'),
     ('deck:english::phrases-org-uk rated:7:2', 'Word'),
 ]
+
 
 def get_collection():
     """Not used"""
@@ -102,13 +104,43 @@ def show_recent(col, query, field):
         note = col.getNote(card.nid)
         words.append(note[field])
     return sorted(set(words))
-    #return '\n'.join(words)
+    # return '\n'.join(words)
+
+
+def densify(words, maxlen):
+    if words is None:
+        words = [line.strip() for line in open('long-list.txt')]
+    if maxlen is None:
+        maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
+
+    free_words = set(words)
+    used_words = set()
+    new_words = []
+    for _index, word in enumerate(words):
+        if word in used_words:
+            continue
+
+        toplen = maxlen - DENSIFY_PADDING - len(word)
+        candidates = sorted([free for free in free_words
+                             if len(free) <= toplen and free != word])
+        if candidates:
+            first = candidates[0]
+            used_words.add(first)
+            free_words.remove(first)
+            if word in free_words:
+                free_words.remove(word)
+            padding = ' ' * (maxlen - len(word) - len(first))
+            word = '%s%s%s' % (word, padding, first)
+        new_words.append(word)
+
+    # print('\n'.join(new_words))
+    return new_words
 
 
 def show_recent_from_collection(queries, header_width):
     col = Collection(COLLECTION)
     #padding = ' ' * 10
-    for query, field in queries: #QUERIES_AND_FIELDS:
+    for query, field in queries:  # QUERIES_AND_FIELDS:
         #header = '>>> %s (%s)%s' % (query, field, padding)
         header = '>>> %s (%s)' % (query, field)
         header = header.ljust(header_width, COLUMN_SEPARATOR)
@@ -116,6 +148,7 @@ def show_recent_from_collection(queries, header_width):
         if words:
             maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
             fit = columns_fit(len(header), maxlen)
+            words = densify(words, maxlen)
             body = format_n_columns(words, maxlen, fit)
             message = '%s\n%s\n' % (header, body)
             print(message.encode('utf8'))
@@ -134,7 +167,8 @@ def get_terminal_width():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Show recently studied anki cards')
+    parser = argparse.ArgumentParser(
+        description='Show recently studied anki cards')
     parser.add_argument('--queries', type=str, required=False, default=None,
                         help='Filename with queries of format: query<tab>field')
     parser.add_argument('--width', type=int, required=False, default=None,
