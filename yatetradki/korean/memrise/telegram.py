@@ -1,6 +1,8 @@
+#!/usr/bin/env python
 """
 This module contains functionality related to telegram notifications.
 """
+import argparse
 import logging
 from pathlib import Path
 from collections import namedtuple
@@ -10,7 +12,10 @@ from os.path import isfile
 from shutil import move
 from os import remove
 
-from yatetradki.korean.memrise.common import DEFAULT_LOGGER_NAME
+try:
+    from yatetradki.korean.memrise.common import DEFAULT_LOGGER_NAME
+except ImportError:
+    DEFAULT_LOGGER_NAME = 'telegram'
 
 
 BASE_DIR = Path('/mnt/data/prg/src/bz/python/yandex-slovari-tetradki/telegrambot')
@@ -93,3 +98,21 @@ def finish_session(telegram_settings):
             _status_code, _response = _notify_in_chat(
                 telegram_settings.token, telegram_settings.chat_id, message)
         move(CURRENT_STATE_FILENAME, LAST_STATE_FILENAME)
+
+
+def send_message(message: str) -> None:
+    config_filename = '/mnt/data/prg/src/bz/python/yandex-slovari-tetradki/yatetradki/korean/memrise_courses/memrise_sync.yaml'
+    telegram_settings = read_telegram_notification_settings(config_filename)
+    _status_code, _response = _notify_in_chat(
+        telegram_settings.token,
+        telegram_settings.chat_id,
+        message)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--message', help='Message to send to the chat',
+                        required=True)
+    args = parser.parse_args()
+
+    send_message(args.message)
