@@ -91,7 +91,8 @@ def without_implicit_wait(driver, old_delay):
 
 
 class MemriseCourseSyncher:
-    MEMRISE_LOGIN_PAGE = 'https://www.memrise.com/login/'
+    # Community decks have been moved to a different subdomain.
+    MEMRISE_LOGIN_PAGE = 'https://decks.memrise.com/login/'
     PRONUNCIATION_KOREAN = 'korean'
 
     def __init__(self, driver_name=DEFAULT_DRIVER_NAME):
@@ -105,11 +106,11 @@ class MemriseCourseSyncher:
         self._driver.get(self.MEMRISE_LOGIN_PAGE)
 
         login_field = self._driver.find_element_by_xpath(
-            '//*[@id="login"]/div[4]/input')
+            '//*[@id="login"]/div[4]/input') # 3
         login_field.send_keys(username)
 
         password_field = self._driver.find_element_by_xpath(
-            '//*[@id="login"]/div[5]/input')
+            '//*[@id="login"]/div[5]/input') # 4
         password_field.send_keys(password)
 
         login_button = self._driver.find_element_by_xpath(
@@ -322,6 +323,7 @@ class WaitableWithDriver:
 class EditableCourse(WaitableWithDriver):
     TAG_A = 'a'
     SELECTOR_ADD_LEVEL_MENU = '.btn-group.pull-left'
+    SELECTOR_COOKIE_CONSENT = '[aria-label="cookieconsent"]'
     ID_HEADER = 'header'
 
     def __init__(self, course_url, driver):
@@ -427,9 +429,16 @@ class EditableCourse(WaitableWithDriver):
             'if (header) header.parentNode.removeChild(header);',
             self.ID_HEADER)
 
+    def _remove_cookie_consent(self):
+        self._driver.execute_script(
+            'var consent = document.querySelector(arguments[0]);'
+            'if (consent) consent.parentNode.removeChild(consent);',
+            self.SELECTOR_COOKIE_CONSENT)
+
     def load(self):
         self._driver.get(self.course_url)
         self._remove_header()
+        self._remove_cookie_consent()
 
         self._reload_levels()
         self._expand_all_levels()
@@ -664,7 +673,12 @@ class Level(WaitableWithDriver):
         return element.find_element_by_tag_name(self.TAG_INPUT)
 
     def _set_input(self, input_field, value, send_return=True):
-        input_field.clear()
+        # I used to send "clear" command to Level name input, but it looks like
+        # Memrise UI behavior has changed. Now when such input is cleared,
+        # input element is automatically removed from DOM. Thus, instead,
+        # now I select the text in the input using Ctrl-A.
+        # input_field.clear()
+        input_field.send_keys(Keys.CONTROL + 'a')
         input_field.send_keys(value)
         if send_return:
             # input_field.send_keys(Keys.RETURN)

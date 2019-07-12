@@ -17,5 +17,5 @@ def read_credentials_from_netrc():
 
 def read_course_collection(filename):
     with open(filename) as file_:
-        courses = yaml.load(file_)['courses']
+        courses = yaml.load(file_, Loader=yaml.FullLoader)['courses']
         return [(pair['filename'], pair['course_url']) for pair in courses]
