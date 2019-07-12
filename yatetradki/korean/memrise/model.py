@@ -173,7 +173,7 @@ class MemriseCourseSyncher:
                              (pronunciation, self.PRONUNCIATION_KOREAN))
 
         _logger.info('Syncing from filename %s to course url %s',
-            filename, course_url)
+                     filename, course_url)
 
         self._course_url = course_url
         self._filename = filename
@@ -226,13 +226,14 @@ class MemriseCourseSyncher:
 
             if no_delete and contains_deletions(diff_actions):
                 msg = 'Flag --no-delete is set and there are deletions '\
-                      'in the actions, thus teminating sync early...'
+                      'in the actions, thus terminating sync early...'
                 _logger.warning(msg)
                 append_telegram_message(msg)
                 return
 
             if dry_run:
-                _logger.warning('Not applying actions because of --dry-run option')
+                _logger.warning(
+                    'Not applying actions because of --dry-run option')
             else:
                 self._apply_diff_actions(diff_actions)
 
@@ -241,7 +242,8 @@ class MemriseCourseSyncher:
             # Wait a little before injected code adds buttons that should
             # be clicked.
             if dry_run:
-                _logger.warning('Not adding pronunciation because of --dry-run option')
+                _logger.warning(
+                    'Not adding pronunciation because of --dry-run option')
             else:
                 snooze(UI_LARGE_DELAY)
                 self._course.add_pronunciation()
@@ -277,6 +279,7 @@ class WaitableWithDriver:
     Adds several common helper methods that allow more convenient waiting on
     conditions.
     """
+
     def __init__(self):
         self._driver = None
 
@@ -541,7 +544,6 @@ class Level(WaitableWithDriver):
 
         raise AttributeError('Cant find word "%s" in level "%s" (_find_cells)' %
                              (word, self.name))
-
 
     def _find_add_audio_buttons(self):
         with without_implicit_wait(self._driver, UI_MAX_IMPLICIT_TIMEOUT):
