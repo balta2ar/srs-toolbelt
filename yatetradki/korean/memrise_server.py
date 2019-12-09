@@ -81,7 +81,7 @@ def get_file(filename):
 
 @app.route("/api/get_audio/<string:word>")
 def get_audio(word):
-    word = escape(unquote(word))
+    word = escape(unquote(word)).lower()
     logging.info('incoming word: %s', word)
 
     #return 'WORD: %s' % word

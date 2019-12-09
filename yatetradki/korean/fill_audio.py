@@ -6,18 +6,20 @@ better because they are recorded by humans. Field for which human pronunction
 is missing are filled with TextToSpeech generated audio (use AwesomeTTS
 Anki plugin to do that).
 """
-from os import makedirs
-from os.path import join, exists, getsize
-from shutil import copy2
-from operator import itemgetter
 import codecs
+import random
+import string
 import logging
 import argparse
-from collections import namedtuple
+
 from pprint import pformat
+from shutil import copy2, move
+from operator import itemgetter
+from collections import namedtuple
+from os import makedirs
+from os.path import exists, getsize, join
 
 from aws_polly_synthesize_speech import norwegian_synthesize
-
 
 FORMAT = '%(asctime)-15s %(levelname)s (%(name)s) %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -46,6 +48,10 @@ class WordTable(object):
     the following columns:
     korean_word, russian_word, path_to_file, ...
     """
+
+    def _make_random_filename(self, length=20):
+        letters = string.ascii_lowercase
+        return ''.join(random.choice(letters) for i in range(length))
 
     def _make_default_entry(self, from_name, to_name):
         mp3to = join(MEDIA_DIR, to_name)
@@ -301,7 +307,7 @@ class CachingWordTable(WordTable):
             results = self._table.lookup(value)
             if results:
                 result = results[0]
-                copy2(result.mp3from, filename)
+                move(result.mp3from, filename)
             else:
                 self._logger.info('Child table returned None: %s', self._table)
                 return None
@@ -315,7 +321,7 @@ class CachingWordTable(WordTable):
 class AwsPollyNorwegianService(WordTable):
     def lookup(self, value):
         logger = logging.getLogger()
-        filename = 'aws_polly_norwegian.mp3'
+        filename = 'aws_polly_norwegian_%s.mp3' % self._make_random_filename()
         result = norwegian_synthesize(value, filename)
         logger.info('word: %s, AWS polly result: %s', value, result)
         #return [TableEntry('neo.mp3', None, 'neo.mp3')]
@@ -369,6 +375,7 @@ class KrdictService(WordTable):
     """
     def lookup(self, value):
         import service
+
         logger = logging.getLogger()
         krdict = service.krdictkoreangokr.Krdict(
             normalize=None,
@@ -387,11 +394,13 @@ class KrdictService(WordTable):
 
 
 def test_krdict():
-
     import sys
+
     print(sys.path)
     word = '줄이다' #'성공적' #'종일'
+
     import service
+
     logger = logging.getLogger()
     krdict = service.krdictkoreangokr.Krdict(
         normalize=None,
@@ -411,9 +420,12 @@ def test_krdict():
 def test_neospeech():
     #word = '색인'
     import sys
+
     print(sys.path)
     word = '성공적' #'종일'
+
     import service
+
     logger = logging.getLogger()
     krdict = service.krdictkoreangokr.Krdict(
         normalize=None,
@@ -482,6 +494,7 @@ def main():
     master_table = create_korean_table()
 
     from anki import Collection
+
     col = Collection(args.collection)
     deckid = col.decks.id(args.deck_name)
     col.decks.select(deckid)
