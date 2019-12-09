@@ -44,12 +44,13 @@ from base64 import b64encode
 
 from flask import Flask, jsonify, send_from_directory
 
-from fill_audio import create_master_table, create_forced_alignment_table
+from fill_audio import create_korean_table, create_norwegian_table
 
 
 app = Flask(__name__)
 #MASTER_TABLE = create_forced_alignment_table()
-MASTER_TABLE = create_master_table()
+# MASTER_TABLE = create_korean_table()
+MASTER_TABLE = create_norwegian_table()
 ESCAPE_RX = re.compile(r'[/]')
 
 

@@ -16,6 +16,8 @@ import argparse
 from collections import namedtuple
 from pprint import pformat
 
+from aws_polly_synthesize_speech import norwegian_synthesize
+
 
 FORMAT = '%(asctime)-15s %(levelname)s (%(name)s) %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -23,7 +25,8 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 KOREAN_CLASS_MP3_DIR = '/mnt/video/rip/koreanclass101/dictionary-mp3'
 HOSGELDI_MP3_DIR = '/mnt/video/rip/hosgeldi.com/mp3s'
-MEDIA_DIR = '/home/bz/Documents/Anki/bz/collection.media'
+#MEDIA_DIR = '/home/bz/Documents/Anki/bz/collection.media'
+MEDIA_DIR = '/home/bz/.local/share/Anki2/bz/collection.media'
 KOREAN_CLASS_COPIED_PREFIX = 'kc101_'
 HOSGELDI_COPIED_PREFIX = 'hosgeldi_'
 KOREAN_CLASS_LOOKUP_TABLE_FILENAME = '/mnt/big_ext4/btsync/prg/koreanclass101-dictionary/sort-uniq-table.txt'
@@ -126,8 +129,8 @@ class HosgeldiWordTable(WordTable):
         for line in codecs.open(filename, 'r', encoding='utf-8').readlines():
             line = line.strip()
             try:
-                korean, russian, id_, mp3base, mp3url, image_base, image_url = line.split(
-                    '\t')
+                korean, russian, id_, mp3base, mp3url, image_base, image_url = \
+                    line.split('\t')
                 self._db.append({'korean': '%s' % korean,
                                  'russian': '%s' % russian,
                                  'id': id_,
@@ -153,6 +156,50 @@ class HosgeldiWordTable(WordTable):
                 for x in sorted(uniq_results, key=itemgetter('mp3base'))]
 
 
+class NorwegianOnWebWordTable(WordTable):
+    def __init__(self, filename, mp3dir, media_dir, copied_prefix):
+        super(NorwegianOnWebWordTable, self).__init__()
+
+        self._mp3dir = mp3dir
+        self._media_dir = media_dir
+        self._copied_prefix = copied_prefix
+
+        self._db = []
+        for line in codecs.open(filename, 'r', encoding='utf-8').readlines():
+            line = line.strip()
+            try:
+                norwegian,\
+                english,\
+                transcription,\
+                inflection,\
+                audio_id,\
+                audio_base,\
+                audio_src = line.split('\t')
+                self._db.append({'norwegian': '%s' % norwegian,
+                                 'english': '%s' % english,
+                                 'transcription': transcription,
+                                 'inflection': inflection,
+                                 'audio_id': audio_id,
+                                 'mp3base': audio_base,
+                                 'audio_src': audio_src})
+            except ValueError:
+                logging.error('Skipping line: "%s"', line)
+        logging.info('Loaded %d entries from table %s',
+                     len(self._db), filename)
+
+    def lookup(self, value):
+        results = [entry for entry in self._db
+                   if entry['norwegian'] == value]
+
+        uniq_sizes = {getsize(join(self._mp3dir, entry['mp3base'])): entry
+                      for entry in results if exists(join(self._mp3dir, entry['mp3base']))}
+
+        uniq_results = list(uniq_sizes.values())
+
+        return [self._make_entry(x)
+                for x in sorted(uniq_results, key=itemgetter('mp3base'))]
+
+
 def create_forced_alignment_table():
     """
     Forced alingnment table simply retrieves words from a directory. Filenames
@@ -163,7 +210,22 @@ def create_forced_alignment_table():
     return ComposedWordTable([cached_table])
 
 
-def create_master_table():
+def create_norwegian_table():
+    aws_polly_norwegian_table = AwsPollyNorwegianService()
+    aws_polly_norwegian_caching_table = CachingWordTable(
+        'aws_polly_cache_norwegian', aws_polly_norwegian_table)
+    return ComposedWordTable([aws_polly_norwegian_caching_table])
+
+    # norwegianonweb_table = NorwegianOnWebWordTable(
+    #     filename='/mnt/video/rip/ntnu.edu/vocabulary/all.tsv',
+    #     mp3dir='/mnt/video/rip/ntnu.edu/audio/mp3',
+    #     media_dir=MEDIA_DIR,
+    #     copied_prefix='norwegianonweb_',
+    # )
+    # return ComposedWordTable([norwegianonweb_table])
+
+
+def create_korean_table():
     """
     Master table chains 4 audio sources:
         - words from KoreanClass101 site
@@ -205,7 +267,7 @@ def create_master_table():
 def test_table(value=None):
     print('Hello')
     if value is not None:
-        table = create_master_table()
+        table = create_korean_table()
         result = table.lookup(value)
         print(result)
     print('Done')
@@ -248,6 +310,16 @@ class CachingWordTable(WordTable):
 
         #return [TableEntry(filename, None, basename)]
         return [self._make_default_entry(filename, basename)]
+
+
+class AwsPollyNorwegianService(WordTable):
+    def lookup(self, value):
+        logger = logging.getLogger()
+        filename = 'aws_polly_norwegian.mp3'
+        result = norwegian_synthesize(value, filename)
+        logger.info('word: %s, AWS polly result: %s', value, result)
+        #return [TableEntry('neo.mp3', None, 'neo.mp3')]
+        return [self._make_default_entry(filename, filename)]
 
 
 class NeoSpeechService(WordTable):
@@ -407,7 +479,7 @@ def main():
     #     MEDIA_DIR,
     #     HOSGELDI_COPIED_PREFIX
     # )
-    master_table = create_master_table()
+    master_table = create_korean_table()
 
     from anki import Collection
     col = Collection(args.collection)

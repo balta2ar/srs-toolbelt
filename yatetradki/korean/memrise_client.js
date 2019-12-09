@@ -4,7 +4,7 @@
 // @version      0.1
 // @description  Automatically finds words without audios in memrise course and uploads the audio
 // @author       balta2ar
-// @match        https://www.memrise.com/course/*/edit/*
+// @match        https://decks.memrise.com/course/*/edit/*
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
@@ -123,7 +123,7 @@
         // https://stackoverflow.com/questions/6974684/how-to-send-formdata-objects-with-ajax-requests-in-jquery
         var query = {
             type:        'POST',
-            url:         'https://www.memrise.com/ajax/thing/cell/upload_file/',
+            url:         'https://decks.memrise.com/ajax/thing/cell/upload_file/',
             //dataType:   'JSON',
             data:        formdata,
             processData: false,

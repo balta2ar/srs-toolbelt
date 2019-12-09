@@ -139,7 +139,7 @@ class Runner:
         telegram_settings = read_telegram_notification_settings(course_collection_filename)
         if telegram_settings is not None:
             _logger.info('Trying to send a notification to telegram')
-            finish_session(telegram_settings)
+            # finish_session(telegram_settings)
 
     def save(self, filename, course_url):
         """

@@ -115,7 +115,11 @@ class MemriseCourseSyncher:
 
         login_button = self._driver.find_element_by_xpath(
             '//*[@id="login"]/input[3]')
-        login_button.click()
+        #login_button.click()
+        self._js_click(login_button)
+
+    def _js_click(self, element):
+        self._driver.execute_script('arguments[0].click();', element)
 
     @property
     def _file_word_pairs(self):
@@ -402,6 +406,7 @@ class EditableCourse(WaitableWithDriver):
         # I noticed that after creating a level, header reappears (this is
         # because course page gets reloaded. So let's remove the header again.
         self._remove_header()
+        self._remove_cookie_consent()
 
         self._reload_levels()
         self._levels[-1].name = level_name

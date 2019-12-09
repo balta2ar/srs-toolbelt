@@ -18,7 +18,7 @@ except ImportError:
     DEFAULT_LOGGER_NAME = 'telegram'
 
 
-BASE_DIR = Path('/mnt/data/prg/src/bz/python/yandex-slovari-tetradki/telegrambot')
+BASE_DIR = Path('/home/bz/dev/src/srs-toolbelt/telegrambot')
 CURRENT_STATE_FILENAME = BASE_DIR / 'current_state.txt'
 LAST_STATE_FILENAME = BASE_DIR / 'last_state.txt'
 
@@ -35,7 +35,7 @@ def read_telegram_notification_settings(filename):
         return None
 
     with open(filename) as file_:
-        settings = yaml.load(file_)['notification']['telegram']
+        settings = yaml.load(file_, Loader=yaml.FullLoader)['notification']['telegram']
         return TelegramNotificationSettings(settings['token'], settings['chat_id'])
 
 
