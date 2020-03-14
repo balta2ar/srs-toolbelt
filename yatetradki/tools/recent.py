@@ -23,11 +23,12 @@ COLUMN_SEPARATOR = ' '
 #   3 - Normal
 #   4 - Easy
 
-COLLECTION = '/home/bz/Documents/Anki/bz/collection.anki2'
+#COLLECTION = '/home/bz/Documents/Anki/bz/collection.anki2'
+COLLECTION = '/home/bz/.local/share/Anki2/bz/collection.anki2'
 QUERIES_AND_FIELDS = [
     #('deck:english::english-for-students rated:7:2', 'Word'),
     ('deck:english::englishclub-phrasal-verbs rated:7:2', 'Word'),
-    ('deck:english::jinja rated:7:2', 'Word'),
+    #('deck:english::jinja rated:7:2', 'Word'),
     ('deck:english::lingvo-online rated:7:2', 'Word'),
     ('deck:english::sat-words rated:7:2', 'Word'),
     ('deck:english::toefl-vocabulary rated:7:2', 'Word'),
@@ -97,7 +98,11 @@ def format_n_columns(lines, maxlen, n):
 
 
 def show_recent(col, query, field):
-    ids = col.findCards(query)
+    try:
+        ids = col.findCards(query)
+    except Exception as e:
+        print('Search error: %s (col=%s, query=%s, field=%s)', e, col, query, field)
+        return []
     words = []
     for id in ids:
         card = col.getCard(id)
@@ -151,7 +156,8 @@ def show_recent_from_collection(queries, header_width):
             words = densify(words, maxlen)
             body = format_n_columns(words, maxlen, fit)
             message = '%s\n%s\n' % (header, body)
-            print(message.encode('utf8'))
+            print(message)
+            #print(message.encode('utf8'))
 
 
 def read_queries(filename):
