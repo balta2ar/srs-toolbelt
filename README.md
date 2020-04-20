@@ -315,15 +315,25 @@ This method is good for remembering a bunch of words into your short-term memory
 As said above, this method is good for learning words. Due to the suggested layout of the words on the paper this method isn't really good for sentenses. What you need to do is to write all your words that you'd like to remember into
 a column. Take a piece of A4 paper and place it horizontally. Now write the words in foreign language in the first column. I usually write from top to bottom until I have space left.
 
+![sample_page](https://user-images.githubusercontent.com/340676/79798983-10c71800-835a-11ea-8774-b98e04718882.jpg)
+
 ### Method by Maru Kachko
 
-This method is good for remembering words in context or whole sentences. It's somewhere in between in terms of short-term vs long-term memory.
+This method is good for remembering words in context or for remembering the whole sentences. It's somewhere in between in terms of short-term vs long-term memory.
+
+It is similar to the Goldlist method below, but is less strict and formal. The idea is to write N sentenses (10 in the author's original description) every day. Drop a sentense from the list if you can easily remember it, put a new sentense to the free spot.
 
 ### Goldlist method
 
-This method is good for remembering in long-term memory.
+This method is good for remembering in long-term memory. The method is a combination of a spaced repetition and everyday writing. Basically, you write page of sentenses everyday, some of which you remember better. Those sentenses that stick in your memory best, they get filtered out and you focus on the rest next day.
 
+Here are the relevant links that explain the method in details:
+
+1. https://www.youtube.com/watch?v=rH6FERpM5fQ
+2. https://universeofmemory.com/the-goldlist-method-scientific-critique/
+3. https://howtogetfluent.com/gold-list-method/
+4. https://www.open.edu/openlearn/languages/learning-languages/the-goldlist-method
 
 ## Author
 
-(c) 2014-2018 Yuri Bochkarev
+(c) 2014-2020 Yuri Bochkarev
