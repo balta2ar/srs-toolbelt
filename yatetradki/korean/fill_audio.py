@@ -19,7 +19,7 @@ from collections import namedtuple
 from os import makedirs
 from os.path import exists, getsize, join
 
-from aws_polly_synthesize_speech import norwegian_synthesize
+from yatetradki.korean.aws_polly_synthesize_speech import norwegian_synthesize
 
 FORMAT = '%(asctime)-15s %(levelname)s (%(name)s) %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)

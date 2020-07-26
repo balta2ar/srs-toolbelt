@@ -10,5 +10,6 @@ DSLS+=" --dsl '/home/bz/payload/distrib/lang/dictionaries/norwegian/norwegian-ds
 DSLS+=" --dsl '/home/bz/payload/distrib/lang/dictionaries/norwegian/norwegian-dsl/UniversalNoRu_abrv.dsl'"
 DSLS+=" --dsl '/home/bz/payload/distrib/lang/dictionaries/norwegian/norwegian-dsl/UniversalRuNo.dsl'"
 
-PYTHONPATH=/mnt/data/prg/src/bz/python/yandex-slovari-tetradki \
-    eval "python -m yatetradki.reader.dsl $DSLS > $OUT < $IN"
+#PYTHONPATH=/mnt/data/prg/src/bz/python/yandex-slovari-tetradki \
+PYTHONPATH=/home/bz/dev/src/srs-toolbelt \
+    eval "python3 -m yatetradki.reader.dsl $DSLS > $OUT < $IN"
