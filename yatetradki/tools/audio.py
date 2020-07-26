@@ -16,13 +16,16 @@ def get_pronunciation(text):
     pronunciation for a word.
     """
 
-    import sip
-    sip.setapi('QString', 2)
-    sip.setapi('QVariant', 2)
-    sip.setapi('QUrl', 2)
+    #import sip
+    #sip.setapi('QString', 2)
+    #sip.setapi('QVariant', 2)
+    #sip.setapi('QUrl', 2)
 
-    from PyQt4.QtGui import QApplication
-    from PyQt4.QtCore import QTimer
+    #from PyQt4.QtGui import QApplication
+    #from PyQt4.QtCore import QTimer
+    import PyQt5.QtWebEngineWidgets
+    from PyQt5.QtWidgets import QApplication
+    from PyQt5.QtCore import QTimer, QObject
     sound_path = [None]
     app = QApplication([])
 
@@ -34,8 +37,14 @@ def get_pronunciation(text):
 
         import aqt
         aqt.addons = FakeAddons()
+        class Form(QObject):
+            menuTools = None
+        class Mw(QObject):
+            form = Form()
+        aqt.mw = Mw()
 
-        sys.path.insert(0, expanduser('~/Documents/Anki/addons'))
+        #sys.path.insert(0, expanduser('~/Documents/Anki/addons'))
+        sys.path.insert(0, expanduser('~/.local/share/Anki2/addons21/427598962'))
         import awesometts
 
         #text = 'furfurfur'
@@ -68,7 +77,8 @@ def get_pronunciation_call(text):
     Call this module as a process. This way it is more reliable and less
     error-prone as all that Qt machinery is reinitialized each time.
     """
-    proc = Popen(['python2', __file__], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+    proc = Popen(['python3', __file__], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+    #proc = Popen(['python2', __file__], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
     data = '%s\n' % text
     outs, errs = proc.communicate(input=data.encode('utf8'))
     result = outs.strip().decode('utf8')
@@ -77,9 +87,10 @@ def get_pronunciation_call(text):
 
 
 def main():
-    import sys
-    reload(sys)
-    sys.setdefaultencoding('utf8')
+    import os
+    os.environ["QT_LOGGING_RULES"] = "qt5ct.debug=false"
+    #reload(sys)
+    #sys.setdefaultencoding('utf8')
     for line in fileinput.input():
         print(get_pronunciation(line))
 

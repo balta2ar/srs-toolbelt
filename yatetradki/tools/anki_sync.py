@@ -17,7 +17,7 @@ from aqt import AnkiApp, setupLang
 
 
 def main(delay):
-    from PyQt4.QtCore import QTimer
+    from PyQt5.QtCore import QTimer
     app = AnkiApp(sys.argv)
     QCoreApplication.setApplicationName("Anki")
 
@@ -26,11 +26,13 @@ def main(delay):
         return
 
     from aqt.profiles import ProfileManager
-    pm = ProfileManager('', '')
+    #pm = ProfileManager('', '')
+    pm = ProfileManager()
+    pm.setupMeta()
     setupLang(pm, app)
     pm.load('bz')
     pm.profile['autoSync'] = True
-    pm.ensureProfile()
+    #pm.ensureProfile()
 
     def dummy(*args, **kwargs):
         pass
