@@ -4,12 +4,12 @@
 # dest file.
 
 if [ "$#" -ne 3 ]; then
-    echo "usage: $0 <lingvolive | krdict> input-words.txt output-deck.csv"
+    echo "usage: $0 <norwegian | lingvolive | krdict> input-words.txt output-deck.csv"
     exit 1
 fi
 
-if ! [[ "$1" =~ ^(lingvolive|krdict)$ ]]; then
-    echo "Unknown mode: \"$1\". Known modes are \"lingvolive\", \"krdict\""
+if ! [[ "$1" =~ ^(norwegian|lingvolive|krdict)$ ]]; then
+    echo "Unknown mode: \"$1\". Known modes are \"norwegian\", \"lingvolive\", \"krdict\""
     exit 2
 fi
 
@@ -41,7 +41,7 @@ TARGET_DECK_NEW=$3.new
 # fi
 
 merge() {
-    $HOME/bin/words-from-history.sh $MODE > "browser.$MODE.$HOST.txt"
+    $HOME/.local/bin/srst-get-words-from-browser-history.sh $MODE > "browser.$MODE.$HOST.txt"
     cat *.txt | sort -u > $TEMP
     if [ ! -e "$DEST" ]; then
         echo -n "" > "$DEST"
@@ -59,6 +59,10 @@ convert() {
         #     eval "python -m yatetradki.reader.dsl $DSLS > $TARGET_DECK_NEW < $TARGET_WORDS"
         bash /mnt/data/prg/src/bz/python/yandex-slovari-tetradki/yatetradki/reader/dsl.sh \
             "$TARGET_WORDS" "$TARGET_DECK_NEW"
+
+    elif [ "$MODE" == "norwegian" ]; then
+
+        $HOME/.local/bin/srst-dsl-norwegian.sh "$TARGET_WORDS" "$TARGET_DECK_NEW"
 
     elif [ "$MODE" == "krdict" ]; then
 
@@ -83,6 +87,14 @@ update() {
                 --fields 'Word,Example,Description,Audio' \
                 --csv $TARGET_DECK_NEW --audio --update
                 #--csv $MODE.csv.new --audio --update
+
+    elif [ "$MODE" == "norwegian" ]; then
+
+        $HOME/.local/bin/srst-load-from-csv \
+            --deck 'norwegian::auto-import::-new' \
+            --model 'NorwegianAutoImport' \
+            --fields 'Word,Example,Description,Audio' \
+            --csv $TARGET_DECK_NEW --update --audio norwegian
 
     elif [ "$MODE" == "krdict" ]; then
 
@@ -114,6 +126,12 @@ update() {
     fi
 }
 
+telegram_notify() {
+    MESSAGE=$1
+    echo curl -X POST "https://api.telegram.org/bot$TELEGRAM_ACCESS_TOKEN/sendMessage" -d "chat_id=$TELEGRAM_CHAT_ID&text=$MESSAGE"
+    curl -X POST "https://api.telegram.org/bot$TELEGRAM_ACCESS_TOKEN/sendMessage" -d "chat_id=$TELEGRAM_CHAT_ID&text=$MESSAGE"
+}
+
 merge
 if [ -s $NEW ]; then
     set -e
@@ -122,5 +140,6 @@ if [ -s $NEW ]; then
     update
     mv $TEMP $DEST
 
-    torsocks ~/bin/telegram.py --message "$(cat $NEW)"
+    telegram_notify "$(echo -e "Mode: $MODE\n"; cat $NEW)"
+    #torsocks ~/bin/telegram.py --message "$(cat $NEW)"
 fi

@@ -59,19 +59,19 @@ remove_trailing_numbers() {
 # https://enno.dict.cc/?s=gave
 filter_norwegian_enno_dict() {
     \grep 'enno.dict.cc' \
-        | srst-parse-url-query "param" "s"
+        | $HOME/.local/bin/srst-parse-url-query "param" "s"
 }
 
 # https://naob.no/ordbok/gave
 filter_norwegian_naob() {
     \grep 'naob.no/ordbok' \
-        | srst-parse-url-query "query_basename"
+        | $HOME/.local/bin/srst-parse-url-query "query_basename"
 }
 
 # https://ordbok.uib.no/perl/ordbok.cgi?OPP=gave&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal
 filter_norwegian_ordbok_uib() {
     \grep 'ordbok.uib.no' \
-        | srst-parse-url-query "param" "OPP"
+        | $HOME/.local/bin/srst-parse-url-query "param" "OPP"
 }
 
 BHIST_BIN=$HOME/.local/bin/srst-show-browser-history.sh

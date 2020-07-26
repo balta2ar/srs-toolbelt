@@ -133,6 +133,8 @@ setup(
         'yatetradki/scripts/srst-sync-new-words.sh',
         'yatetradki/scripts/srst-show-browser-history.sh',
         'yatetradki/scripts/srst-get-words-from-browser-history.sh',
+        'yatetradki/scripts/srst-dsl-english.sh',
+        'yatetradki/scripts/srst-dsl-norwegian.sh',
     ],
     entry_points={
         'console_scripts': [

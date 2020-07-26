@@ -11,10 +11,8 @@ from os import getcwd
 import sys
 import argparse
 
-import logging
-logging.basicConfig(format='%(asctime)s %(levelname)s: (%(name)s) %(message)s',
-                    level=logging.INFO)
-_logger = logging.getLogger('load_from_csv')
+from yatetradki.tools.log import get_logger
+_logger = get_logger('load_from_csv')
 
 
 sys.path.insert(0, '/usr/share/anki')
