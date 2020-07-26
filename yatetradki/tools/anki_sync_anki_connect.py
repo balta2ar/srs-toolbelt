@@ -18,6 +18,7 @@ from yatetradki.tools.anki_connect import invoke
 
 _logger = get_logger('anki_sync_anki_connect')
 ERROR_CANNOT_START_ANKI = 1
+ERROR_ANKI_ALREADY_RUNNING = 2
 
 
 def anki_is_not_running():
@@ -39,15 +40,19 @@ def anki_is_running():
 def wait_for(predicate, retry_interval=1.0, max_timeout=10.0):
     deadline = time.time() + max_timeout
     while time.time() < deadline:
-        remains = round(deadline - time.time(), 2)
-        _logger.info('Waiting for: %s (%s remains)', predicate.__doc__, remains)
+        remains = deadline - time.time()
+        _logger.info('Waiting %0.1f for: %s (%0.1f remains)', retry_interval, predicate.__doc__, remains)
+        time.sleep(retry_interval)
         if predicate():
             return True
-        time.sleep(retry_interval)
     return False
 
 
 def main():
+    if anki_is_running():
+        _logger.info('Anki is already running (must have started manually), skipping sync to avoid conflicts')
+        sys.exit(ERROR_ANKI_ALREADY_RUNNING)
+
     anki = Process(target=aqt.run)
     anki.start()
 

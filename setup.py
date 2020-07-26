@@ -129,10 +129,16 @@ setup(
     # If your package is a single module, use this instead of 'packages':
     # py_modules=['mypackage'],
 
+    scripts=[
+        'yatetradki/scripts/srst-sync-new-words.sh',
+        'yatetradki/scripts/srst-show-browser-history.sh',
+        'yatetradki/scripts/srst-get-words-from-browser-history.sh',
+    ],
     entry_points={
         'console_scripts': [
             'srst-load-from-csv=yatetradki.tools.load_from_csv:main',
             'srst-anki-sync-anki-connect=yatetradki.tools.anki_sync_anki_connect:main',
+            'srst-parse-url-query=yatetradki.tools.parse_url_query:main',
         ],
     },
     install_requires=REQUIRED,
