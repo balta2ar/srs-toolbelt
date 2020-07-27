@@ -54,7 +54,8 @@ def fill_pronunciation(audio, word, col, fields):
     else:
         _logger.info('Adding audio for word %s: %s', word, audio)
         col.media.addFile(audio)
-        fields['Audio'] = '[sound:%s]' % basename(audio)
+        fields['Audio'] = '[sound:%s]' % audio
+        #fields['Audio'] = '[sound:%s]' % basename(audio)
 
 
 def main():
