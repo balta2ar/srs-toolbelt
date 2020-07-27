@@ -36,16 +36,17 @@ def get_pronunciation_implementation(audio_type):
 def get_norwegian_pronunciation(word):
     """Should return a filename (mp3) with the pronounced word. None if not found."""
     results = NORWEGIAN_PRONUNCIATION_TABLE.lookup(word)
+    print(results)
     if not results:
         return None
     return results[0].mp3from
 
 
-def fill_pronunciation(audio, word, col, fields):
+def fill_pronunciation(audio_type, word, col, fields):
     #audio = get_pronunciation_call(word)
-    get_pronunciation = get_pronunciation_implementation(audio)
+    get_pronunciation = get_pronunciation_implementation(audio_type)
     if get_pronunciation is None:
-        _logger.warning('Pronunciation "%s" is not supported', audio)
+        _logger.warning('Pronunciation "%s" is not supported', audio_type)
         return
 
     audio = get_pronunciation(word)
@@ -54,8 +55,7 @@ def fill_pronunciation(audio, word, col, fields):
     else:
         _logger.info('Adding audio for word %s: %s', word, audio)
         col.media.addFile(audio)
-        fields['Audio'] = '[sound:%s]' % audio
-        #fields['Audio'] = '[sound:%s]' % basename(audio)
+        fields['Audio'] = '[sound:%s]' % basename(audio)
 
 
 def main():

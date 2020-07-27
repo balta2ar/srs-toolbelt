@@ -17,6 +17,7 @@ from yatetradki.tools.log import get_logger
 from yatetradki.tools.anki_connect import invoke
 
 _logger = get_logger('anki_sync_anki_connect')
+MEDIA_SYNC_SLEEP = 60.0
 ERROR_CANNOT_START_ANKI = 1
 ERROR_ANKI_ALREADY_RUNNING = 2
 
@@ -62,6 +63,10 @@ def main():
 
     _logger.info('Anki is running, starting sync')
     invoke('sync')
+    # I have no idea why, but for some reason media files are synced in
+    # background and AnkiConnect.sync terminates earlier that the actual sync.
+    # So let's sleep a minute.
+    time.sleep(MEDIA_SYNC_SLEEP)
     _logger.info('Sync is done, exiting')
     anki.terminate()
     anki.join()

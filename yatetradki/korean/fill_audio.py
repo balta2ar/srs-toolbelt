@@ -217,9 +217,11 @@ def create_forced_alignment_table():
 
 
 def create_norwegian_table():
+    cache_dir = 'aws_polly_cache_norwegian'
+    prefix = cache_dir + '_'
     aws_polly_norwegian_table = AwsPollyNorwegianService()
-    aws_polly_norwegian_caching_table = CachingWordTable(
-        'aws_polly_cache_norwegian', aws_polly_norwegian_table)
+    aws_polly_norwegian_caching_table = CachingPrefixedWordTable(
+        MEDIA_DIR, cache_dir, prefix, aws_polly_norwegian_table)
     return ComposedWordTable([aws_polly_norwegian_caching_table])
 
     # norwegianonweb_table = NorwegianOnWebWordTable(
@@ -316,6 +318,53 @@ class CachingWordTable(WordTable):
 
         #return [TableEntry(filename, None, basename)]
         return [self._make_default_entry(filename, basename)]
+
+
+class CachingPrefixedWordTable(WordTable):
+    """
+    Same as CachingWordTable, but copies cached files into media folder.
+    The reasoning was that for years fords were unique in media folder, e.g.
+    gift.mp3 is clearly an english word. When I started to learn (LOL)
+    norwegian, that has changed, and gift in norwegian is not gift in english.
+    Yeah, I know...
+    """
+    def __init__(self, media_dir, cache_dir, prefix, table):
+        super(CachingPrefixedWordTable, self).__init__()
+
+        self._media_dir = media_dir
+        self._cache_dir = cache_dir
+        self._prefix = prefix
+        self._table = table
+        self._logger = logging.getLogger(self.__class__.__name__)
+
+    def _mkpath(self, path):
+        if not exists(path):
+            makedirs(path)
+
+    def lookup(self, value):
+        basename = value + '.mp3'
+        filename = join(self._cache_dir, basename)
+        prefixed = self._prefix + basename
+        full_prefixed = join(self._media_dir, prefixed)
+
+        if not exists(filename):
+            self._logger.info('Cache miss: %s', value)
+            self._mkpath(self._cache_dir)
+            results = self._table.lookup(value)
+            if results:
+                result = results[0]
+                move(result.mp3from, filename)
+            else:
+                self._logger.info('Child table returned None: %s', self._table)
+                return None
+        else:
+            self._logger.info('Cache hit: %s', value)
+
+        if not exists(full_prefixed):
+            copy2(filename, full_prefixed)
+
+        #return [TableEntry(filename, None, basename)]
+        return [self._make_default_entry(full_prefixed, prefixed)]
 
 
 class AwsPollyNorwegianService(WordTable):
