@@ -44,7 +44,8 @@ def get_pronunciation(text):
         aqt.mw = Mw()
 
         #sys.path.insert(0, expanduser('~/Documents/Anki/addons'))
-        sys.path.insert(0, expanduser('~/.local/share/Anki2/addons21/427598962'))
+        #sys.path.insert(0, expanduser('~/.local/share/Anki2/addons21/427598962'))
+        sys.path.insert(0, expanduser('~/.local/share/Anki2/addons21/1436550454'))
         import awesometts
 
         #text = 'furfurfur'

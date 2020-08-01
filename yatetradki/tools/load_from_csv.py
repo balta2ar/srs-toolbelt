@@ -18,17 +18,21 @@ _logger = get_logger('load_from_csv')
 sys.path.insert(0, '/usr/share/anki')
 
 from anki import Collection
-#from yatetradki.tools.audio import get_pronunciation_call
+from yatetradki.tools.audio import get_pronunciation_call
 
 #COLLECTION = '/home/bz/Documents/Anki/bz/collection.anki2'
 COLLECTION = '/home/bz/.local/share/Anki2/bz/collection.anki2'
 from yatetradki.korean.fill_audio import create_norwegian_table
+from yatetradki.korean.fill_audio import create_cached_table
+from yatetradki.korean.fill_audio import CustomServiceWithFunction
 NORWEGIAN_PRONUNCIATION_TABLE = create_norwegian_table()
 
 
 def get_pronunciation_implementation(audio_type):
     PRONUNCIATION_TABLE = {
         'norwegian': get_norwegian_pronunciation,
+        'english': get_english_pronunciation,
+        #'english': get_pronunciation_call,
     }
     return PRONUNCIATION_TABLE.get(audio_type)
 
@@ -42,8 +46,19 @@ def get_norwegian_pronunciation(word):
     return results[0].mp3from
 
 
+def get_english_pronunciation(word):
+    """Should return a filename (mp3) with the pronounced word. None if not found."""
+    cache_dir = 'cache_english_awesometts'
+    prefix = 'cache_english_awesometts_'
+    english_service = CustomServiceWithFunction(prefix, get_pronunciation_call)
+    results = create_cached_table(cache_dir, prefix, english_service).lookup(word)
+    print(results)
+    if not results:
+        return None
+    return results[0].mp3from
+
+
 def fill_pronunciation(audio_type, word, col, fields):
-    #audio = get_pronunciation_call(word)
     get_pronunciation = get_pronunciation_implementation(audio_type)
     if get_pronunciation is None:
         _logger.warning('Pronunciation "%s" is not supported', audio_type)

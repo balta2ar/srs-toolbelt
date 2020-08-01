@@ -57,8 +57,9 @@ convert() {
 
         # PYTHONPATH=/mnt/data/prg/src/bz/python/yandex-slovari-tetradki \
         #     eval "python -m yatetradki.reader.dsl $DSLS > $TARGET_DECK_NEW < $TARGET_WORDS"
-        bash /mnt/data/prg/src/bz/python/yandex-slovari-tetradki/yatetradki/reader/dsl.sh \
-            "$TARGET_WORDS" "$TARGET_DECK_NEW"
+        # bash /mnt/data/prg/src/bz/python/yandex-slovari-tetradki/yatetradki/reader/dsl.sh \
+        #     "$TARGET_WORDS" "$TARGET_DECK_NEW"
+        $HOME/.local/bin/srst-dsl-english.sh "$TARGET_WORDS" "$TARGET_DECK_NEW"
 
     elif [ "$MODE" == "norwegian" ]; then
 
@@ -80,13 +81,14 @@ update() {
         # A single script can both add from csv and English audio.
         # Note that if you need Korean audio, make sure to remove --audio
         # argument and use a different script fill_audio.py as below.
-        PYTHONPATH=/mnt/data/prg/src/bz/python/yandex-slovari-tetradki \
-            python2 /mnt/data/prg/src/bz/python/yandex-slovari-tetradki/yatetradki/tools/load_from_csv.py \
-                --deck 'english::lingvo-online::-new' \
-                --model 'LingvoOnline' \
-                --fields 'Word,Example,Description,Audio' \
-                --csv $TARGET_DECK_NEW --audio --update
-                #--csv $MODE.csv.new --audio --update
+        # PYTHONPATH=/mnt/data/prg/src/bz/python/yandex-slovari-tetradki \
+        #     python2 /mnt/data/prg/src/bz/python/yandex-slovari-tetradki/yatetradki/tools/load_from_csv.py \
+        $HOME/.local/bin/srst-load-from-csv \
+            --deck 'english::lingvo-online::-new' \
+            --model 'LingvoOnline' \
+            --fields 'Word,Example,Description,Audio' \
+            --csv $TARGET_DECK_NEW --update --audio english
+            #--csv $MODE.csv.new --audio --update
 
     elif [ "$MODE" == "norwegian" ]; then
 

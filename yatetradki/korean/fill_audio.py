@@ -216,6 +216,10 @@ def create_forced_alignment_table():
     return ComposedWordTable([cached_table])
 
 
+def create_cached_table(cache_dir, prefix, table):
+    caching_table = CachingPrefixedWordTable(MEDIA_DIR, cache_dir, prefix, table)
+    return ComposedWordTable([caching_table])
+
 def create_norwegian_table():
     cache_dir = 'aws_polly_cache_norwegian'
     prefix = cache_dir + '_'
@@ -365,6 +369,19 @@ class CachingPrefixedWordTable(WordTable):
 
         #return [TableEntry(filename, None, basename)]
         return [self._make_default_entry(full_prefixed, prefixed)]
+
+
+class CustomServiceWithFunction(WordTable):
+    def __init__(self, prefix, getter):
+        self.prefix = prefix
+        self.getter = getter
+    def lookup(self, value):
+        logger = logging.getLogger()
+        filename = '%s%s.mp3' % (self.prefix, self._make_random_filename())
+        result = self.getter(value)
+        logger.info('word: %s, custom service result: %s', value, result)
+        move(result, filename)
+        return [self._make_default_entry(filename, filename)]
 
 
 class AwsPollyNorwegianService(WordTable):

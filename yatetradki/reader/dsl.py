@@ -280,7 +280,10 @@ def extract_examples(article):
     return result
 
 
-def lookup_word(dsl_lookuper, word):
+def lookup_word(dsl_lookuper, word, depth):
+    if depth == 0:
+        logging.info('Exceeded recusion limit for word "%s"', word)
+        return None, None
     article = dsl_lookuper.lookup(word)
     if article is None:
         return None, None
