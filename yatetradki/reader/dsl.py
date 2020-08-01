@@ -208,13 +208,13 @@ class DSLLookuper(object):
         return result
 
 
-def check_reference(dsl_lookuper, word, article):
+def check_reference(dsl_lookuper, word, article, depth):
     # Special case for articles in En-En-Longman_DOCE5.dsl
     text = BeautifulSoup(article, 'html.parser').text
     if text.startswith(STR_SEE_MAIN_ENTRY):
         referenced_word = text[len(STR_SEE_MAIN_ENTRY):].strip()
         logging.info('Detected reference from "%s" to "%s" (LongmanDOCE5)', word, referenced_word)
-        return lookup_word(dsl_lookuper, referenced_word)
+        return lookup_word(dsl_lookuper, referenced_word, depth)
 
     # Special case for CambridgeAdvancedLearners
     main_entry_start = article.find(STR_MAIN_ENTRY)
@@ -225,7 +225,7 @@ def check_reference(dsl_lookuper, word, article):
             referenced_word = match.group(1)
             if referenced_word != word:
                 logging.info('Detected reference from "%s" to "%s" (CambridgeAdvancedLearners)', word, referenced_word)
-                more_article, more_examples = lookup_word(dsl_lookuper, referenced_word)
+                more_article, more_examples = lookup_word(dsl_lookuper, referenced_word, depth)
                 return article + more_article, more_examples
 
     # Special case for LingvoUniversal
@@ -237,7 +237,7 @@ def check_reference(dsl_lookuper, word, article):
                 logging.warning('Self reference from "%s" to "%s", skipping (LingvoUniversal)', word, referenced_word)
             else:
                 logging.info('Detected reference from "%s" to "%s" (LingvoUniversal)', word, referenced_word)
-                return lookup_word(dsl_lookuper, referenced_word)
+                return lookup_word(dsl_lookuper, referenced_word, depth)
 
     # Special case for En-En_American_Heritage_Dictionary.dsl
     match = RE_SEE_OTHER.search(text)
@@ -245,7 +245,7 @@ def check_reference(dsl_lookuper, word, article):
         referenced_word = match.group(1)
         if referenced_word != word:
             logging.info('Detected reference from "%s" to "%s" (AmericanHeritageDictionary)', word, referenced_word)
-            return lookup_word(dsl_lookuper, referenced_word)
+            return lookup_word(dsl_lookuper, referenced_word, depth)
 
     return article, None
 
@@ -289,7 +289,7 @@ def lookup_word(dsl_lookuper, word):
     # print(article, file=stderr)
 
     article = cleanup_article(article)
-    article, _examples = check_reference(dsl_lookuper, word, article)
+    article, _examples = check_reference(dsl_lookuper, word, article, depth-1)
 
     # print('----------------', file=stderr)
     examples = None
@@ -343,7 +343,8 @@ def main():
         examples = []
         word = word.strip()
         for dsl_reader in dsl_lookupers:
-            article, current_examples = lookup_word(dsl_reader, word)
+            depth = 5
+            article, current_examples = lookup_word(dsl_reader, word, depth)
             if article is not None:
                 articles.append(article)
                 uniq_examples = _uniq_at(current_examples, examples)
