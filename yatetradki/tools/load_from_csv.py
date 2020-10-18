@@ -73,6 +73,10 @@ def fill_pronunciation(audio_type, word, col, fields):
         fields['Audio'] = '[sound:%s]' % basename(audio)
 
 
+def cleanup_query(query: str) -> str:
+    return query.replace('"', '')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--csv", help="File to import data from", required=True)
@@ -101,7 +105,8 @@ def main():
 
     for line in io.open(join(cwd, args.csv), encoding='utf8'):
         word, example, meaning = line.split('\t')
-        query = query_template % (args.deck, args.model, word)
+        query = cleanup_query(query_template % (args.deck, args.model, word))
+        _logger.info('>>> QUERY: %s', query)
         found_notes = col.findNotes(query)
         # import ipdb; ipdb.set_trace()
         # deck:english::lingvo-online epiphany
