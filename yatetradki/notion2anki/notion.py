@@ -103,7 +103,7 @@ class Notion:
     def __init__(self):
         self._session = requests.Session()
 
-    def login(self, username: Optional[str], password: Optional[str]) -> None:
+    def login(self, username: Optional[str] = None, password: Optional[str] = None) -> None:
         if username is None or password is None:
             username, password = get_notion_username_password()
 
