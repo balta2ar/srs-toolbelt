@@ -51,6 +51,7 @@ def import_collection(filename: str, full_apkg_name: str) -> None:
     collection = Collection(filename)
     importer = AnkiPackageImporter(col=collection, file=full_apkg_name)
     importer.run()
+    time.sleep(10.0)
     _logger.info('apkg %s has been imported into anki', full_apkg_name)
 
 
@@ -91,7 +92,7 @@ def sync_from_notion(block_id: str, anki_media: str, anki_sync: bool) -> None:
 
 def main():
     args = parse_args()
-    sync_from_notion(args.block_id, args.anki_media)
+    sync_from_notion(args.block_id, args.anki_media, args.anki_sync)
 
 
 if __name__ == '__main__':
