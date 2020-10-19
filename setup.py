@@ -141,6 +141,7 @@ setup(
             'srst-load-from-csv=yatetradki.tools.load_from_csv:main',
             'srst-anki-sync-anki-connect=yatetradki.tools.anki_sync_anki_connect:main',
             'srst-parse-url-query=yatetradki.tools.parse_url_query:main',
+            'srst-anki-sync-notion=yatetradki.tools.anki_notion:main',
         ],
     },
     install_requires=REQUIRED,

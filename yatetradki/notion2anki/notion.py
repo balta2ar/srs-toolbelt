@@ -15,10 +15,11 @@ import argparse
 import netrc
 import re
 import time
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import requests
 
+from yatetradki.tools.io import Blob
 from yatetradki.tools.log import get_logger
 
 _logger = get_logger('anki_import_notion')
@@ -85,11 +86,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def spit(filename: str, data: bytes) -> None:
-    with open(filename, 'wb') as f:
-        f.write(data)
-
-
 class NotionTask:
     def __init__(self, id_, block_id, export_url):
         self.id = id_
@@ -107,7 +103,10 @@ class Notion:
     def __init__(self):
         self._session = requests.Session()
 
-    def login(self, username: str, password: str) -> None:
+    def login(self, username: Optional[str], password: Optional[str]) -> None:
+        if username is None or password is None:
+            username, password = get_notion_username_password()
+
         response = self._session.post(self.LOGIN_URL, json={
             'email': username,
             'password': password,
@@ -167,15 +166,12 @@ class Notion:
         response.raise_for_status()
         return response.content
 
-    def save_into(self, url: str, filename: str) -> None:
-        spit(filename, self.download(url))
-        _logger.info('saved into %s', filename)
-
-    def export(self, block_id: str):
+    def export(self, block_id: str) -> Blob:
+        block_id = maybe_add_dashes_to_block_id(block_id)
         task_id = self.enqueue_task(block_id)
         task = self.wait_for_task_completion(task_id, self.TASK_TIMEOUT)
         _logger.info('task is ready: %s', task)
-        self.save_into(task.export_url, 'notion.export.zip')
+        return Blob(self.download(task.export_url))
 
 
 def get_notion_username_password() -> Tuple[str, str]:
@@ -194,11 +190,10 @@ def maybe_add_dashes_to_block_id(block_id: str) -> str:
 
 def main():
     args = parse_args()
-    args.block_id = maybe_add_dashes_to_block_id(args.block_id)
     notion = Notion()
     username, password = get_notion_username_password()
     notion.login(username, password)
-    notion.export(args.block_id)
+    notion.export(args.block_id).save('notion.export.zip')
 
 
 if __name__ == '__main__':

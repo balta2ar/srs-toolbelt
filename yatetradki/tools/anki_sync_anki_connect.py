@@ -7,46 +7,20 @@ Run as follows:
     PYTHONPATH=/usr/share/anki xvfb-run python2 anki_sync_anki_connect.py
 
 """
-import time
 import sys
-import aqt
-import requests
+import time
 from multiprocessing import Process
 
-from yatetradki.tools.log import get_logger
+import aqt
+
 from yatetradki.tools.anki_connect import invoke
+from yatetradki.tools.anki_control import anki_is_running, wait_for
+from yatetradki.tools.log import get_logger
 
 _logger = get_logger('anki_sync_anki_connect')
 MEDIA_SYNC_SLEEP = 60.0
 ERROR_CANNOT_START_ANKI = 1
 ERROR_ANKI_ALREADY_RUNNING = 2
-
-
-def anki_is_not_running():
-    """Anki is not running"""
-    return not anki_is_running()
-
-
-def anki_is_running():
-    """Anki is running"""
-    try:
-        result = invoke('version')
-        _logger.info('anki_is_running: version: %s', result)
-    except Exception as e:
-        _logger.info('Anki not available yet: %s', e)
-        return False
-    return True
-
-
-def wait_for(predicate, retry_interval=1.0, max_timeout=10.0):
-    deadline = time.time() + max_timeout
-    while time.time() < deadline:
-        remains = deadline - time.time()
-        _logger.info('Waiting %0.1f for: %s (%0.1f remains)', retry_interval, predicate.__doc__, remains)
-        time.sleep(retry_interval)
-        if predicate():
-            return True
-    return False
 
 
 def main():
