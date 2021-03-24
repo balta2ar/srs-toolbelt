@@ -29,6 +29,12 @@ def enable_debug():
     requests_log.propagate = True
 
 
+def mute_networking_logging():
+    import logging
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger("requests").setLevel(logging.WARNING)
+
+
 def save(reply, filename='reply.html'):
     with codecs_open(filename, encoding='utf-8', mode='w') as f:
         f.write(reply)
@@ -76,6 +82,10 @@ def load_credentials_from_netrc(host):
 
 def text_cleanup(text):
     return sub('\s{2,}', ' ', text.strip())
+
+
+def cleanup_query(query: str) -> str:
+    return query.replace('"', '')
 
 
 def open_output(filename, mode):

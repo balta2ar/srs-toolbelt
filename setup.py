@@ -142,6 +142,7 @@ setup(
             'srst-anki-sync-anki-connect=yatetradki.tools.anki_sync_anki_connect:main',
             'srst-parse-url-query=yatetradki.tools.parse_url_query:main',
             'srst-anki-sync-notion=yatetradki.tools.anki_notion:main',
+            'srst-add-audio=yatetradki.tools.add_audio:main',
         ],
     },
     install_requires=REQUIRED,
