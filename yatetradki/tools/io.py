@@ -1,6 +1,6 @@
 import hashlib
 import logging
-from os.path import exists
+from os.path import exists, getsize
 
 from yatetradki.tools.log import get_logger
 
@@ -48,13 +48,16 @@ class Blob:
     def data(self) -> bytes:
         return self._data
 
+    def __len__(self) -> int:
+        return len(self._data)
+
     def checksum(self) -> str:
         crc = hashlib.sha512()
         crc.update(self._data)
         return crc.hexdigest()
 
     def same_as(self, filename: str) -> bool:
-        return exists(filename) and (get_file_hash(filename) == self.checksum())
+        return exists(filename) and (getsize(filename) == len(self))
 
     def save_if_different(self, filename: str) -> None:
         if self.same_as(filename):

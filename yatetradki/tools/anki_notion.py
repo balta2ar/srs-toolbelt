@@ -19,6 +19,9 @@ import time
 from os.path import exists, join
 from pathlib import Path
 
+import sys
+sys.path.append("/usr/share/anki")
+
 from anki import Collection
 from anki.importing.apkg import AnkiPackageImporter
 
@@ -74,6 +77,9 @@ def sync_from_notion(block_id: str, anki_media: str, anki_sync: bool) -> None:
         _logger.info('apkg notion2anki file %s is the same, skipping the rest', NOTION2ANKI_APKG_FILENAME)
         return
 
+    # notion_blob.save(NOTION_TMP_ZIP_FILENAME)
+    # apkg_blob.save(NOTION2ANKI_TMP_APKG_FILENAME)
+    # return
     # notion_blob = Blob.read(NOTION_TMP_ZIP_FILENAME)
     # apkg_blob = Blob.read(NOTION2ANKI_TMP_APKG_FILENAME)
 

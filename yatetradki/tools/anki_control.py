@@ -1,14 +1,18 @@
 """
 This module contains helpers to control Anki (sync, import packages).
 """
+import sys
 import time
+
 from contextlib import contextmanager
 from multiprocessing import Process
 
+sys.path.append("/usr/share/anki")
+
 import aqt
 
-from yatetradki.tools.anki_connect import invoke
 from yatetradki.tools.log import get_logger
+from yatetradki.tools.anki_connect import invoke
 
 _logger = get_logger('anki_control')
 
