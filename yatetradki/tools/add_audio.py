@@ -3,6 +3,8 @@ from os import getenv
 from os.path import expanduser, expandvars
 
 from anki import Collection
+
+from yatetradki.tools.log import get_logger
 from yatetradki.tools.pronunciation import Pronunciation
 from yatetradki.tools.telegram import notify
 from yatetradki.utils import cleanup_query
@@ -10,6 +12,7 @@ from yatetradki.utils import mute_networking_logging
 
 
 COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '/home/bz/.local/share/Anki2/bz/collection.anki2')))
+_logger = get_logger('add_audio')
 
 
 def add_audio(args):
@@ -35,10 +38,11 @@ def add_audio(args):
                   for field in args.fields}
         word = fields[args.word_field]
         audio = fields[args.audio_field]
-        added.append(word)
         if not audio:
             if args.audio:
-                pronunciation.fill(word, col, fields)
+                if pronunciation.fill(word, col, fields):
+                    added.append(word)
+                    _logger.info('Added audio for word "{0}"'.format(word))
             for field, value in fields.items():
                 note.fields[args.fields.index(field)] = value
             note.flush()
