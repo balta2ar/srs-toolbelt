@@ -40,15 +40,14 @@ def add_audio(args):
                   for field in args.fields}
         word = fields[args.word_field]
         audio = fields[args.audio_field]
-        if not audio:
-            if args.audio:
-                if pronunciation.fill(word, col, fields):
-                    added.append(word)
-                    _logger.info('Added audio for word "{0}"'.format(word))
-            for field, value in fields.items():
-                note.fields[args.fields.index(field)] = value
-            note.flush()
-            col.save()
+        if pronunciation.fill(word, col, fields):
+            if audio != fields[args.audio_field]: # audio field value has changed
+                added.append(word)
+                _logger.info('Added audio for word "{0}"'.format(word))
+        for field, value in fields.items():
+            note.fields[args.fields.index(field)] = value
+        note.flush()
+        col.save()
     if added:
         mute_networking_logging()
         notify('Language: {0}\nAdded audio for ({1}):\n{2}'.format(
