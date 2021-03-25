@@ -1,7 +1,9 @@
+import sys
 import argparse
 from os import getenv
 from os.path import expanduser, expandvars
 
+sys.path.insert(0, '/usr/share/anki')
 from anki import Collection
 
 from yatetradki.tools.log import get_logger
@@ -11,7 +13,7 @@ from yatetradki.utils import cleanup_query
 from yatetradki.utils import mute_networking_logging
 
 
-COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '/home/bz/.local/share/Anki2/bz/collection.anki2')))
+COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/share/Anki2/bz/collection.anki2')))
 _logger = get_logger('add_audio')
 
 

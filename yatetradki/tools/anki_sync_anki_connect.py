@@ -11,6 +11,7 @@ import sys
 import time
 from multiprocessing import Process
 
+sys.path.insert(0, '/usr/share/anki')
 import aqt
 
 from yatetradki.tools.anki_connect import invoke

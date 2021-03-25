@@ -17,7 +17,7 @@ from shutil import copy2, move
 from operator import itemgetter
 from collections import namedtuple
 from os import makedirs
-from os.path import exists, getsize, join
+from os.path import exists, getsize, join, expanduser, expandvars
 
 from yatetradki.korean.aws_polly_synthesize_speech import norwegian_synthesize
 
@@ -28,7 +28,7 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 KOREAN_CLASS_MP3_DIR = '/mnt/video/rip/koreanclass101/dictionary-mp3'
 HOSGELDI_MP3_DIR = '/mnt/video/rip/hosgeldi.com/mp3s'
 #MEDIA_DIR = '/home/bz/Documents/Anki/bz/collection.media'
-MEDIA_DIR = '/home/bz/.local/share/Anki2/bz/collection.media'
+MEDIA_DIR = expandvars(expanduser('$HOME/.local/share/Anki2/bz/collection.media'))
 KOREAN_CLASS_COPIED_PREFIX = 'kc101_'
 HOSGELDI_COPIED_PREFIX = 'hosgeldi_'
 KOREAN_CLASS_LOOKUP_TABLE_FILENAME = '/mnt/big_ext4/btsync/prg/koreanclass101-dictionary/sort-uniq-table.txt'
