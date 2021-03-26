@@ -2,11 +2,14 @@ from os.path import basename
 
 from yatetradki.korean.fill_audio import CustomServiceWithFunction
 from yatetradki.korean.fill_audio import create_cached_table
-from yatetradki.korean.fill_audio import create_norwegian_table
+from yatetradki.korean.fill_audio import create_aws_norwegian_table
+from yatetradki.korean.fill_audio import create_azure_norwegian_table
 from yatetradki.tools.audio import get_pronunciation_call
 from yatetradki.tools.log import get_logger
 
-NORWEGIAN_PRONUNCIATION_TABLE = create_norwegian_table()
+
+#NORWEGIAN_PRONUNCIATION_TABLE = create_aws_norwegian_table()
+NORWEGIAN_PRONUNCIATION_TABLE = create_azure_norwegian_table()
 
 
 _logger = get_logger('pronunciation')
