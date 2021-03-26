@@ -11,6 +11,7 @@ from yatetradki.tools.pronunciation import Pronunciation
 from yatetradki.tools.telegram import notify
 from yatetradki.utils import cleanup_query
 from yatetradki.utils import mute_networking_logging
+from yatetradki.utils import must_env
 
 
 COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/share/Anki2/bz/collection.anki2')))
@@ -18,6 +19,11 @@ _logger = get_logger('add_audio')
 
 
 def add_audio(args):
+    must_env('TELEGRAM_ACCESS_TOKEN')
+    must_env('TELEGRAM_CHAT_ID')
+    must_env('AZURE_KEY')
+    must_env('AZURE_REGION')
+
     col = Collection(COLLECTION, log=True)
     pronunciation = Pronunciation(args.audio)
 

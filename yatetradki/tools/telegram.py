@@ -1,13 +1,13 @@
 import logging
-from os import getenv
+from yatetradki.utils import must_env
 
 import requests
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 
-ACCESS_TOKEN = getenv('TELEGRAM_ACCESS_TOKEN')
-CHAT_ID = getenv('TELEGRAM_CHAT_ID')
+ACCESS_TOKEN = must_env('TELEGRAM_ACCESS_TOKEN')
+CHAT_ID = must_env('TELEGRAM_CHAT_ID')
 
 
 def notify(message):

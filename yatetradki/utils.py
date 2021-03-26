@@ -1,8 +1,11 @@
-from re import sub
-from os import popen, fdopen, dup
-from json import loads as json_loads
 from codecs import open as codecs_open
+from json import loads as json_loads
 from netrc import netrc
+from os import dup, fdopen, popen, environ
+from os.path import expanduser, expandvars
+from re import sub
+
+from pydub import AudioSegment
 
 
 DEFUALT_WIDTH = 100
@@ -93,3 +96,15 @@ def open_output(filename, mode):
         return fdopen(dup(2), mode)
     else:
         return open(filename, mode)
+
+
+def convert_wav_to_mp3(filename_wav, filename_mp3):
+    sound = AudioSegment.from_wav(filename_wav)
+    sound.export(filename_mp3, format='mp3')
+
+
+def must_env(name):
+    value = expandvars(expanduser(environ.get(name, '')))
+    if not value:
+        raise RuntimeError('env var "{0}" must be set'.format(name))
+    return value

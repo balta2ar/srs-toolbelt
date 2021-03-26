@@ -19,7 +19,8 @@ from collections import namedtuple
 from os import makedirs
 from os.path import exists, getsize, join, expanduser, expandvars
 
-from yatetradki.korean.aws_polly_synthesize_speech import norwegian_synthesize
+from yatetradki.korean.aws_polly_synthesize_speech import norwegian_synthesize as aws_norwegian_synthesize
+from yatetradki.korean.azure_cognitive_speech import norwegian_synthesize as azure_norwegian_synthesize
 
 FORMAT = '%(asctime)-15s %(levelname)s (%(name)s) %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -220,14 +221,14 @@ def create_cached_table(cache_dir, prefix, table):
     caching_table = CachingPrefixedWordTable(MEDIA_DIR, cache_dir, prefix, table)
     return ComposedWordTable([caching_table])
 
-def create_norwegian_table():
+
+def create_aws_norwegian_table():
     cache_dir = 'aws_polly_cache_norwegian'
     prefix = cache_dir + '_'
     aws_polly_norwegian_table = AwsPollyNorwegianService()
     aws_polly_norwegian_caching_table = CachingPrefixedWordTable(
         MEDIA_DIR, cache_dir, prefix, aws_polly_norwegian_table)
     return ComposedWordTable([aws_polly_norwegian_caching_table])
-
     # norwegianonweb_table = NorwegianOnWebWordTable(
     #     filename='/mnt/video/rip/ntnu.edu/vocabulary/all.tsv',
     #     mp3dir='/mnt/video/rip/ntnu.edu/audio/mp3',
@@ -235,6 +236,15 @@ def create_norwegian_table():
     #     copied_prefix='norwegianonweb_',
     # )
     # return ComposedWordTable([norwegianonweb_table])
+
+
+def create_azure_norwegian_table():
+    cache_dir = 'azure_cache_norwegian'
+    prefix = cache_dir + '_'
+    azure_norwegian_table = AzureCognitiveSpeechNorwegianService()
+    azure_norwegian_caching_table = CachingPrefixedWordTable(
+        MEDIA_DIR, cache_dir, prefix, azure_norwegian_table)
+    return ComposedWordTable([azure_norwegian_caching_table])
 
 
 def create_korean_table():
@@ -388,8 +398,18 @@ class AwsPollyNorwegianService(WordTable):
     def lookup(self, value):
         logger = logging.getLogger()
         filename = 'aws_polly_norwegian_%s.mp3' % self._make_random_filename()
-        result = norwegian_synthesize(value, filename)
+        result = aws_norwegian_synthesize(value, filename)
         logger.info('word: %s, AWS polly result: %s', value, result)
+        #return [TableEntry('neo.mp3', None, 'neo.mp3')]
+        return [self._make_default_entry(filename, filename)]
+
+
+class AzureCognitiveSpeechNorwegianService(WordTable):
+    def lookup(self, value):
+        logger = logging.getLogger()
+        filename = 'azure_norwegian_%s.mp3' % self._make_random_filename()
+        result = azure_norwegian_synthesize(value, filename)
+        logger.info('word: %s, Azure result: %s', value, result)
         #return [TableEntry('neo.mp3', None, 'neo.mp3')]
         return [self._make_default_entry(filename, filename)]
 
