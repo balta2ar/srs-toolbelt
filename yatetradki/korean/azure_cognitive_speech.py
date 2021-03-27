@@ -30,7 +30,7 @@ engelsk = "A simple test to write to a file."
 #   This is awesome!
 # </mstts:express-as>
 
-THROTTLE_DELAY = 1.0
+THROTTLE_DELAY = 3.0
 SSML_TEMPLATE = '''<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="en-US">
   <voice name="{0}">
       {1}
