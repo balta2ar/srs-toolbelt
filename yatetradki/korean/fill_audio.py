@@ -328,7 +328,7 @@ class CachingWordTable(WordTable):
                 self._logger.info('Child table returned None: %s', self._table)
                 return None
         else:
-            self._logger.info('Cache hit: %s', value)
+            self._logger.debug('Cache hit: %s', value)
 
         #return [TableEntry(filename, None, basename)]
         return [self._make_default_entry(filename, basename)]
@@ -372,7 +372,7 @@ class CachingPrefixedWordTable(WordTable):
                 self._logger.info('Child table returned None: %s', self._table)
                 return None
         else:
-            self._logger.info('Cache hit: %s', value)
+            self._logger.debug('Cache hit: %s', value)
 
         if not exists(full_prefixed):
             copy2(filename, full_prefixed)

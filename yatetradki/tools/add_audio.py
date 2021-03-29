@@ -47,9 +47,10 @@ def add_audio(args):
         word = fields[args.word_field]
         audio = fields[args.audio_field]
         if pronunciation.fill(word, col, fields):
-            if audio != fields[args.audio_field]: # audio field value has changed
+            new_audio = fields[args.audio_field]
+            if audio != new_audio: # audio field value has changed
                 added.append(word)
-                _logger.info('Added audio for word "{0}"'.format(word))
+                _logger.info('Added audio for word "%s", new value="%s"', word, new_audio)
         for field, value in fields.items():
             note.fields[args.fields.index(field)] = value
         note.flush()

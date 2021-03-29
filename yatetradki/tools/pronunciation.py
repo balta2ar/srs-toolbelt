@@ -34,7 +34,6 @@ def get_pronunciation_implementation(audio_type):
 def get_norwegian_pronunciation(word):
     """Should return a filename (mp3) with the pronounced word. None if not found."""
     results = NORWEGIAN_PRONUNCIATION_TABLE.lookup(word)
-    print(results)
     if not results:
         return None
     return results[0].mp3from
@@ -46,7 +45,6 @@ def get_english_pronunciation(word):
     prefix = 'cache_english_awesometts_'
     english_service = CustomServiceWithFunction(prefix, get_pronunciation_call)
     results = create_cached_table(cache_dir, prefix, english_service).lookup(word)
-    print(results)
     if not results:
         return None
     return results[0].mp3from
@@ -62,7 +60,7 @@ def fill_pronunciation(audio_type, word, col, fields):
     if audio is None:
         _logger.warning('Could not add audio for word %s', word)
     else:
-        _logger.info('Adding audio for word %s: %s', word, audio)
+        _logger.debug('Adding audio for word %s: %s', word, audio)
         col.media.addFile(audio)
         fields['Audio'] = '[sound:%s]' % basename(audio)
     return True
