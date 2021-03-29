@@ -56,9 +56,9 @@ def anki_is_running():
     """Anki is running"""
     try:
         result = invoke('version')
-        _logger.info('anki_is_running: version: %s', result)
+        _logger.debug('anki_is_running: version: %s', result)
     except Exception as e:
-        _logger.info('Anki not available yet: %s', e)
+        _logger.debug('Anki not available yet: %s', e)
         return False
     return True
 
@@ -67,7 +67,7 @@ def wait_for(predicate, retry_interval=1.0, max_timeout=10.0):
     deadline = time.time() + max_timeout
     while time.time() < deadline:
         remains = deadline - time.time()
-        _logger.info('Waiting %0.1f for: %s (%0.1f remains)', retry_interval, predicate.__doc__, remains)
+        _logger.debug('Waiting %0.1f for: %s (%0.1f remains)', retry_interval, predicate.__doc__, remains)
         time.sleep(retry_interval)
         if predicate():
             return True
