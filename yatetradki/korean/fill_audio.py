@@ -21,6 +21,8 @@ from os.path import exists, getsize, join, expanduser, expandvars
 
 from yatetradki.korean.aws_polly_synthesize_speech import norwegian_synthesize as aws_norwegian_synthesize
 from yatetradki.korean.azure_cognitive_speech import norwegian_synthesize as azure_norwegian_synthesize
+from yatetradki.utils import cleanup_filename
+
 
 FORMAT = '%(asctime)-15s %(levelname)s (%(name)s) %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -318,7 +320,7 @@ class CachingWordTable(WordTable):
         filename = join(self._cache_dir, basename)
 
         if not exists(filename):
-            self._logger.info('Cache miss: %s', value)
+            self._logger.info('Cache miss: "%s"', value)
             self._mkpath(self._cache_dir)
             results = self._table.lookup(value)
             if results:
@@ -356,13 +358,14 @@ class CachingPrefixedWordTable(WordTable):
             makedirs(path)
 
     def lookup(self, value):
+        value = cleanup_filename(value)
         basename = value + '.mp3'
         filename = join(self._cache_dir, basename)
         prefixed = self._prefix + basename
         full_prefixed = join(self._media_dir, prefixed)
 
         if not exists(filename):
-            self._logger.info('Cache miss: %s', value)
+            self._logger.info('Cache miss: "%s"', value)
             self._mkpath(self._cache_dir)
             results = self._table.lookup(value)
             if results:

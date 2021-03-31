@@ -4,6 +4,7 @@ from netrc import netrc
 from os import dup, fdopen, popen, environ
 from os.path import expanduser, expandvars
 from re import sub
+from bs4 import BeautifulSoup
 
 from pydub import AudioSegment
 
@@ -89,6 +90,19 @@ def text_cleanup(text):
 
 def cleanup_query(query: str) -> str:
     return query.replace('"', '')
+
+
+def cleanup_filename(name: str) -> str:
+    name = name.lower().replace(' ', '_')
+    def valid(x):
+        return x.isalnum() or x in '_'
+    name = ''.join([x for x in name if valid(x)])
+    return name
+
+
+def html_to_text(data: str) -> str:
+    soup = BeautifulSoup(data, features="lxml")
+    return soup.get_text()
 
 
 def open_output(filename, mode):
