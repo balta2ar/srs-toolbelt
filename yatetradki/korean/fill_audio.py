@@ -358,8 +358,7 @@ class CachingPrefixedWordTable(WordTable):
             makedirs(path)
 
     def lookup(self, value):
-        value = cleanup_filename(value)
-        basename = value + '.mp3'
+        basename = cleanup_filename(value) + '.mp3'
         filename = join(self._cache_dir, basename)
         prefixed = self._prefix + basename
         full_prefixed = join(self._media_dir, prefixed)
