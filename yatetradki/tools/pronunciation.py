@@ -22,15 +22,6 @@ class Pronunciation:
         return fill_pronunciation(self._audio_type, word, col, fields)
 
 
-def get_pronunciation_implementation(audio_type):
-    PRONUNCIATION_TABLE = {
-        'norwegian': get_norwegian_pronunciation,
-        'english': get_english_pronunciation,
-        #'english': get_pronunciation_call,
-    }
-    return PRONUNCIATION_TABLE.get(audio_type)
-
-
 def get_norwegian_pronunciation(word):
     """Should return a filename (mp3) with the pronounced word. None if not found."""
     results = NORWEGIAN_PRONUNCIATION_TABLE.lookup(word)
@@ -51,7 +42,12 @@ def get_english_pronunciation(word):
 
 
 def fill_pronunciation(audio_type, word, col, fields):
-    get_pronunciation = get_pronunciation_implementation(audio_type)
+    TABLE = {
+        'norwegian': get_norwegian_pronunciation,
+        'english': get_english_pronunciation,
+        #'english': get_pronunciation_call,
+    }
+    get_pronunciation = TABLE.get(audio_type)
     if get_pronunciation is None:
         _logger.warning('Pronunciation "%s" is not supported', audio_type)
         return False

@@ -344,13 +344,13 @@ class CachingPrefixedWordTable(WordTable):
     norwegian, that has changed, and gift in norwegian is not gift in english.
     Yeah, I know...
     """
-    def __init__(self, media_dir, cache_dir, prefix, table):
+    def __init__(self, media_dir, cache_dir, prefix, upstream):
         super(CachingPrefixedWordTable, self).__init__()
 
         self._media_dir = media_dir
         self._cache_dir = cache_dir
         self._prefix = prefix
-        self._table = table
+        self._upstream = upstream
         self._logger = logging.getLogger(self.__class__.__name__)
 
     def _mkpath(self, path):
@@ -366,12 +366,12 @@ class CachingPrefixedWordTable(WordTable):
         if not exists(filename):
             self._logger.info('Cache miss: "%s"', value)
             self._mkpath(self._cache_dir)
-            results = self._table.lookup(value)
+            results = self._upstream.lookup(value)
             if results:
                 result = results[0]
                 move(result.mp3from, filename)
             else:
-                self._logger.info('Child table returned None: %s', self._table)
+                self._logger.info('Child table returned None: %s', self._upstream)
                 return None
         else:
             self._logger.debug('Cache hit: %s', value)
