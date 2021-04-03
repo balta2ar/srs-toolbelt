@@ -12,7 +12,7 @@ from yatetradki.tools.telegram import notify
 from yatetradki.utils import cleanup_query
 from yatetradki.utils import mute_networking_logging
 from yatetradki.utils import must_env
-#from yatetradki.utils import html_to_text
+from yatetradki.utils import html_to_text
 
 
 COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/share/Anki2/bz/collection.anki2')))
@@ -47,16 +47,15 @@ def add_audio(args):
                   for field in args.fields}
         word = fields[args.word_field]
         audio = fields[args.audio_field]
-        #audio_text = html_to_text(audio)
-        if pronunciation.fill(word, col, fields):
+        if pronunciation.fill(html_to_text(word), col, fields):
             new_audio = fields[args.audio_field]
             if audio != new_audio: # audio field value has changed
                 added.append(word)
                 _logger.info('Added audio for word "%s", new value="%s"', word, new_audio)
-        for field, value in fields.items():
-            note.fields[args.fields.index(field)] = value
-        note.flush()
-        col.save()
+                for field, value in fields.items():
+                    note.fields[args.fields.index(field)] = value
+                note.flush()
+                col.save()
     if added:
         mute_networking_logging()
         notify('Language: {0}\nAdded audio for ({1}):\n{2}'.format(
