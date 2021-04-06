@@ -20,21 +20,22 @@ from yatetradki.tools.log import get_logger
 
 _logger = get_logger('anki_sync_anki_connect')
 MEDIA_SYNC_SLEEP = 60.0
+ERROR_OK = 0
 ERROR_CANNOT_START_ANKI = 1
 ERROR_ANKI_ALREADY_RUNNING = 2
 
 
-def main():
+def web_sync() -> int:
     if anki_is_running():
         _logger.info('Anki is already running (must have started manually), skipping sync to avoid conflicts')
-        sys.exit(ERROR_ANKI_ALREADY_RUNNING)
+        return ERROR_ANKI_ALREADY_RUNNING
 
     anki = Process(target=aqt.run)
     anki.start()
 
     if not wait_for(anki_is_running):
         _logger.error('Timeout awaiting anki to start up')
-        sys.exit(ERROR_CANNOT_START_ANKI)
+        return ERROR_CANNOT_START_ANKI
 
     _logger.info('Anki is running, starting sync')
     invoke('sync')
@@ -45,7 +46,12 @@ def main():
     _logger.info('Sync is done, exiting')
     anki.terminate()
     anki.join()
+    return ERROR_OK
 
+
+def main():
+    code = web_sync()
+    sys.exit(code)
 
 if __name__ == '__main__':
     main()
