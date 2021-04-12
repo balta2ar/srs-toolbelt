@@ -7,6 +7,7 @@ sys.path.insert(0, '/usr/share/anki')
 from anki import Collection
 
 from yatetradki.tools.log import get_logger
+from yatetradki.tools.anki_control import anki_is_running
 from yatetradki.tools.pronunciation import Pronunciation
 from yatetradki.tools.anki_sync_anki_connect import web_sync
 from yatetradki.tools.telegram import notify
@@ -15,12 +16,18 @@ from yatetradki.utils import mute_networking_logging
 from yatetradki.utils import must_env
 from yatetradki.utils import html_to_text
 
+ERROR_OK = 0
+ERROR_ANKI_ALREADY_RUNNING = 2
 
 COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/share/Anki2/bz/collection.anki2')))
 _logger = get_logger('add_audio')
 
 
 def add_audio(args):
+    if anki_is_running():
+        _logger.info('Anki is already running (must have started manually), skipping sync to avoid conflicts')
+        return ERROR_ANKI_ALREADY_RUNNING
+
     must_env('TELEGRAM_ACCESS_TOKEN')
     must_env('TELEGRAM_CHAT_ID')
     must_env('AZURE_KEY')
@@ -37,8 +44,9 @@ def add_audio(args):
     query_template = 'deck:"%s" note:"%s"'
     query = cleanup_query(query_template % (args.deck, args.model))
     found_notes = col.findNotes(query)
-    if (not found_notes) or (not args.update):
-        return
+    #if (not found_notes) or (not args.update):
+    if (not found_notes):
+        return ERROR_OK
 
     added = []
     for fnote in found_notes:
@@ -61,8 +69,9 @@ def add_audio(args):
         mute_networking_logging()
         notify('Language: {0}\nAdded audio for ({1}):\n{2}'.format(
             args.audio, len(added), '\n'.join(added)))
-        if args.update:
-            web_sync()
+        # if args.update:
+        #     web_sync()
+    return ERROR_OK
 
 
 def main():
@@ -72,8 +81,8 @@ def main():
     parser.add_argument("--fields", help="List of fields of the model", required=True)
     parser.add_argument("--word-field", help="Word field name to generate audio for", required=True)
     parser.add_argument("--audio-field", help="Audio field name to save audio in", required=True)
-    parser.add_argument("--update", help="True if existing notes should be updated",
-        default=False, action='store_true')
+    # parser.add_argument("--update", help="True if existing notes should be updated",
+    #     default=False, action='store_true')
     parser.add_argument("--sync", help="Run web sync after adding audio in case there were changes",
         default=False, action='store_true')
     parser.add_argument("--audio", choices=['none', 'norwegian', 'korean', 'english'],
@@ -82,7 +91,7 @@ def main():
     args = parser.parse_args()
     args.fields = args.fields.split(',')
 
-    add_audio(args)
+    sys.exit(add_audio(args))
 
 
 if __name__ == '__main__':
