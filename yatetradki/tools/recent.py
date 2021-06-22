@@ -145,18 +145,23 @@ def densify(words, maxlen):
 def show_recent_from_collection(queries, header_width):
     col = Collection(COLLECTION)
     #padding = ' ' * 10
+    from rich import print
     for query, field in queries:  # QUERIES_AND_FIELDS:
         #header = '>>> %s (%s)%s' % (query, field, padding)
         header = '>>> %s (%s)' % (query, field)
         header = header.ljust(header_width, COLUMN_SEPARATOR)
         words = show_recent(col, query, field)
-        if words:
-            maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
-            fit = columns_fit(len(header), maxlen)
-            words = densify(words, maxlen)
-            body = format_n_columns(words, maxlen, fit)
-            message = '%s\n%s\n' % (header, body)
-            print(message)
+        words = [w.replace('<b>', '[bold green]').replace('</b>', '[/bold green]') for w in words]
+        print('\n'.join(words))
+        #print_formatted_text(HTML('\n'.join(words)))
+        # if words:
+        #     maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
+        #     fit = columns_fit(len(header), maxlen)
+        #     words = densify(words, maxlen)
+        #     print(fit, len(header), maxlen)
+        #     body = format_n_columns(words, maxlen, fit)
+        #     message = '%s\n%s\n' % (header, body)
+        #     print(message)
             #print(message.encode('utf8'))
 
 
