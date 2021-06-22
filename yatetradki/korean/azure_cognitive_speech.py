@@ -9,6 +9,7 @@ You may need to set this in ArchLinux:
 
 from os import remove
 from time import sleep
+from random import choice
 
 from azure.cognitiveservices.speech import (
     AudioDataStream,
@@ -47,7 +48,9 @@ def format_template(voice, text):
 
 
 def norwegian_synthesize(text, mp3):
-    return synthesize('nb-NO-PernilleNeural', text, mp3)
+    voices = ['nb-NO-PernilleNeural', 'nb-NO-FinnNeural', 'nb-NO-IselinNeural']
+    voice = choice(voices)
+    return synthesize(voice, text, mp3)
 
 
 def synthesize(voice, text, mp3):
