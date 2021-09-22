@@ -21,6 +21,7 @@ from os.path import exists, getsize, join, expanduser, expandvars
 
 from yatetradki.korean.aws_polly_synthesize_speech import norwegian_synthesize as aws_norwegian_synthesize
 from yatetradki.korean.azure_cognitive_speech import norwegian_synthesize as azure_norwegian_synthesize
+from yatetradki.korean.azure_cognitive_speech import english_synthesize as azure_english_synthesize
 from yatetradki.utils import cleanup_filename
 
 
@@ -249,6 +250,15 @@ def create_azure_norwegian_table():
     return ComposedWordTable([azure_norwegian_caching_table])
 
 
+def create_azure_english_table():
+    cache_dir = 'azure_cache_english'
+    prefix = cache_dir + '_'
+    azure_english_table = AzureCognitiveSpeechEnglishService()
+    azure_english_caching_table = CachingPrefixedWordTable(
+        MEDIA_DIR, cache_dir, prefix, azure_english_table)
+    return ComposedWordTable([azure_english_caching_table])
+
+
 def create_korean_table():
     """
     Master table chains 4 audio sources:
@@ -412,7 +422,15 @@ class AzureCognitiveSpeechNorwegianService(WordTable):
         filename = 'azure_norwegian_%s.mp3' % self._make_random_filename()
         result = azure_norwegian_synthesize(value, filename)
         logger.info('word: %s, Azure result: %s', value, result)
-        #return [TableEntry('neo.mp3', None, 'neo.mp3')]
+        return [self._make_default_entry(filename, filename)]
+
+
+class AzureCognitiveSpeechEnglishService(WordTable):
+    def lookup(self, value):
+        logger = logging.getLogger()
+        filename = 'azure_english_%s.mp3' % self._make_random_filename()
+        result = azure_english_synthesize(value, filename)
+        logger.info('word: %s, Azure result: %s', value, result)
         return [self._make_default_entry(filename, filename)]
 
 

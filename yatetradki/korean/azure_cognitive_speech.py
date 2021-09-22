@@ -7,6 +7,7 @@ You may need to set this in ArchLinux:
     SSL_CERT_DIR=/etc/ssl/certs AZURE_KEY=<key> AZURE_REGION=eastus python3 ./azure_cognitive_speech.py
 """
 
+import sys
 from os import remove
 from time import sleep
 from random import choice
@@ -53,6 +54,18 @@ def norwegian_synthesize(text, mp3):
     return synthesize(voice, text, mp3)
 
 
+def english_synthesize(text, mp3):
+    voices = ['en-US-ChristopherNeural', 'en-US-GuyNeural']
+    voice = choice(voices)
+    return synthesize(voice, text, mp3)
+
+
+def synthesize_file(filename, mp3):
+    voice = 'nb-NO-FinnNeural'
+    text = open(filename).read().strip()
+    synthesize(voice, text, mp3)
+
+
 def synthesize(voice, text, mp3):
     sleep(THROTTLE_DELAY)
     speech_key = must_env('AZURE_KEY')
@@ -87,3 +100,6 @@ def synthesize(voice, text, mp3):
 
 #norwegian_synthesize(norsk, '/tmp/azure.mp3')
 
+if __name__ == '__main__':
+    text, mp3 = sys.argv[1:3]
+    synthesize_file(text, mp3)

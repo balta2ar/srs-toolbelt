@@ -4,12 +4,14 @@ from yatetradki.korean.fill_audio import CustomServiceWithFunction
 from yatetradki.korean.fill_audio import create_cached_table
 from yatetradki.korean.fill_audio import create_aws_norwegian_table
 from yatetradki.korean.fill_audio import create_azure_norwegian_table
+from yatetradki.korean.fill_audio import create_azure_english_table
 from yatetradki.tools.audio import get_pronunciation_call
 from yatetradki.tools.log import get_logger
 
 
 #NORWEGIAN_PRONUNCIATION_TABLE = create_aws_norwegian_table()
 NORWEGIAN_PRONUNCIATION_TABLE = create_azure_norwegian_table()
+ENGLISH_PRONUNCIATION_TABLE = create_azure_english_table()
 
 
 _logger = get_logger('pronunciation')
@@ -30,6 +32,14 @@ def get_norwegian_pronunciation(word):
     return results[0].mp3from
 
 
+def get_english_azure_pronunciation(word):
+    """Should return a filename (mp3) with the pronounced word. None if not found."""
+    results = ENGLISH_PRONUNCIATION_TABLE.lookup(word)
+    if not results:
+        return None
+    return results[0].mp3from
+
+
 def get_english_pronunciation(word):
     """Should return a filename (mp3) with the pronounced word. None if not found."""
     cache_dir = 'cache_english_awesometts'
@@ -45,6 +55,7 @@ def fill_pronunciation(audio_type, word, col, fields):
     TABLE = {
         'norwegian': get_norwegian_pronunciation,
         'english': get_english_pronunciation,
+        'english-azure': get_english_azure_pronunciation,
         #'english': get_pronunciation_call,
     }
     get_pronunciation = TABLE.get(audio_type)
