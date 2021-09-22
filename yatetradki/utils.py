@@ -5,6 +5,7 @@ from os import dup, fdopen, popen, environ
 from os.path import expanduser, expandvars
 from re import sub
 from bs4 import BeautifulSoup
+#import unidecode
 
 from pydub import AudioSegment
 
@@ -102,7 +103,10 @@ def cleanup_filename(name: str) -> str:
 
 def html_to_text(data: str) -> str:
     soup = BeautifulSoup(data, features="lxml")
-    return soup.get_text()
+    #result = unidecode.unidecode(soup.get_text())
+    result = soup.get_text()
+    #print('>>>>>>', data, '========>>>>', result)
+    return result
 
 
 def open_output(filename, mode):

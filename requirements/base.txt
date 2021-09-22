@@ -4,3 +4,4 @@ requests==2.24.0
 azure-cognitiveservices-speech==1.16.0
 pydub==0.25.1
 rich==10.4.0
+unidecode==1.2.0
