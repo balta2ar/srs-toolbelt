@@ -18,6 +18,7 @@ from operator import itemgetter
 from collections import namedtuple
 from os import makedirs
 from os.path import exists, getsize, join, expanduser, expandvars
+from zlib import crc32
 
 from yatetradki.korean.aws_polly_synthesize_speech import norwegian_synthesize as aws_norwegian_synthesize
 from yatetradki.korean.azure_cognitive_speech import norwegian_synthesize as azure_norwegian_synthesize
@@ -354,6 +355,7 @@ class CachingPrefixedWordTable(WordTable):
     norwegian, that has changed, and gift in norwegian is not gift in english.
     Yeah, I know...
     """
+    MAX_CHARACTERS = 100
     def __init__(self, media_dir, cache_dir, prefix, upstream):
         super(CachingPrefixedWordTable, self).__init__()
 
@@ -367,8 +369,12 @@ class CachingPrefixedWordTable(WordTable):
         if not exists(path):
             makedirs(path)
 
+    def limit(self, value):
+        hash = hex(crc32(value.encode()))[2:]
+        return value[:self.MAX_CHARACTERS] + '_' + hash
+
     def lookup(self, value):
-        basename = cleanup_filename(value) + '.mp3'
+        basename = self.limit(cleanup_filename(value)) + '.mp3'
         filename = join(self._cache_dir, basename)
         prefixed = self._prefix + basename
         full_prefixed = join(self._media_dir, prefixed)
@@ -389,7 +395,6 @@ class CachingPrefixedWordTable(WordTable):
         if not exists(full_prefixed):
             copy2(filename, full_prefixed)
 
-        #return [TableEntry(filename, None, basename)]
         return [self._make_default_entry(full_prefixed, prefixed)]
 
 
