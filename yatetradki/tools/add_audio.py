@@ -41,7 +41,7 @@ def add_audio(args):
     col.decks.select(deck['id'])
     col.decks.current()['mid'] = modelBasic['id']
 
-    query_template = 'deck:"%s" note:"%s"'
+    query_template = 'audio: deck:"%s" note:"%s"'
     query = cleanup_query(query_template % (args.deck, args.model))
     found_notes = col.findNotes(query)
     #if (not found_notes) or (not args.update):
