@@ -67,8 +67,11 @@ def add_audio(args):
                 col.save()
     if added:
         mute_networking_logging()
+        body = '\n'.join(added)
+        if len(body) > 400:
+            body = body[:400] + '...'
         notify('Language: {0}\nAdded audio for ({1}):\n{2}'.format(
-            args.audio, len(added), '\n'.join(added)))
+            args.audio, len(added), body))
         # if args.update:
         #     web_sync()
     return ERROR_OK
