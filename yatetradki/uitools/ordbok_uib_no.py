@@ -65,6 +65,7 @@ from os.path import dirname, exists, normpath, join
 from urllib.parse import urlparse
 from json import loads
 from string import Template
+from itertools import groupby
 
 from requests import get
 from bs4 import BeautifulSoup
@@ -106,10 +107,12 @@ HTML = '''
 '''
 
 class HttpClient:
-    def get(self, url):
+    def get(self, url, origin=None):
         logging.info('http get "%s"', url)
         headers = {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0'}
-        result = get(url, headers=headers)
+        if origin:
+            headers['Origin'] = origin
+        result = get(url, verify=False, headers=headers)
         result.raise_for_status()
         return result.text
 
@@ -119,12 +122,12 @@ class CachedHttpClient:
         self.client = client
         self.dirname = dirname
 
-    def get(self, url):
+    def get(self, url, **kwargs):
         path = self.get_path(self.get_key(url))
         content = slurp(bz2.open, path)
         if content is None:
             logging.info('cache miss: "%s"', url)
-            content = self.client.get(url)
+            content = self.client.get(url, **kwargs)
             spit(bz2.open, path, content)
         return content
 
@@ -177,6 +180,10 @@ def css(filename):
 
 def here(name):
     return join(dirname(__file__), name)
+
+def pretty(html):
+    return parse(html).prettify()
+
 
 class Suggestions:
     # https://ordbok.uib.no/perl/lage_ordliste_liten_nr2000.cgi?spr=bokmaal&query=gam
@@ -272,8 +279,8 @@ class OrdbokWord:
     def get_url(self, word):
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=begge'.format(word)
 
-
-class GlosbeNoRuWord:
+class GlosbeWord:
+    URL: str
     def __init__(self, client, word):
         self.word = word
         soup = parse(client.get(self.get_url(word)))
@@ -281,9 +288,53 @@ class GlosbeNoRuWord:
     def styled(self):
         return self.style() + self.html
     def get_url(self, word):
-        return 'https://nb.glosbe.com/nb/ru/{0}'.format(word)
+        return self.URL.format(word)
     def style(self):
         return css('glosbe-style.css')
+
+class GlosbeNoRuWord(GlosbeWord):
+    URL = 'https://nb.glosbe.com/nb/ru/{0}'
+
+class GlosbeNoEnWord(GlosbeWord):
+    URL = 'https://nb.glosbe.com/nb/en/{0}'
+
+class LexinOsloMetArticle:
+    # curl -k
+    # 'https://editorportal.oslomet.no/api/v1/findwords?searchWord=gift&lang=bokm%C3%A5l-russisk&page=1&selectLang=bokm%C3%A5l-russisk'
+    # -H 'Origin: https://lexin.oslomet.no'
+    # {
+    #   "id": 1523,
+    #   "sub_id": 2,
+    #   "type": "E-lem",
+    #   "text": "gift"
+    # },
+    # "resArray": {
+    #      "0": {
+    #          "id": 1168
+    #      },
+    def __init__(self, client, word):
+        self.word = word
+        origin = 'https://lexin.oslomet.no'
+        soup = loads(client.get(self.get_url(word), origin=origin))
+        self.html = self.transform(soup)
+    def transform(self, soup):
+        #items = [x['text'] for x in soup['result'][0]]
+        order1 = sorted(soup['resArray'].items(), key=lambda x: int(x[0]))
+        order2 = [x[1]['id'] for x in order1]
+
+        items = soup['result'][0]
+        group_map = {k: list(g) for k, g in groupby(items, lambda x: x['id'])}
+        groups = [group_map[b] for b in order2 if b in group_map]
+        blocks = []
+        for group in groups:
+            blocks.append('<br>\n'.join([x['text'] for x in group]))
+        return '<br>\n<br>\n'.join(blocks)
+    def styled(self):
+        return self.style() + self.html
+    def get_url(self, word):
+        return 'https://editorportal.oslomet.no/api/v1/findwords?searchWord={0}&lang=bokm%C3%A5l-russisk&page=1&selectLang=bokm%C3%A5l-russisk'.format(word)
+    def style(self):
+        return '' #css('glosbe-style.css')
 
 
 class AsyncFetch(QObject):
@@ -461,13 +512,19 @@ class GoldenDictProxy:
         Thread(target=self.serve, daemon=True).start()
     def serve(self):
         logging.info('Starting GoldenDictProxy on %s:%s', self.host, self.port)
+        self.app.route('/lexin/word/<word>', methods=['GET'])(self.route_lexin_word)
         self.app.route('/ordbok/inflect/<word>', methods=['GET'])(self.route_ordbok_inflect)
         self.app.route('/ordbok/word/<word>', methods=['GET'])(self.route_ordbok_word)
         self.app.route('/glosbe/noru/<word>', methods=['GET'])(self.route_glosbe_noru)
+        self.app.route('/glosbe/noen/<word>', methods=['GET'])(self.route_glosbe_noen)
         self.app.route('/static/css/ord-concatenated.css', methods=['GET'])(self.route_css)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
+    def route_lexin_word(self, word):
+        return LexinOsloMetArticle(self.client, word).styled()
     def route_glosbe_noru(self, word):
         return GlosbeNoRuWord(self.client, word).styled()
+    def route_glosbe_noen(self, word):
+        return GlosbeNoEnWord(self.client, word).styled()
     def route_ordbok_inflect(self, word):
         return Article(client, word).styled()
     def route_ordbok_word(self, word):
@@ -477,24 +534,6 @@ class GoldenDictProxy:
     def route_css(self):
         body = open(here('ord-concatenated.css')).read()
         return Response(body, mimetype='text/css')
-
-        # result = '<html><head>{0}</head><body>{1}</body></html>'.format(PROXY_STYLE, html)
-        # return pretty(result)
-
-        #return '<html><head>{0}</head><body>{1}</body></html>'.format(STYLE, html)
-        #return '{0}{1}'.format(STYLE, html)
-        #return '{0}'.format(html)
-
-        # x = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">'
-        # x += '<html xmlns="http://www.w3.org/1999/xhtml">'
-        # x += '<body>'
-        # x += html
-        # x += '</body>'
-        # x += '</html>'
-        # return x
-
-def pretty(html):
-    return parse(html).prettify()
 
 
 if __name__ == '__main__':

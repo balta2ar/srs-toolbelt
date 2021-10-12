@@ -46,9 +46,17 @@ iframe {
                 <iframe src="http://localhost:5660/ordbok/inflect/${word}" title="inflection"></iframe>
             </div>
             <div class="right">
-                <iframe src="http://localhost:5660/ordbok/word/${word}" title="word"></iframe>
+                <!-- <iframe src="http://localhost:5660/ordbok/word/${word}" title="word"></iframe> -->
+                <iframe src="http://localhost:5660/lexin/word/${word}" title="lexin"></iframe>
             </div>
         </div>
-        <iframe src="http://localhost:5660/glosbe/noru/${word}" title="glosbe-noru"></iframe>
+        <div class="fullw">
+            <div class="left">
+                <iframe src="http://localhost:5660/glosbe/noru/${word}" title="glosbe-noru"></iframe>
+            </div>
+            <div class="right">
+                <iframe src="http://localhost:5660/glosbe/noen/${word}" title="glosbe-enru"></iframe>
+            </div>
+        </div>
     </body>
 </html>
