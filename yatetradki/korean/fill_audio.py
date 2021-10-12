@@ -355,7 +355,7 @@ class CachingPrefixedWordTable(WordTable):
     norwegian, that has changed, and gift in norwegian is not gift in english.
     Yeah, I know...
     """
-    MAX_CHARACTERS = 50 # 100
+    MAX_CHARACTERS = 30 # 100
     def __init__(self, media_dir, cache_dir, prefix, upstream):
         super(CachingPrefixedWordTable, self).__init__()
 
