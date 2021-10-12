@@ -71,6 +71,7 @@ from bs4 import BeautifulSoup
 from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QWidget, QDesktopWidget, QCompleter, QTextBrowser,
                              QSystemTrayIcon, QMenu, QAction)
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtCore import Qt, QTimer, QObject
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
@@ -284,8 +285,11 @@ class AsyncFetch(QObject):
 
 
 class MainWindow(QWidget):
+    myActivate = pyqtSignal()
     def __init__(self, app):
         super().__init__()
+        self.myActivate.connect(self.activate)
+
         self.app = app
         self.async_fetch = AsyncFetch(CachedHttpClient(HttpClient(), 'cache'))
         self.async_fetch.ready.connect(self.on_fetch_ready)
@@ -299,8 +303,8 @@ class MainWindow(QWidget):
         font.setPointSize(font.pointSize() + ADD_TO_FONT_SIZE)
         self.comboxBox.setFont(font)
 
-        self.browser = QTextBrowser(self)
-        self.browser.setText(STYLE + HTML)
+        self.browser = QWebEngineView(self) #QTextBrowser(self)
+        self.browser.setHtml(STYLE + HTML) #setText(STYLE + HTML)
         self.browser.show()
 
         mainLayout = QVBoxLayout(self)
@@ -342,7 +346,8 @@ class MainWindow(QWidget):
         completer.complete()
 
     def set_text(self, text):
-        self.browser.setText(STYLE + text)
+        #self.browser.setText(STYLE + text)
+        self.browser.setHtml(STYLE + text)
 
     def on_text_changed(self, text):
         if text == '':
@@ -516,7 +521,7 @@ if __name__ == '__main__':
     tray.activated.connect(window.onTrayActivated)
     tray.show()
 
-    dog.observe(window.activate)
+    dog.observe(lambda: window.myActivate.emit())
 
     result = app.exec()
 
