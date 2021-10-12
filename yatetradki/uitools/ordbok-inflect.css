@@ -1,0 +1,19 @@
+th {
+    font-family: "Trebuchet MS", Verdana, Arial, Helvetica, sans-serif;
+    font-weight: bold;
+    color: #557FBD;
+    border-right: 1px solid #557FBD;
+    border-bottom: 1px solid #557FBD;
+    border-top: 1px solid #557FBD;
+    text-align: center;
+    padding: 6px 6px 6px 12px;
+}
+td {
+    font-family: "Trebuchet MS", Verdana, Arial, Helvetica, sans-serif;
+    color: #557FBD;
+    border-right: 1px solid #557FBD;
+    border-bottom: 1px solid #557FBD;
+    background: #fff;
+    padding: 6px 6px 6px 12px;
+    text-align: center;
+}
