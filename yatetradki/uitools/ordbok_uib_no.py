@@ -481,7 +481,7 @@ class GoldenDictProxy:
         self.app.route('/ordbok/word/<word>', methods=['GET'])(self.route_ordbok_word)
         self.app.route('/glosbe/noru/<word>', methods=['GET'])(self.route_glosbe_noru)
         self.app.route('/static/css/ord-concatenated.css', methods=['GET'])(self.route_css)
-        self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False)
+        self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
     def route_glosbe_noru(self, word):
         #url = 'https://nb.glosbe.com/nb/ru/{0}'.format(word)
         #result = self.client.get(url)
