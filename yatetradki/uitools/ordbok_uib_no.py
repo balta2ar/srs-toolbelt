@@ -101,29 +101,6 @@ font-family: sans-serif;
 }
 </style>
 '''
-STYLE = '''
-<style>
-th {
-    font-family: "Trebuchet MS", Verdana, Arial, Helvetica, sans-serif;
-    font-weight: bold;
-    color: #557FBD;
-    border-right: 1px solid #557FBD;
-    border-bottom: 1px solid #557FBD;
-    border-top: 1px solid #557FBD;
-    text-align: center;
-    padding: 6px 6px 6px 12px;
-}
-td {
-    font-family: "Trebuchet MS", Verdana, Arial, Helvetica, sans-serif;
-    color: #557FBD;
-    border-right: 1px solid #557FBD;
-    border-bottom: 1px solid #557FBD;
-    background: #fff;
-    padding: 6px 6px 6px 12px;
-    text-align: center;
-}
-</style>
-'''
 HTML = '''
 <div id="41772"><table class="paradigmetabell" cellspacing="0" style="margin: 25px;"><tbody><tr><th class="nobgnola"><span class="grunnord">liv</span></th><th class="nola" colspan="2">Entall</th><th class="nola" colspan="2">Flertall</th></tr><tr><th class="nobg">&nbsp;&nbsp;</th><th>Ubestemt form</th><th>Bestemt form</th><th>Ubestemt form</th><th>Bestemt form</th></tr><tr id="41772_1"><td class="ledetekst">n1</td><td class="vanlig">et liv</td><td class="vanlig">livet</td><td class="vanlig">liv</td><td class="vanlig">liva</td></tr><tr id="41772_2"><td class="ledetekst">n1</td><td class="vanlig">et liv</td><td class="vanlig">livet</td><td class="vanlig">liv</td><td class="vanlig">livene</td></tr></tbody></table></div>
 '''
@@ -162,7 +139,6 @@ class CachedHttpClient:
         b = normpath('/'.join([J(p.hostname), S(p.path)]))
         return a if p.query else b
 
-
 def slurp(do_open, filename):
     try:
         with do_open(filename, 'rb') as file_:
@@ -170,14 +146,12 @@ def slurp(do_open, filename):
     except:
         return None
 
-
 def spit(do_open, filename, content):
     dir = dirname(filename)
     if not exists(dir):
         makedirs(dir)
     with do_open(filename, 'wb') as file_:
         file_.write(content.encode())
-
 
 def to_text(html):
     return parse(html).text
@@ -187,6 +161,22 @@ def uniq(items, key):
     seen = set()
     return [x for x in items if not (key(x) in seen or seen.add(key(x)))]
 
+def extract(soup, *args):
+    result = soup.find(*args)
+    return result.prettify() if result else '<body>No content</body>'
+
+def parse(body):
+    return BeautifulSoup(body, features='lxml')
+
+def iframe(word):
+    t = Template(open(here('iframe.html')).read())
+    return t.substitute(word=word)
+
+def css(filename):
+    return '<style>{0}</style>'.format(slurp(open, here(filename)))
+
+def here(name):
+    return join(dirname(__file__), name)
 
 class Suggestions:
     # https://ordbok.uib.no/perl/lage_ordliste_liten_nr2000.cgi?spr=bokmaal&query=gam
@@ -260,21 +250,14 @@ class Article:
         parts = [PartOfSpeech(client, x) for x in parts]
         self.parts = parts
         self.html = ''.join(uniq([x.inflection.html for x in self.parts], to_text))
-
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return css('ordbok-inflect.css')
     def get_url(self, word: str) -> str:
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal'.format(word)
-
     def __repr__(self):
         return f'Article(word={self.word}, parts={self.parts})'
-
-
-def extract(soup, *args):
-    result = soup.find(*args)
-    return result.prettify() if result else 'No content'
-
-
-def parse(body):
-    return BeautifulSoup(body, features='lxml')
 
 
 class OrdbokWord:
@@ -282,6 +265,10 @@ class OrdbokWord:
         self.word = word
         soup = parse(client.get(self.get_url(word)))
         self.html = extract(soup, 'table', {'id': 'byttutBM'})
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return css('ord-concatenated.css')
     def get_url(self, word):
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=begge'.format(word)
 
@@ -291,8 +278,12 @@ class GlosbeNoRuWord:
         self.word = word
         soup = parse(client.get(self.get_url(word)))
         self.html = extract(soup, 'div', {'id': 'dictionary-content'})
+    def styled(self):
+        return self.style() + self.html
     def get_url(self, word):
         return 'https://nb.glosbe.com/nb/ru/{0}'.format(word)
+    def style(self):
+        return css('glosbe-style.css')
 
 
 class AsyncFetch(QObject):
@@ -310,11 +301,6 @@ class AsyncFetch(QObject):
             task = self.queue.get()
             result = task(self.client)
             self.ready.emit(result)
-
-
-def iframe(word):
-    t = Template(open(here('iframe.html')).read())
-    return t.substitute(word=word)
 
 
 class MainWindow(QWidget):
@@ -337,6 +323,7 @@ class MainWindow(QWidget):
         self.comboxBox.setFont(font)
 
         self.browser = QWebEngineView(self) #QTextBrowser(self)
+        self.browser.setZoomFactor(1.5)
         self.browser.setHtml(iframe('sove')) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
         self.browser.show()
 
@@ -462,9 +449,6 @@ PRELUDE = '''
 </html>
 '''
 
-def here(name):
-    return join(dirname(__file__), name)
-
 
 from flask import Flask, Response
 class GoldenDictProxy:
@@ -483,17 +467,11 @@ class GoldenDictProxy:
         self.app.route('/static/css/ord-concatenated.css', methods=['GET'])(self.route_css)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
     def route_glosbe_noru(self, word):
-        #url = 'https://nb.glosbe.com/nb/ru/{0}'.format(word)
-        #result = self.client.get(url)
-        #https://nb.glosbe.com/nb/ru/gift
-        #return result
-        return GlosbeNoRuWord(self.client, word).html
+        return GlosbeNoRuWord(self.client, word).styled()
     def route_ordbok_inflect(self, word):
-        body = Article(client, word).html
-        return STYLE + body
+        return Article(client, word).styled()
     def route_ordbok_word(self, word):
-        body = OrdbokWord(client, word).html
-        return body
+        return OrdbokWord(client, word).styled()
     def format(self, html):
         return PRELUDE.format(html)
     def route_css(self):
