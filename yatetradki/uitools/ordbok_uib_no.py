@@ -64,6 +64,7 @@ from os import makedirs
 from os.path import dirname, exists, normpath, join
 from urllib.parse import urlparse
 from json import loads
+from string import Template
 
 from requests import get
 from bs4 import BeautifulSoup
@@ -179,7 +180,7 @@ def spit(do_open, filename, content):
 
 
 def to_text(html):
-    return BeautifulSoup(html, features='lxml').text
+    return parse(html).text
 
 
 def uniq(items, key):
@@ -254,7 +255,7 @@ class Article:
     # <span class="oppsgramordklasse" onclick="vise_fullformer(&quot;8225&quot;,'bob')">adj.</span>
     def __init__(self, client, word):
         self.word = word
-        soup = BeautifulSoup(client.get(self.get_url(word)), features='lxml')
+        soup = parse(client.get(self.get_url(word)))
         parts = soup.find_all('span', {"class": "oppsgramordklasse"})
         parts = [PartOfSpeech(client, x) for x in parts]
         self.parts = parts
@@ -265,6 +266,33 @@ class Article:
 
     def __repr__(self):
         return f'Article(word={self.word}, parts={self.parts})'
+
+
+def extract(soup, *args):
+    result = soup.find(*args)
+    return result.prettify() if result else 'No content'
+
+
+def parse(body):
+    return BeautifulSoup(body, features='lxml')
+
+
+class OrdbokWord:
+    def __init__(self, client, word):
+        self.word = word
+        soup = parse(client.get(self.get_url(word)))
+        self.html = extract(soup, 'table', {'id': 'byttutBM'})
+    def get_url(self, word):
+        return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=begge'.format(word)
+
+
+class GlosbeNoRuWord:
+    def __init__(self, client, word):
+        self.word = word
+        soup = parse(client.get(self.get_url(word)))
+        self.html = extract(soup, 'div', {'id': 'dictionary-content'})
+    def get_url(self, word):
+        return 'https://nb.glosbe.com/nb/ru/{0}'.format(word)
 
 
 class AsyncFetch(QObject):
@@ -282,6 +310,11 @@ class AsyncFetch(QObject):
             task = self.queue.get()
             result = task(self.client)
             self.ready.emit(result)
+
+
+def iframe(word):
+    t = Template(open(here('iframe.html')).read())
+    return t.substitute(word=word)
 
 
 class MainWindow(QWidget):
@@ -304,7 +337,7 @@ class MainWindow(QWidget):
         self.comboxBox.setFont(font)
 
         self.browser = QWebEngineView(self) #QTextBrowser(self)
-        self.browser.setHtml(STYLE + HTML) #setText(STYLE + HTML)
+        self.browser.setHtml(iframe('sove')) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
         self.browser.show()
 
         mainLayout = QVBoxLayout(self)
@@ -347,7 +380,8 @@ class MainWindow(QWidget):
 
     def set_text(self, text):
         #self.browser.setText(STYLE + text)
-        self.browser.setHtml(STYLE + text)
+        #self.browser.setHtml(STYLE + text)
+        self.browser.setHtml(text)
 
     def on_text_changed(self, text):
         if text == '':
@@ -363,7 +397,8 @@ class MainWindow(QWidget):
     def on_fetch_ready(self, result: object):
         if isinstance(result, Article):
             if self.same_text(result.word) and result.parts:
-                self.set_text(result.html)
+                #self.set_text(result.html)
+                self.set_text(iframe(result.word))
         elif isinstance(result, Suggestions):
             if self.same_text(result.word) and result.top:
                 print(result)
@@ -372,7 +407,8 @@ class MainWindow(QWidget):
             logging.warn('unknown fetch result: %s', result)
 
     def fetch(self, word):
-        self.async_fetch.add(lambda client: Article(client, word))
+        #self.async_fetch.add(lambda client: Article(client, word))
+        self.set_text(iframe(word))
         self.async_fetch.add(lambda client: Suggestions(client, word))
 
     def onTrayActivated(self, reason):
@@ -429,6 +465,7 @@ PRELUDE = '''
 def here(name):
     return join(dirname(__file__), name)
 
+
 from flask import Flask, Response
 class GoldenDictProxy:
     def __init__(self, client, host, port):
@@ -446,33 +483,17 @@ class GoldenDictProxy:
         self.app.route('/static/css/ord-concatenated.css', methods=['GET'])(self.route_css)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False)
     def route_glosbe_noru(self, word):
-        url = 'https://nb.glosbe.com/nb/ru/{0}'.format(word)
-        result = self.client.get(url)
+        #url = 'https://nb.glosbe.com/nb/ru/{0}'.format(word)
+        #result = self.client.get(url)
         #https://nb.glosbe.com/nb/ru/gift
-        return result
+        #return result
+        return GlosbeNoRuWord(self.client, word).html
     def route_ordbok_inflect(self, word):
         body = Article(client, word).html
-        return body
+        return STYLE + body
     def route_ordbok_word(self, word):
-        logging.info('Inflect: %s', word)
-        r = Response(open(here('barn.html')).read())
-        r.headers['age'] = '0'
-        r.headers['cache-control'] = 'public,must-revalidate,max-age=600,s-maxage=0'
-        r.headers['content-type'] = 'text/html; charset=utf-8'
-        r.headers['server'] = 'nginx'
-        r.headers['via'] = '1.1 varnish-v4'
-        r.headers['x-cache'] = 'MISS'
-        r.headers['x-cache-hits'] = '0'
-        r.headers['x-debug-max-age-sec'] = '43200'
-        r.headers['x-debugdb'] = 'ok'
-        r.headers['x-varnish'] = '28182065'
-        #date: Sun, 03 Oct 2021 14:24:58 GMT
-        #last-modified: Sun, 03 Oct 2021 14:24:58 GMT
-        from datetime import datetime, timezone
-        r.headers['last-modified'] = datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT') #r.headers['date']
-        return r
-        #return self.format(Article(self.client, word).html)
-        #return 'word: {0}'.format(word)
+        body = OrdbokWord(client, word).html
+        return body
     def format(self, html):
         return PRELUDE.format(html)
     def route_css(self):
@@ -495,7 +516,7 @@ class GoldenDictProxy:
         # return x
 
 def pretty(html):
-    return BeautifulSoup(html, features='lxml').prettify()
+    return parse(html).prettify()
 
 
 if __name__ == '__main__':
