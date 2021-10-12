@@ -61,7 +61,7 @@ import logging
 import re
 import bz2
 from os import makedirs
-from os.path import dirname, exists, normpath
+from os.path import dirname, exists, normpath, join
 from urllib.parse import urlparse
 from json import loads
 
@@ -421,6 +421,9 @@ PRELUDE = '''
 </html>
 '''
 
+def here(name):
+    return join(dirname(__file__), name)
+
 from flask import Flask, Response
 class GoldenDictProxy:
     def __init__(self, client, host, port):
@@ -433,6 +436,7 @@ class GoldenDictProxy:
     def serve(self):
         logging.info('Starting GoldenDictProxy on %s:%s', self.host, self.port)
         self.app.route('/ordbok/inflect/<word>', methods=['GET'])(self.route_ordbok_inflect)
+        self.app.route('/ordbok/word/<word>', methods=['GET'])(self.route_ordbok_word)
         self.app.route('/glosbe/noru/<word>', methods=['GET'])(self.route_glosbe_noru)
         self.app.route('/static/css/ord-concatenated.css', methods=['GET'])(self.route_css)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False)
@@ -442,8 +446,11 @@ class GoldenDictProxy:
         #https://nb.glosbe.com/nb/ru/gift
         return result
     def route_ordbok_inflect(self, word):
+        body = Article(client, word).html
+        return body
+    def route_ordbok_word(self, word):
         logging.info('Inflect: %s', word)
-        r = Response(open('barn.html').read())
+        r = Response(open(here('barn.html')).read())
         r.headers['age'] = '0'
         r.headers['cache-control'] = 'public,must-revalidate,max-age=600,s-maxage=0'
         r.headers['content-type'] = 'text/html; charset=utf-8'
@@ -464,7 +471,7 @@ class GoldenDictProxy:
     def format(self, html):
         return PRELUDE.format(html)
     def route_css(self):
-        body = open('./ord-concatenated.css').read()
+        body = open(here('ord-concatenated.css')).read()
         return Response(body, mimetype='text/css')
 
         # result = '<html><head>{0}</head><body>{1}</body></html>'.format(PROXY_STYLE, html)
