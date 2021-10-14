@@ -85,7 +85,7 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 WINDOW_WIDTH = 1300
 WINDOW_HEIGHT = 800
-UPDATE_DELAY = 200
+UPDATE_DELAY = 500
 ICON_FILENAME = dirname(__file__) + '/ordbok_uib_no.png'
 ADD_TO_FONT_SIZE = 6
 
@@ -299,6 +299,59 @@ class GlosbeNoRuWord(GlosbeWord):
 class GlosbeNoEnWord(GlosbeWord):
     URL = 'https://nb.glosbe.com/nb/en/{0}'
 
+
+def pluck(regexp, group):
+    yes, no = [], []
+    for x in group:
+        if re.match(regexp, x['type']) is not None:
+            yes.append(x)
+        else:
+            no.append(x)
+    return yes, no
+
+def text(group):
+    return [x['text'] for x in group]
+
+def comma(items):
+    return sjoin(', ', items)
+
+def equals(items):
+    return sjoin(' = ', items)
+
+def sjoin(separator, items):
+    return separator.join(items)
+
+def div(klass, line):
+    return '<div class="{0}">{1}</div>'.format(klass, line)
+
+def divs(klass, lines):
+    return ''.join(div(klass, x) for x in lines)
+
+def span(klass, line):
+    return '<span class="{0}">{1}</span>'.format(klass, line)
+
+def spans(klass, lines):
+    return ''.join(span(klass, x) for x in lines)
+
+def notilda(line):
+    return line.replace('~', '')
+
+def unknown(group_item):
+    return '{0}={1}'.format(group_item['type'], group_item['text'])
+
+def combine(group):
+    def first(line):
+        return line.startswith('N-') or line.startswith('E-')
+    counter = [0]
+    def key(group_item):
+        if first(group_item['type']): counter[0] += 1
+        return counter[0]
+    lines = []
+    for k, g in groupby(group, key=key):
+        lines.append(notilda(equals(text(g))))
+    return lines
+
+
 class LexinOsloMetArticle:
     # curl -k
     # 'https://editorportal.oslomet.no/api/v1/findwords?searchWord=gift&lang=bokm%C3%A5l-russisk&page=1&selectLang=bokm%C3%A5l-russisk'
@@ -336,14 +389,44 @@ class LexinOsloMetArticle:
         groups = [group_map[b] for b in order if b in group_map]
         blocks = []
         for group in groups:
-            blocks.append('<br>\n'.join([x['text'] for x in group]))
-        return '<br>\n<br>\n'.join(blocks)
+            blocks.append(self.paint(group))
+        #return '<br>\n<br>\n'.join(blocks)
+        return '<br>\n'.join(blocks)
+    def paint(self, group):
+        lems, group = pluck('.*-lem$', group)
+        #lems = ', '.join(text(lems))
+        kats, group = pluck('.*-kat$', group)
+        defs, group = pluck('.*-def$', group)
+        eks, group = pluck('.*-eks$', group)
+        sms, group = pluck('.*-sms', group)
+        idi, group = pluck('.*-idi', group)
+        _, group = pluck('.*-div$', group) # something with bilde(127, ...)
+        _, group = pluck('.*-kom$', group)
+        mor, group = pluck('.*-mor$', group)
+        _, group = pluck('.*-utt$', group)
+        _, group = pluck('.*-alt', group)
+
+        # N, E
+        # B
+        # Ru
+        lines = []
+        lines.append(span('lem', notilda(comma(text(lems)))) + span('kat', notilda(comma(text(kats)))))
+        lines.append(divs('def', combine(defs)))
+        lines.append(divs('eks', combine(eks)))
+        #lines.append(divs('sms', text(sms)))
+        lines.append(divs('sms', combine(sms)))
+        lines.append(divs('idi', combine(idi)))
+        lines.append(divs('mor', combine(mor)))
+        lines.append(''.join(unknown(x) for x in group))
+        #lines.append('<br>'.join(unknown(x) for x in group))
+        #lines.append(div('columns2', divs('sms', text(sms))))
+        return ''.join(lines)
     def styled(self):
         return self.style() + self.html
     def get_url(self, word):
         return 'https://editorportal.oslomet.no/api/v1/findwords?searchWord={0}&lang=bokm%C3%A5l-russisk&page=1&selectLang=bokm%C3%A5l-russisk'.format(word)
     def style(self):
-        return '' #css('glosbe-style.css')
+        return css('lexin-style.css')
 
 
 class AsyncFetch(QObject):
@@ -384,7 +467,7 @@ class MainWindow(QWidget):
 
         self.browser = QWebEngineView(self) #QTextBrowser(self)
         self.browser.setZoomFactor(1.5)
-        self.browser.setHtml(iframe('sove')) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
+        self.browser.setHtml(iframe('hund')) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
         self.browser.show()
 
         mainLayout = QVBoxLayout(self)
