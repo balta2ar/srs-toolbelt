@@ -500,8 +500,28 @@ class AsyncFetch(QObject):
             result = task(self.client)
             self.ready.emit(result)
 
+def shortcutShowMix(event):
+    return (event.key() == Qt.Key_Exclam) and (event.modifiers() == Qt.AltModifier)
+
+def shortcutShowNor(event):
+    return (event.key() == Qt.Key_At) and (event.modifiers() == Qt.AltModifier)
+
+class QComboBoxKey(QComboBox):
+    def __init__(self, parent, show_mix, show_nor):
+        super(QComboBoxKey, self).__init__(parent)
+        self.show_mix = show_mix
+        self.show_nor = show_nor
+    def keyPressEvent(self, e):
+        if shortcutShowMix(e):
+            self.show_mix()
+        elif shortcutShowNor(e):
+            self.show_nor()
+        else:
+            super(QComboBoxKey, self).keyPressEvent(e)
+
 
 class MainWindow(QWidget):
+    ZOOM = 1.5
     myActivate = pyqtSignal()
     def __init__(self, app):
         super().__init__()
@@ -511,26 +531,31 @@ class MainWindow(QWidget):
         self.async_fetch = AsyncFetch(CachedHttpClient(StaticHttpClient(), 'cache'))
         self.async_fetch.ready.connect(self.on_fetch_ready)
 
-        self.comboxBox = QComboBox(self)
+        self.comboxBox = QComboBoxKey(self, self.show_mix, self.show_nor)
         self.comboxBox.setEditable(True)
         self.comboxBox.setCurrentText('')
         self.comboxBox.currentTextChanged.connect(self.on_text_changed)
+        self.comboxBox.installEventFilter(self)
 
         font = QFont()
         font.setPointSize(font.pointSize() + ADD_TO_FONT_SIZE)
         self.comboxBox.setFont(font)
 
-        self.browser = QWebEngineView(self) #QTextBrowser(self)
-        self.browser.setZoomFactor(1.5)
+        self.browser_mix = QWebEngineView(self) #QTextBrowser(self)
+        self.browser_nor = QWebEngineView(self) #QTextBrowser(self)
+        self.browser_mix.setZoomFactor(self.ZOOM)
+        self.browser_nor.setZoomFactor(self.ZOOM)
         self.set_text('hund')
-        self.browser.show()
+        self.browser_mix.show()
+        self.browser_nor.hide()
 
         mainLayout = QVBoxLayout(self)
         mainLayout.setSpacing(0)
         mainLayout.setContentsMargins(0, 0, 0, 0)
         mainLayout.addWidget(self.comboxBox)
-        mainLayout.addWidget(self.browser)
+        mainLayout.addWidget(self.browser_mix)
         self.setLayout(mainLayout)
+        self.main_layout = mainLayout
 
         self.setWindowTitle('OrdbokUibNo')
         self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
@@ -540,6 +565,18 @@ class MainWindow(QWidget):
 
         self.center()
         self.show()
+
+    def show_mix(self):
+        self.browser_nor.hide()
+        self.main_layout.removeWidget(self.browser_nor)
+        self.main_layout.addWidget(self.browser_mix)
+        self.browser_mix.show()
+
+    def show_nor(self):
+        self.browser_mix.hide()
+        self.main_layout.removeWidget(self.browser_mix)
+        self.main_layout.addWidget(self.browser_nor)
+        self.browser_nor.show()
 
     def grab_clipboard(self):
         content = QApplication.clipboard().text()
@@ -569,15 +606,11 @@ class MainWindow(QWidget):
         self.comboxBox.setCompleter(completer)
         completer.complete()
 
-    def set_url(self, url):
-        #self.browser.setUrl(QUrl(url))
-        print('setting', url)
-        self.browser.load(QUrl(url))
-
     def set_text(self, text):
+        logging.info('Setting text: %s', text)
         self.comboxBox.setCurrentText(text)
-        #self.set_url(ui_mix_url(text))
-        self.set_url(ui_nor_url(text))
+        self.browser_mix.load(QUrl(ui_mix_url(text)))
+        self.browser_nor.load(QUrl(ui_nor_url(text)))
 
     def on_text_changed(self, text):
         if text == '':
@@ -618,6 +651,14 @@ class MainWindow(QWidget):
     def text(self):
         return self.comboxBox.currentText()
 
+    def eventFilter(self, obj, e):
+        if isinstance(e, QKeyEvent):
+            if e.key() == Qt.Key_Exclam and e.type == QEvent.KeyPress:
+                return True
+            elif e.key() == Qt.Key_At and e.type == QEvent.KeyPress:
+                return True
+        return super(MainWindow, self).eventFilter(obj, e)
+
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
             self.hide()
@@ -626,8 +667,14 @@ class MainWindow(QWidget):
         elif (e.key() == Qt.Key_L) and (e.modifiers() == Qt.ControlModifier):
             self.comboxBox.lineEdit().selectAll()
             self.comboxBox.setFocus()
+        elif shortcutShowMix(e):
+            self.show_mix()
+        elif shortcutShowNor(e):
+            self.show_nor()
         elif e.key() == Qt.Key_Return:
             self.set_text(self.text())
+        else:
+            print('>>>EVENT', e.key(), e.modifiers())
 
 
 from flask import Flask, Response
