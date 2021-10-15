@@ -1,0 +1,25 @@
+<html>
+    <head>
+        <style>
+        </style>
+        <link href="/static/css/iframe.css" rel="stylesheet" type="text/css">
+    </head>
+    <body>
+        <div class="fullw top">
+            <div class="left">
+                <iframe src="http://localhost:5660/ordbok/inflect/${word}" title="inflection"></iframe>
+            </div>
+            <div class="right">
+                <iframe src="http://localhost:5660/lexin/word/${word}" title="lexin"></iframe>
+            </div>
+        </div>
+        <div class="fullw bottom">
+            <div class="left">
+                <iframe src="http://localhost:5660/glosbe/noru/${word}" title="glosbe-noru"></iframe>
+            </div>
+            <div class="right">
+                <iframe src="http://localhost:5660/glosbe/noen/${word}" title="glosbe-enru"></iframe>
+            </div>
+        </div>
+    </body>
+</html>

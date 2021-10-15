@@ -68,10 +68,12 @@ from urllib.parse import urlparse, quote
 from json import loads
 from string import Template
 from itertools import groupby
+import asyncio
 
 from requests import get
 from requests.exceptions import HTTPError
 from bs4 import BeautifulSoup
+from pyppeteer import launch
 
 from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QWidget, QDesktopWidget, QCompleter, QTextBrowser,
@@ -91,33 +93,39 @@ UPDATE_DELAY = 500
 ICON_FILENAME = dirname(__file__) + '/ordbok_uib_no.png'
 ADD_TO_FONT_SIZE = 6
 
-PROXY_STYLE = '''
-<style>
-* {
-margin: 0;
-padding: 0;
-font-size: 100%;
-}
-body {
-background-color: white;
-color: black;
-font-family: sans-serif;
-}
-</style>
-'''
-HTML = '''
-<div id="41772"><table class="paradigmetabell" cellspacing="0" style="margin: 25px;"><tbody><tr><th class="nobgnola"><span class="grunnord">liv</span></th><th class="nola" colspan="2">Entall</th><th class="nola" colspan="2">Flertall</th></tr><tr><th class="nobg">&nbsp;&nbsp;</th><th>Ubestemt form</th><th>Bestemt form</th><th>Ubestemt form</th><th>Bestemt form</th></tr><tr id="41772_1"><td class="ledetekst">n1</td><td class="vanlig">et liv</td><td class="vanlig">livet</td><td class="vanlig">liv</td><td class="vanlig">liva</td></tr><tr id="41772_2"><td class="ledetekst">n1</td><td class="vanlig">et liv</td><td class="vanlig">livet</td><td class="vanlig">liv</td><td class="vanlig">livene</td></tr></tbody></table></div>
-'''
 
-class HttpClient:
+class StaticHttpClient:
     def get(self, url, origin=None):
         logging.info('http get "%s"', url)
         headers = {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0'}
         if origin:
             headers['Origin'] = origin
-        result = get(url, verify=False, headers=headers)
+        result = get(url, verify=False, headers=headers, allow_redirects=True)
         result.raise_for_status()
         return result.text
+
+
+
+class DynamicHttpClient:
+    TIMEOUT = 5000
+    def __init__(self, timeout=None):
+        self.timeout = timeout or self.TIMEOUT
+    def get(self, url, selector=None):
+        result = [no_content()]
+        async def fetch():
+            browser = await launch(handleSIGINT=False, handleSIGTERM=False, handleSIGHUP=False)
+            page = await browser.newPage()
+            await page.goto(url)
+            if selector is not None:
+                await page.waitForSelector(selector, timeout=self.timeout)
+            #div = await page.querySelector(selector)
+            #content = await page.evaluate('(el) => el.innerHTML', div)
+            content = await page.evaluate('document.body.innerHTML', force_expr=True)
+            result[0] = content
+            await browser.close()
+
+        asyncio.new_event_loop().run_until_complete(fetch())
+        return result[0]
 
 
 class CachedHttpClient:
@@ -167,19 +175,29 @@ def uniq(items, key):
     seen = set()
     return [x for x in items if not (key(x) in seen or seen.add(key(x)))]
 
+def no_content():
+    return '<body>No content</body>'
+
 def extract(soup, *args):
     result = soup.find(*args)
-    return result.prettify() if result else '<body>No content</body>'
+    return result.prettify() if result else no_content()
 
 def parse(body):
     return BeautifulSoup(body, features='lxml')
 
-def iframe(word):
-    t = Template(open(here('iframe.html')).read())
+def iframe_mix(word):
+    t = Template(open(here('iframe-mix.html')).read())
     return t.substitute(word=word)
 
-def ui_url(word):
-    return 'http://{0}:{1}/ui/{2}'.format(UI_HOST, UI_PORT, word)
+def iframe_nor(word):
+    t = Template(open(here('iframe-nor.html')).read())
+    return t.substitute(word=word)
+
+def ui_mix_url(word):
+    return 'http://{0}:{1}/ui/mix/{2}'.format(UI_HOST, UI_PORT, word)
+
+def ui_nor_url(word):
+    return 'http://{0}:{1}/ui/nor/{2}'.format(UI_HOST, UI_PORT, word)
 
 def css(filename):
     return '<style>{0}</style>'.format(slurp(open, here(filename)))
@@ -271,6 +289,19 @@ class Article:
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal'.format(word)
     def __repr__(self):
         return f'Article(word={self.word}, parts={self.parts})'
+
+
+class NaobWord:
+    def __init__(self, client, word):
+        self.word = word
+        soup = parse(client.get(self.get_url(word), selector='div.article'))
+        self.html = extract(soup, 'div', {'class': 'article'})
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return css('naob-style.css')
+    def get_url(self, word):
+        return 'https://naob.no/ordbok/{0}'.format(word)
 
 
 class OrdbokWord:
@@ -461,7 +492,7 @@ class MainWindow(QWidget):
         self.myActivate.connect(self.activate)
 
         self.app = app
-        self.async_fetch = AsyncFetch(CachedHttpClient(HttpClient(), 'cache'))
+        self.async_fetch = AsyncFetch(CachedHttpClient(StaticHttpClient(), 'cache'))
         self.async_fetch.ready.connect(self.on_fetch_ready)
 
         self.comboxBox = QComboBox(self)
@@ -475,9 +506,6 @@ class MainWindow(QWidget):
 
         self.browser = QWebEngineView(self) #QTextBrowser(self)
         self.browser.setZoomFactor(1.5)
-        #self.browser.setHtml(iframe('hund')) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
-        #self.browser.setUrl(QUrl(ui_url('hund'))) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
-        #self.set_url(ui_url('hund'))
         self.set_text('hund')
         self.browser.show()
 
@@ -532,22 +560,17 @@ class MainWindow(QWidget):
 
     def set_text(self, text):
         self.comboxBox.setCurrentText(text)
-        self.set_url(ui_url(text))
-        #raise RuntimeError("should not be used")
-        #self.browser.setText(STYLE + text)
-        #self.browser.setHtml(STYLE + text)
-        #self.browser.setHtml(text)
-        #self.browser.setHtml(text)
+        #self.set_url(ui_mix_url(text))
+        self.set_url(ui_nor_url(text))
 
     def on_text_changed(self, text):
         if text == '':
             return
-
         QTimer.singleShot(UPDATE_DELAY, lambda: self.update(text))
 
     def update(self, old_text):
         if self.same_text(old_text):
-            self.fetch(old_text)
+            self.set_text(old_text)
 
     @pyqtSlot(object)
     def on_fetch_ready(self, result: object):
@@ -563,8 +586,8 @@ class MainWindow(QWidget):
         else:
             logging.warn('unknown fetch result: %s', result)
 
-    def fetch(self, word):
-        self.set_url(ui_url(word))
+    # def fetch(self, word):
+    #     self.set_url(ui_mix_url(word))
         #self.async_fetch.add(lambda client: Article(client, word))
         #self.set_text(iframe(word))
         #self.async_fetch.add(lambda client: Suggestions(client, word))
@@ -588,43 +611,14 @@ class MainWindow(QWidget):
             self.comboxBox.lineEdit().selectAll()
             self.comboxBox.setFocus()
         elif e.key() == Qt.Key_Return:
-            self.fetch(self.text())
-
-
-PRELUDE = '''
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>Bokmålsordboka | Nynorskordboka</title>
-<meta name="description" content="" />
-<meta name="keywords" content="" />
-
-<meta name="robots" content="index,follow" />
-<meta name="revisit-after" content="14 days" />
-<link rel="shortcut icon" href="/apple-touch-icon.png" />
-<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-
-<script type="text/javascript" src="/js/jquery-1.7.2.min.js"></script>
-<script type="text/javascript" src="/js/jquery-ui-1.8.22.custom.min.js"></script>
-<script type="text/javascript" src="/js/jquery.autocomplete-1.1.3/jquery.autocomplete.js"></script>
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, target-densityDpi=160dpi, initial-scale=1">
-<meta name="MobileOptimized" content="width">
-<meta name="HandheldFriendly" content="true">
-<link href="/static/css/ord-concatenated.css" rel="stylesheet" type="text/css">
-</head>
-<body>
-{0}
-</body>
-</html>
-'''
+            self.set_text(self.text())
 
 
 from flask import Flask, Response
 class GoldenDictProxy:
-    def __init__(self, client, host, port):
-        self.client = client
+    def __init__(self, static_client, dynamic_client, host, port):
+        self.static_client = static_client
+        self.dynamic_client = dynamic_client
         self.host = host
         self.port = port
         self.app = Flask(__name__)
@@ -633,38 +627,42 @@ class GoldenDictProxy:
     def serve(self):
         logging.info('Starting GoldenDictProxy on %s:%s', self.host, self.port)
         self.app.register_error_handler(HTTPError, self.http_error)
-        self.app.route('/ui/<word>', methods=['GET'])(self.route_ui)
+        self.app.route('/ui/mix/<word>', methods=['GET'])(self.route_ui_mix)
+        self.app.route('/ui/nor/<word>', methods=['GET'])(self.route_ui_nor)
         self.app.route('/lexin/word/<word>', methods=['GET'])(self.route_lexin_word)
         self.app.route('/ordbok/inflect/<word>', methods=['GET'])(self.route_ordbok_inflect)
         self.app.route('/ordbok/word/<word>', methods=['GET'])(self.route_ordbok_word)
+        self.app.route('/naob/word/<word>', methods=['GET'])(self.route_naob_word)
         self.app.route('/glosbe/noru/<word>', methods=['GET'])(self.route_glosbe_noru)
         self.app.route('/glosbe/noen/<word>', methods=['GET'])(self.route_glosbe_noen)
-        self.app.route('/static/css/ord-concatenated.css', methods=['GET'])(self.route_css)
+        self.app.route('/static/css/iframe.css', methods=['GET'])(self.route_iframe_css)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
     def http_error(self, e):
         return 'HTTPError: {0}'.format(e)
-    def route_ui(self, word):
-        return iframe(word)
+    def route_ui_mix(self, word):
+        return iframe_mix(word)
+    def route_ui_nor(self, word):
+        return iframe_nor(word)
     def route_lexin_word(self, word):
-        return LexinOsloMetArticle(self.client, word).styled()
+        return LexinOsloMetArticle(self.static_client, word).styled()
     def route_glosbe_noru(self, word):
-        return GlosbeNoRuWord(self.client, word).styled()
+        return GlosbeNoRuWord(self.static_client, word).styled()
     def route_glosbe_noen(self, word):
-        return GlosbeNoEnWord(self.client, word).styled()
+        return GlosbeNoEnWord(self.static_client, word).styled()
     def route_ordbok_inflect(self, word):
-        return Article(client, word).styled()
+        return Article(static_client, word).styled()
     def route_ordbok_word(self, word):
-        return OrdbokWord(client, word).styled()
-    def format(self, html):
-        return PRELUDE.format(html)
-    def route_css(self):
-        body = open(here('ord-concatenated.css')).read()
-        return Response(body, mimetype='text/css')
+        return OrdbokWord(static_client, word).styled()
+    def route_naob_word(self, word):
+        return NaobWord(dynamic_client, word).styled()
+    def route_iframe_css(self):
+        return Response(open(here('iframe.css')).read(), mimetype='text/css')
 
 
 if __name__ == '__main__':
-    client = CachedHttpClient(HttpClient(), 'cache')
-    golden_dict_proxy = GoldenDictProxy(client, UI_HOST, UI_PORT)
+    static_client = CachedHttpClient(StaticHttpClient(), 'cache')
+    dynamic_client = CachedHttpClient(DynamicHttpClient(), 'cache')
+    golden_dict_proxy = GoldenDictProxy(static_client, dynamic_client, UI_HOST, UI_PORT)
     golden_dict_proxy.serve_background()
 
     app = QApplication(sys.argv)
@@ -688,4 +686,8 @@ if __name__ == '__main__':
     dog.observe(lambda: window.myActivate.emit())
 
     result = app.exec()
+
+def testnaob(word):
+    client = CachedHttpClient(DynamicHttpClient(), 'cache')
+    print(NaobWord(client, word).html)
 

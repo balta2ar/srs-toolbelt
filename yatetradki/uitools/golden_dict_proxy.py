@@ -3,7 +3,7 @@
 import logging
 from threading import Thread
 
-from ordbok_uib_no import CachedHttpClient, HttpClient
+from ordbok_uib_no import CachedHttpClient, StaticHttpClient
 
 from uvicorn import run as uvicorn_run
 from fastapi import FastAPI
@@ -26,7 +26,7 @@ class GoldenDictProxy:
 
 
 if __name__ == '__main__':
-    client = CachedHttpClient(HttpClient(), 'cache')
+    client = CachedHttpClient(StaticHttpClient(), 'cache')
     golden_dict_proxy = GoldenDictProxy(client, 'localhost', 5660)
     golden_dict_proxy.serve()
     #Thread(target=golden_dict_proxy.serve, daemon=True).start()
