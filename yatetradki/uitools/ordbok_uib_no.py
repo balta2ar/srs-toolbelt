@@ -74,13 +74,14 @@ from requests import get
 from requests.exceptions import HTTPError
 from bs4 import BeautifulSoup
 from pyppeteer import launch
+from pyppeteer.errors import TimeoutError
 
 from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QWidget, QDesktopWidget, QCompleter, QTextBrowser,
                              QSystemTrayIcon, QMenu, QAction)
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtGui import QIcon, QFont
-from PyQt5.QtCore import Qt, QTimer, QObject, QUrl
+from PyQt5.QtGui import QIcon, QFont, QKeyEvent
+from PyQt5.QtCore import Qt, QTimer, QObject, QUrl, QEvent
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
@@ -111,13 +112,18 @@ class DynamicHttpClient:
     def __init__(self, timeout=None):
         self.timeout = timeout or self.TIMEOUT
     def get(self, url, selector=None):
+        disable_logging()
         result = [no_content()]
         async def fetch():
             browser = await launch(handleSIGINT=False, handleSIGTERM=False, handleSIGHUP=False)
             page = await browser.newPage()
             await page.goto(url)
             if selector is not None:
-                await page.waitForSelector(selector, timeout=self.timeout)
+                try:
+                    await page.waitForSelector(selector, timeout=self.timeout)
+                except TimeoutError as e:
+                    logging.info('url timeout (timeout=%s, url=%s): %s', self.timeout, url, e)
+                    return
             #div = await page.querySelector(selector)
             #content = await page.evaluate('(el) => el.innerHTML', div)
             content = await page.evaluate('document.body.innerHTML', force_expr=True)
