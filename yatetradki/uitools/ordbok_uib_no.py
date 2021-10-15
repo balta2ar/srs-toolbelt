@@ -477,7 +477,8 @@ class MainWindow(QWidget):
         self.browser.setZoomFactor(1.5)
         #self.browser.setHtml(iframe('hund')) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
         #self.browser.setUrl(QUrl(ui_url('hund'))) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
-        self.set_url(ui_url('hund'))
+        #self.set_url(ui_url('hund'))
+        self.set_text('hund')
         self.browser.show()
 
         mainLayout = QVBoxLayout(self)
@@ -496,7 +497,13 @@ class MainWindow(QWidget):
         self.center()
         self.show()
 
+    def grab_clipboard(self):
+        content = QApplication.clipboard().text()
+        if content and len(content.split()) <= 5:
+            self.set_text(content)
+
     def activate(self):
+        self.grab_clipboard()
         self.center()
         self.show()
         self.raise_()
@@ -524,7 +531,9 @@ class MainWindow(QWidget):
         self.browser.load(QUrl(url))
 
     def set_text(self, text):
-        raise RuntimeError("should not be used")
+        self.comboxBox.setCurrentText(text)
+        self.set_url(ui_url(text))
+        #raise RuntimeError("should not be used")
         #self.browser.setText(STYLE + text)
         #self.browser.setHtml(STYLE + text)
         #self.browser.setHtml(text)
