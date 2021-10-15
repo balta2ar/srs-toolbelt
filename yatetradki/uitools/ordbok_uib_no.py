@@ -95,6 +95,16 @@ ICON_FILENAME = dirname(__file__) + '/ordbok_uib_no.png'
 ADD_TO_FONT_SIZE = 6
 
 
+def disable_logging():
+    #print(logging.root.manager.loggerDict)
+    blacklist = r'.*pyppeteer.*|.*urllib.*'
+    for name in logging.root.manager.loggerDict:
+        if re.match(blacklist, name) is not None:
+            logger = logging.getLogger(name)
+            logger.setLevel(logging.ERROR)
+            logger.propagate = False
+            #logging.info('Disabled logger "%s"', name)
+
 class StaticHttpClient:
     def get(self, url, origin=None):
         logging.info('http get "%s"', url)
@@ -666,6 +676,7 @@ class GoldenDictProxy:
 
 
 if __name__ == '__main__':
+    disable_logging()
     static_client = CachedHttpClient(StaticHttpClient(), 'cache')
     dynamic_client = CachedHttpClient(DynamicHttpClient(), 'cache')
     golden_dict_proxy = GoldenDictProxy(static_client, dynamic_client, UI_HOST, UI_PORT)
