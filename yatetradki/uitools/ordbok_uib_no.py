@@ -50,9 +50,11 @@ class WatchDog:
         self.on_show_callback = on_show
 
 
-HOST = 'localhost'
-PORT = 5650
-dog = WatchDog(HOST, PORT)
+UI_HOST = 'localhost'
+UI_PORT = 5660
+WATCHDOG_HOST = 'localhost'
+WATCHDOG_PORT = 5650
+dog = WatchDog(WATCHDOG_HOST, WATCHDOG_PORT)
 if not dog.start():
     dog.show()
     sys.exit()
@@ -62,7 +64,7 @@ import re
 import bz2
 from os import makedirs
 from os.path import dirname, exists, normpath, join
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 from json import loads
 from string import Template
 from itertools import groupby
@@ -76,7 +78,7 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QSystemTrayIcon, QMenu, QAction)
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtGui import QIcon, QFont
-from PyQt5.QtCore import Qt, QTimer, QObject
+from PyQt5.QtCore import Qt, QTimer, QObject, QUrl
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
@@ -137,7 +139,7 @@ class CachedHttpClient:
 
     def get_key(self, url):
         J = lambda x: re.sub(r'\W+', '', x)
-        S = lambda x: re.sub(r'\W+', '/', x)
+        S = lambda x: re.sub(r'^\w\s\d-', '/', x)
         p = urlparse(url)
         a = normpath('/'.join([J(p.hostname), J(p.path), J(p.query)]))
         b = normpath('/'.join([J(p.hostname), S(p.path)]))
@@ -175,6 +177,9 @@ def parse(body):
 def iframe(word):
     t = Template(open(here('iframe.html')).read())
     return t.substitute(word=word)
+
+def ui_url(word):
+    return 'http://{0}:{1}/ui/{2}'.format(UI_HOST, UI_PORT, word)
 
 def css(filename):
     return '<style>{0}</style>'.format(slurp(open, here(filename)))
@@ -318,6 +323,9 @@ def comma(items):
 def equals(items):
     return sjoin(' = ', items)
 
+def tabbed(items):
+    return sjoin('\t', items)
+
 def sjoin(separator, items):
     return separator.join(items)
 
@@ -410,7 +418,7 @@ class LexinOsloMetArticle:
         # B
         # Ru
         lines = []
-        lines.append(span('lem', notilda(comma(text(lems)))) + span('kat', notilda(comma(text(kats)))))
+        lines.append(span('lem', notilda(comma(text(lems)))) + ' ' + span('kat', notilda(comma(text(kats)))))
         lines.append(divs('def', combine(defs)))
         lines.append(divs('eks', combine(eks)))
         #lines.append(divs('sms', text(sms)))
@@ -467,7 +475,9 @@ class MainWindow(QWidget):
 
         self.browser = QWebEngineView(self) #QTextBrowser(self)
         self.browser.setZoomFactor(1.5)
-        self.browser.setHtml(iframe('hund')) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
+        #self.browser.setHtml(iframe('hund')) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
+        #self.browser.setUrl(QUrl(ui_url('hund'))) #setHtml(STYLE + HTML) #setText(STYLE + HTML)
+        self.set_url(ui_url('hund'))
         self.browser.show()
 
         mainLayout = QVBoxLayout(self)
@@ -508,10 +518,17 @@ class MainWindow(QWidget):
         self.comboxBox.setCompleter(completer)
         completer.complete()
 
+    def set_url(self, url):
+        #self.browser.setUrl(QUrl(url))
+        print('setting', url)
+        self.browser.load(QUrl(url))
+
     def set_text(self, text):
+        raise RuntimeError("should not be used")
         #self.browser.setText(STYLE + text)
         #self.browser.setHtml(STYLE + text)
-        self.browser.setHtml(text)
+        #self.browser.setHtml(text)
+        #self.browser.setHtml(text)
 
     def on_text_changed(self, text):
         if text == '':
@@ -527,8 +544,9 @@ class MainWindow(QWidget):
     def on_fetch_ready(self, result: object):
         if isinstance(result, Article):
             if self.same_text(result.word) and result.parts:
+                pass
                 #self.set_text(result.html)
-                self.set_text(iframe(result.word))
+                #self.set_text(iframe(result.word))
         elif isinstance(result, Suggestions):
             if self.same_text(result.word) and result.top:
                 print(result)
@@ -537,9 +555,10 @@ class MainWindow(QWidget):
             logging.warn('unknown fetch result: %s', result)
 
     def fetch(self, word):
+        self.set_url(ui_url(word))
         #self.async_fetch.add(lambda client: Article(client, word))
-        self.set_text(iframe(word))
-        self.async_fetch.add(lambda client: Suggestions(client, word))
+        #self.set_text(iframe(word))
+        #self.async_fetch.add(lambda client: Suggestions(client, word))
 
     def onTrayActivated(self, reason):
         if reason == QSystemTrayIcon.Trigger:
@@ -605,6 +624,7 @@ class GoldenDictProxy:
     def serve(self):
         logging.info('Starting GoldenDictProxy on %s:%s', self.host, self.port)
         self.app.register_error_handler(HTTPError, self.http_error)
+        self.app.route('/ui/<word>', methods=['GET'])(self.route_ui)
         self.app.route('/lexin/word/<word>', methods=['GET'])(self.route_lexin_word)
         self.app.route('/ordbok/inflect/<word>', methods=['GET'])(self.route_ordbok_inflect)
         self.app.route('/ordbok/word/<word>', methods=['GET'])(self.route_ordbok_word)
@@ -614,6 +634,8 @@ class GoldenDictProxy:
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
     def http_error(self, e):
         return 'HTTPError: {0}'.format(e)
+    def route_ui(self, word):
+        return iframe(word)
     def route_lexin_word(self, word):
         return LexinOsloMetArticle(self.client, word).styled()
     def route_glosbe_noru(self, word):
@@ -633,7 +655,7 @@ class GoldenDictProxy:
 
 if __name__ == '__main__':
     client = CachedHttpClient(HttpClient(), 'cache')
-    golden_dict_proxy = GoldenDictProxy(client, 'localhost', 5660)
+    golden_dict_proxy = GoldenDictProxy(client, UI_HOST, UI_PORT)
     golden_dict_proxy.serve_background()
 
     app = QApplication(sys.argv)
