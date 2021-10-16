@@ -71,7 +71,7 @@ from itertools import groupby
 import asyncio
 
 from requests import get
-from requests.exceptions import HTTPError
+from requests.exceptions import HTTPError, ReadTimeout
 from bs4 import BeautifulSoup
 from pyppeteer import launch
 from pyppeteer.errors import TimeoutError
@@ -93,6 +93,7 @@ WINDOW_HEIGHT = 800
 UPDATE_DELAY = 500
 ICON_FILENAME = dirname(__file__) + '/ordbok_uib_no.png'
 ADD_TO_FONT_SIZE = 6
+NETWORK_TIMEOUT = 5000
 
 
 def disable_logging():
@@ -111,14 +112,14 @@ class StaticHttpClient:
         headers = {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0'}
         if origin:
             headers['Origin'] = origin
-        result = get(url, verify=False, headers=headers, allow_redirects=True)
+        result = get(url, verify=False, headers=headers, allow_redirects=True, timeout=NETWORK_TIMEOUT/1000.0)
         result.raise_for_status()
         return result.text
 
 
 
 class DynamicHttpClient:
-    TIMEOUT = 5000
+    TIMEOUT = NETWORK_TIMEOUT
     def __init__(self, timeout=None):
         self.timeout = timeout or self.TIMEOUT
     def get(self, url, selector=None):
@@ -129,11 +130,12 @@ class DynamicHttpClient:
             page = await browser.newPage()
             await page.goto(url)
             if selector is not None:
-                try:
-                    await page.waitForSelector(selector, timeout=self.timeout)
-                except TimeoutError as e:
-                    logging.info('url timeout (timeout=%s, url=%s): %s', self.timeout, url, e)
-                    return
+                await page.waitForSelector(selector, timeout=self.timeout)
+                # try:
+                #     await page.waitForSelector(selector, timeout=self.timeout)
+                # except TimeoutError as e:
+                #     logging.info('url timeout (timeout=%s, url=%s): %s', self.timeout, url, e)
+                #     return
             #div = await page.querySelector(selector)
             #content = await page.evaluate('(el) => el.innerHTML', div)
             content = await page.evaluate('document.body.innerHTML', force_expr=True)
