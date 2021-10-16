@@ -307,8 +307,11 @@ class Article:
     def __init__(self, client, word):
         self.word = word
         soup = parse(client.get(self.get_url(word)))
-        parts = soup.find_all('span', {"class": "oppsgramordklasse"})
+        args = ('span', {"class": "oppsgramordklasse"})
+        parts = soup.find_all(*args)
         parts = [PartOfSpeech(client, x) for x in parts]
+        if not parts:
+            raise NoContent('Ordbok: {0}'.format(args))
         self.parts = parts
         self.html = ''.join(uniq([x.inflection.html for x in self.parts], to_text))
     def styled(self):
