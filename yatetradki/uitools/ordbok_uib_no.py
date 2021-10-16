@@ -353,6 +353,17 @@ class GlosbeNoRuWord(GlosbeWord):
 class GlosbeNoEnWord(GlosbeWord):
     URL = 'https://nb.glosbe.com/nb/en/{0}'
 
+class WiktionaryNo:
+    def __init__(self, client, word):
+        self.word = word
+        soup = parse(client.get(self.get_url(word)))
+        self.html = extract(soup, 'div', {'class': 'mw-parser-output'})
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return css('wiktionary-style.css')
+    def get_url(self, word):
+        return 'https://no.wiktionary.org/wiki/{0}'.format(word)
 
 def pluck(regexp, group):
     yes, no = [], []
@@ -702,6 +713,7 @@ class GoldenDictProxy:
         self.app.route('/naob/word/<word>', methods=['GET'])(self.route_naob_word)
         self.app.route('/glosbe/noru/<word>', methods=['GET'])(self.route_glosbe_noru)
         self.app.route('/glosbe/noen/<word>', methods=['GET'])(self.route_glosbe_noen)
+        self.app.route('/wiktionary/no/<word>', methods=['GET'])(self.route_wiktionary_no)
         self.app.route('/static/css/iframe.css', methods=['GET'])(self.route_iframe_css)
         self.app.route('/', methods=['GET'])(self.route_index)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
@@ -722,13 +734,15 @@ class GoldenDictProxy:
     def route_glosbe_noen(self, word):
         return GlosbeNoEnWord(self.static_client, word).styled()
     def route_ordbok_inflect(self, word):
-        return Article(static_client, word).styled()
+        return Article(self.static_client, word).styled()
     def route_ordbok_word(self, word):
-        return OrdbokWord(static_client, word).styled()
+        return OrdbokWord(self.static_client, word).styled()
     def route_naob_word(self, word):
-        return NaobWord(dynamic_client, word).styled()
+        return NaobWord(self.dynamic_client, word).styled()
     def route_iframe_css(self):
         return Response(open(here('iframe.css')).read(), mimetype='text/css')
+    def route_wiktionary_no(self, word):
+        return WiktionaryNo(self.static_client, word).styled()
     def route_index(self):
         links = []
         for rule in self.app.url_map.iter_rules():
