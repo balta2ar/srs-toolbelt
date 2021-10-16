@@ -679,19 +679,21 @@ class MainWindow(QWidget):
             print('>>>EVENT', e.key(), e.modifiers())
 
 
-from flask import Flask, Response
+from flask import Flask, Response, render_template, url_for, jsonify
 class GoldenDictProxy:
     def __init__(self, static_client, dynamic_client, host, port):
         self.static_client = static_client
         self.dynamic_client = dynamic_client
         self.host = host
         self.port = port
-        self.app = Flask(__name__)
+        self.app = Flask(__name__, template_folder=dirname(__file__))
     def serve_background(self):
         Thread(target=self.serve, daemon=True).start()
     def serve(self):
         logging.info('Starting GoldenDictProxy on %s:%s', self.host, self.port)
         self.app.register_error_handler(HTTPError, self.http_error)
+        self.app.register_error_handler(ReadTimeout, self.read_timeout)
+        self.app.register_error_handler(TimeoutError, self.timeout_error)
         self.app.route('/ui/mix/<word>', methods=['GET'])(self.route_ui_mix)
         self.app.route('/ui/nor/<word>', methods=['GET'])(self.route_ui_nor)
         self.app.route('/lexin/word/<word>', methods=['GET'])(self.route_lexin_word)
@@ -701,9 +703,14 @@ class GoldenDictProxy:
         self.app.route('/glosbe/noru/<word>', methods=['GET'])(self.route_glosbe_noru)
         self.app.route('/glosbe/noen/<word>', methods=['GET'])(self.route_glosbe_noen)
         self.app.route('/static/css/iframe.css', methods=['GET'])(self.route_iframe_css)
+        self.app.route('/', methods=['GET'])(self.route_index)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
     def http_error(self, e):
         return 'HTTPError: {0}'.format(e)
+    def read_timeout(self, e):
+        return 'ReadTimeout: {0}'.format(e)
+    def timeout_error(self, e):
+        return 'TimeoutError: {0}'.format(e)
     def route_ui_mix(self, word):
         return iframe_mix(word)
     def route_ui_nor(self, word):
@@ -722,6 +729,13 @@ class GoldenDictProxy:
         return NaobWord(dynamic_client, word).styled()
     def route_iframe_css(self):
         return Response(open(here('iframe.css')).read(), mimetype='text/css')
+    def route_index(self):
+        links = []
+        for rule in self.app.url_map.iter_rules():
+            args = {v: v for v in rule.arguments or {}}
+            url = url_for(rule.endpoint, **args)
+            links.append((url, rule.endpoint))
+        return render_template("index.html", links=links)
 
 
 if __name__ == '__main__':
@@ -731,10 +745,10 @@ if __name__ == '__main__':
     golden_dict_proxy = GoldenDictProxy(static_client, dynamic_client, UI_HOST, UI_PORT)
     golden_dict_proxy.serve_background()
 
-    app = QApplication(sys.argv)
-    window = MainWindow(app)
+    qtApp = QApplication(sys.argv)
+    window = MainWindow(qtApp)
 
-    tray = QSystemTrayIcon(QIcon(dirname(__file__)+'/ordbok_uib_no.png'), app)
+    tray = QSystemTrayIcon(QIcon(dirname(__file__)+'/ordbok_uib_no.png'), qtApp)
     menu = QMenu()
     show = QAction('Show')
     hide = QAction('Hide')
@@ -751,7 +765,7 @@ if __name__ == '__main__':
 
     dog.observe(lambda: window.myActivate.emit())
 
-    result = app.exec()
+    result = qtApp.exec()
 
 def testnaob(word):
     client = CachedHttpClient(DynamicHttpClient(), 'cache')
