@@ -311,7 +311,7 @@ class Article:
         parts = soup.find_all(*args)
         parts = [PartOfSpeech(client, x) for x in parts]
         if not parts:
-            raise NoContent('Ordbok: {0}'.format(args))
+            raise NoContent('Ordbok: word={0}, args={1}'.format(word, args))
         self.parts = parts
         self.html = ''.join(uniq([x.inflection.html for x in self.parts], to_text))
     def styled(self):
