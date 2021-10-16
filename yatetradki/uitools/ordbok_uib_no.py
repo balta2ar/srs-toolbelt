@@ -365,6 +365,18 @@ class WiktionaryNo:
     def get_url(self, word):
         return 'https://no.wiktionary.org/wiki/{0}'.format(word)
 
+class CambridgeEnNo:
+    def __init__(self, client, word):
+        self.word = word
+        soup = parse(client.get(self.get_url(word)))
+        self.html = extract(soup, 'div', {'class': 'dictionary'})
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return css('cambridge-style.css')
+    def get_url(self, word):
+        return 'https://dictionary.cambridge.org/dictionary/english-norwegian/{0}'.format(word)
+
 def pluck(regexp, group):
     yes, no = [], []
     for x in group:
@@ -714,6 +726,7 @@ class GoldenDictProxy:
         self.app.route('/glosbe/noru/<word>', methods=['GET'])(self.route_glosbe_noru)
         self.app.route('/glosbe/noen/<word>', methods=['GET'])(self.route_glosbe_noen)
         self.app.route('/wiktionary/no/<word>', methods=['GET'])(self.route_wiktionary_no)
+        self.app.route('/cambridge/enno/<word>', methods=['GET'])(self.route_cambridge_enno)
         self.app.route('/static/css/iframe.css', methods=['GET'])(self.route_iframe_css)
         self.app.route('/', methods=['GET'])(self.route_index)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
@@ -743,6 +756,8 @@ class GoldenDictProxy:
         return Response(open(here('iframe.css')).read(), mimetype='text/css')
     def route_wiktionary_no(self, word):
         return WiktionaryNo(self.static_client, word).styled()
+    def route_cambridge_enno(self, word):
+        return CambridgeEnNo(self.static_client, word).styled()
     def route_index(self):
         links = []
         for rule in self.app.url_map.iter_rules():
