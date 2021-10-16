@@ -171,6 +171,9 @@ class CachedHttpClient:
         b = normpath('/'.join([J(p.hostname), S(p.path)]))
         return a if p.query else b
 
+class NoContent(Exception):
+    pass
+
 def slurp(do_open, filename):
     try:
         with do_open(filename, 'rb') as file_:
@@ -198,7 +201,9 @@ def no_content():
 
 def extract(soup, *args):
     result = soup.find(*args)
-    return result.prettify() if result else no_content()
+    if result: return result.prettify()
+    raise NoContent('NoContent: {0}'.format(args))
+    #return result.prettify() if result else no_content()
 
 def parse(body):
     return BeautifulSoup(body, features='lxml')
@@ -732,9 +737,10 @@ class GoldenDictProxy:
         Thread(target=self.serve, daemon=True).start()
     def serve(self):
         logging.info('Starting GoldenDictProxy on %s:%s', self.host, self.port)
-        self.app.register_error_handler(HTTPError, self.http_error)
-        self.app.register_error_handler(ReadTimeout, self.read_timeout)
-        self.app.register_error_handler(TimeoutError, self.timeout_error)
+        self.app.register_error_handler(HTTPError, self.error_handler)
+        self.app.register_error_handler(ReadTimeout, self.error_handler)
+        self.app.register_error_handler(TimeoutError, self.error_handler)
+        self.app.register_error_handler(NoContent, self.error_handler)
         self.app.route('/ui/mix/<word>', methods=['GET'])(self.route_ui_mix)
         self.app.route('/ui/nor/<word>', methods=['GET'])(self.route_ui_nor)
         self.app.route('/ui/third/<word>', methods=['GET'])(self.route_ui_third)
@@ -749,12 +755,8 @@ class GoldenDictProxy:
         self.app.route('/static/css/iframe.css', methods=['GET'])(self.route_iframe_css)
         self.app.route('/', methods=['GET'])(self.route_index)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
-    def http_error(self, e):
-        return 'HTTPError: {0}'.format(e)
-    def read_timeout(self, e):
-        return 'ReadTimeout: {0}'.format(e)
-    def timeout_error(self, e):
-        return 'TimeoutError: {0}'.format(e)
+    def error_handler(self, e):
+        return '{0}: {1}'.format(type(e).__name__, e)
     def route_ui_mix(self, word):
         return iframe_mix(word)
     def route_ui_nor(self, word):
