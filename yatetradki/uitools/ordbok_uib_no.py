@@ -211,11 +211,18 @@ def iframe_nor(word):
     t = Template(open(here('iframe-nor.html')).read())
     return t.substitute(word=word)
 
+def iframe_third(word):
+    t = Template(open(here('iframe-third.html')).read())
+    return t.substitute(word=word)
+
 def ui_mix_url(word):
     return 'http://{0}:{1}/ui/mix/{2}'.format(UI_HOST, UI_PORT, word)
 
 def ui_nor_url(word):
     return 'http://{0}:{1}/ui/nor/{2}'.format(UI_HOST, UI_PORT, word)
+
+def ui_third_url(word):
+    return 'http://{0}:{1}/ui/third/{2}'.format(UI_HOST, UI_PORT, word)
 
 def css(filename):
     return '<style>{0}</style>'.format(slurp(open, here(filename)))
@@ -525,24 +532,49 @@ class AsyncFetch(QObject):
             result = task(self.client)
             self.ready.emit(result)
 
-def shortcutShowMix(event):
-    return (event.key() == Qt.Key_Exclam) and (event.modifiers() == Qt.AltModifier)
-
-def shortcutShowNor(event):
-    return (event.key() == Qt.Key_At) and (event.modifiers() == Qt.AltModifier)
 
 class QComboBoxKey(QComboBox):
-    def __init__(self, parent, show_mix, show_nor):
+    def __init__(self, parent, on_key_press):
         super(QComboBoxKey, self).__init__(parent)
-        self.show_mix = show_mix
-        self.show_nor = show_nor
+        self.on_key_press = on_key_press
     def keyPressEvent(self, e):
-        if shortcutShowMix(e):
-            self.show_mix()
-        elif shortcutShowNor(e):
-            self.show_nor()
-        else:
+        if not self.on_key_press(e):
             super(QComboBoxKey, self).keyPressEvent(e)
+
+
+class Browsers:
+    def __init__(self, parent, layout, num):
+        self.browsers = [QWebEngineView(parent) for _ in range(num)]
+        self.current = 0
+        self.layout = layout
+    def load(self, urls):
+        for url, browser in zip(urls, self.browsers):
+            browser.load(QUrl(url))
+    def show(self, index):
+        for i, browser in enumerate(self.browsers):
+            if i == index:
+                self.layout.addWidget(browser)
+                browser.show()
+            else:
+                self.layout.removeWidget(browser)
+                browser.hide()
+    def zoom(self, factor):
+        for browser in self.browsers:
+            browser.setZoomFactor(factor)
+    def scan_shortcut(self, e):
+        if (e.key() == Qt.Key_Exclam) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+            return 0
+        if (e.key() == Qt.Key_At) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+            return 1
+        if (e.key() == Qt.Key_NumberSign) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+            return 2
+        return None
+    def on_key_press(self, e):
+        index = self.scan_shortcut(e)
+        if index is None:
+            return False
+        self.show(index)
+        return True
 
 
 class MainWindow(QWidget):
@@ -556,7 +588,16 @@ class MainWindow(QWidget):
         self.async_fetch = AsyncFetch(CachedHttpClient(StaticHttpClient(), 'cache'))
         self.async_fetch.ready.connect(self.on_fetch_ready)
 
-        self.comboxBox = QComboBoxKey(self, self.show_mix, self.show_nor)
+        mainLayout = QVBoxLayout(self)
+        mainLayout.setSpacing(0)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(mainLayout)
+        self.main_layout = mainLayout
+
+        self.browsers = Browsers(self, mainLayout, 3)
+        self.browsers.zoom(self.ZOOM)
+
+        self.comboxBox = QComboBoxKey(self, self.browsers.on_key_press)
         self.comboxBox.setEditable(True)
         self.comboxBox.setCurrentText('')
         self.comboxBox.currentTextChanged.connect(self.on_text_changed)
@@ -566,21 +607,9 @@ class MainWindow(QWidget):
         font.setPointSize(font.pointSize() + ADD_TO_FONT_SIZE)
         self.comboxBox.setFont(font)
 
-        self.browser_mix = QWebEngineView(self) #QTextBrowser(self)
-        self.browser_nor = QWebEngineView(self) #QTextBrowser(self)
-        self.browser_mix.setZoomFactor(self.ZOOM)
-        self.browser_nor.setZoomFactor(self.ZOOM)
         self.set_text('hund')
-        self.browser_mix.show()
-        self.browser_nor.hide()
-
-        mainLayout = QVBoxLayout(self)
-        mainLayout.setSpacing(0)
-        mainLayout.setContentsMargins(0, 0, 0, 0)
         mainLayout.addWidget(self.comboxBox)
-        mainLayout.addWidget(self.browser_mix)
-        self.setLayout(mainLayout)
-        self.main_layout = mainLayout
+        self.browsers.show(0)
 
         self.setWindowTitle('OrdbokUibNo')
         self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
@@ -591,17 +620,8 @@ class MainWindow(QWidget):
         self.center()
         self.show()
 
-    def show_mix(self):
-        self.browser_nor.hide()
-        self.main_layout.removeWidget(self.browser_nor)
-        self.main_layout.addWidget(self.browser_mix)
-        self.browser_mix.show()
-
-    def show_nor(self):
-        self.browser_mix.hide()
-        self.main_layout.removeWidget(self.browser_mix)
-        self.main_layout.addWidget(self.browser_nor)
-        self.browser_nor.show()
+    def show_browser(self, index):
+        self.browser.show(index)
 
     def grab_clipboard(self):
         content = QApplication.clipboard().text()
@@ -634,8 +654,8 @@ class MainWindow(QWidget):
     def set_text(self, text):
         logging.info('Setting text: %s', text)
         self.comboxBox.setCurrentText(text)
-        self.browser_mix.load(QUrl(ui_mix_url(text)))
-        self.browser_nor.load(QUrl(ui_nor_url(text)))
+        urls = [ui_mix_url(text), ui_nor_url(text), ui_third_url(text)]
+        self.browsers.load(urls)
 
     def on_text_changed(self, text):
         if text == '':
@@ -685,6 +705,8 @@ class MainWindow(QWidget):
         return super(MainWindow, self).eventFilter(obj, e)
 
     def keyPressEvent(self, e):
+        if self.browsers.on_key_press(e):
+            return
         if e.key() == Qt.Key_Escape:
             self.hide()
         elif (e.key() == Qt.Key_Q) and (e.modifiers() == Qt.ControlModifier):
@@ -692,10 +714,6 @@ class MainWindow(QWidget):
         elif (e.key() == Qt.Key_L) and (e.modifiers() == Qt.ControlModifier):
             self.comboxBox.lineEdit().selectAll()
             self.comboxBox.setFocus()
-        elif shortcutShowMix(e):
-            self.show_mix()
-        elif shortcutShowNor(e):
-            self.show_nor()
         elif e.key() == Qt.Key_Return:
             self.set_text(self.text())
         else:
@@ -719,6 +737,7 @@ class GoldenDictProxy:
         self.app.register_error_handler(TimeoutError, self.timeout_error)
         self.app.route('/ui/mix/<word>', methods=['GET'])(self.route_ui_mix)
         self.app.route('/ui/nor/<word>', methods=['GET'])(self.route_ui_nor)
+        self.app.route('/ui/third/<word>', methods=['GET'])(self.route_ui_third)
         self.app.route('/lexin/word/<word>', methods=['GET'])(self.route_lexin_word)
         self.app.route('/ordbok/inflect/<word>', methods=['GET'])(self.route_ordbok_inflect)
         self.app.route('/ordbok/word/<word>', methods=['GET'])(self.route_ordbok_word)
@@ -740,6 +759,8 @@ class GoldenDictProxy:
         return iframe_mix(word)
     def route_ui_nor(self, word):
         return iframe_nor(word)
+    def route_ui_third(self, word):
+        return iframe_third(word)
     def route_lexin_word(self, word):
         return LexinOsloMetArticle(self.static_client, word).styled()
     def route_glosbe_noru(self, word):
