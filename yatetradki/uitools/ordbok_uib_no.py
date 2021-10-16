@@ -64,7 +64,7 @@ import re
 import bz2
 from os import makedirs
 from os.path import dirname, exists, normpath, join
-from urllib.parse import urlparse, quote
+from urllib.parse import urlparse
 from json import loads
 from string import Template
 from itertools import groupby
@@ -77,7 +77,7 @@ from pyppeteer import launch
 from pyppeteer.errors import TimeoutError
 
 from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
-                             QWidget, QDesktopWidget, QCompleter, QTextBrowser,
+                             QWidget, QCompleter,
                              QSystemTrayIcon, QMenu, QAction)
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtGui import QIcon, QFont, QKeyEvent
@@ -720,7 +720,7 @@ class MainWindow(QWidget):
             print('>>>EVENT', e.key(), e.modifiers())
 
 
-from flask import Flask, Response, render_template, url_for, jsonify
+from flask import Flask, Response, render_template, url_for
 class GoldenDictProxy:
     def __init__(self, static_client, dynamic_client, host, port):
         self.static_client = static_client
