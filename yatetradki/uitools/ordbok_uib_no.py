@@ -578,7 +578,7 @@ class Browsers:
 
 
 class MainWindow(QWidget):
-    ZOOM = 1.5
+    ZOOM = 1.7
     myActivate = pyqtSignal()
     def __init__(self, app):
         super().__init__()
