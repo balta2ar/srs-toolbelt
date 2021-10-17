@@ -615,18 +615,19 @@ class MainWindow(QWidget):
         self.browsers = Browsers(self, mainLayout, 3)
         self.browsers.zoom(self.ZOOM)
 
-        self.comboxBox = QComboBoxKey(self, self.browsers.on_key_press)
-        self.comboxBox.setEditable(True)
-        self.comboxBox.setCurrentText('')
-        self.comboxBox.currentTextChanged.connect(self.on_text_changed)
-        self.comboxBox.installEventFilter(self)
+        self.comboBox = QComboBoxKey(self, self.browsers.on_key_press)
+        self.comboBox.setEditable(True)
+        self.comboBox.setCurrentText('')
+        self.comboBox.setCompleter(None)
+        self.comboBox.currentTextChanged.connect(self.on_text_changed)
+        self.comboBox.installEventFilter(self)
 
         font = QFont()
         font.setPointSize(font.pointSize() + ADD_TO_FONT_SIZE)
-        self.comboxBox.setFont(font)
+        self.comboBox.setFont(font)
 
         self.set_text('hund')
-        mainLayout.addWidget(self.comboxBox)
+        mainLayout.addWidget(self.comboBox)
         self.browsers.show(0)
 
         self.setWindowTitle('OrdbokUibNo')
@@ -652,8 +653,8 @@ class MainWindow(QWidget):
         self.show()
         self.raise_()
         self.activateWindow()
-        self.comboxBox.lineEdit().selectAll()
-        self.comboxBox.setFocus()
+        self.comboBox.lineEdit().selectAll()
+        self.comboBox.setFocus()
 
     def center(self):
         qr = self.frameGeometry()
@@ -666,12 +667,12 @@ class MainWindow(QWidget):
     def suggest(self, words):
         completer = QCompleter(words, self)
         completer.setCaseSensitivity(Qt.CaseInsensitive)
-        self.comboxBox.setCompleter(completer)
+        self.comboBox.setCompleter(completer)
         completer.complete()
 
     def set_text(self, text):
         logging.info('Setting text: %s', text)
-        self.comboxBox.setCurrentText(text)
+        self.comboBox.setCurrentText(text)
         urls = [ui_mix_url(text), ui_nor_url(text), ui_third_url(text)]
         self.browsers.load(urls)
 
@@ -712,7 +713,7 @@ class MainWindow(QWidget):
         return word == self.text()
 
     def text(self):
-        return self.comboxBox.currentText()
+        return self.comboBox.currentText()
 
     def eventFilter(self, obj, e):
         if isinstance(e, QKeyEvent):
@@ -730,8 +731,8 @@ class MainWindow(QWidget):
         elif (e.key() == Qt.Key_Q) and (e.modifiers() == Qt.ControlModifier):
             self.close()
         elif (e.key() == Qt.Key_L) and (e.modifiers() == Qt.ControlModifier):
-            self.comboxBox.lineEdit().selectAll()
-            self.comboxBox.setFocus()
+            self.comboBox.lineEdit().selectAll()
+            self.comboBox.setFocus()
         elif e.key() == Qt.Key_Return:
             self.set_text(self.text())
         else:
