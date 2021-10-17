@@ -350,7 +350,6 @@ class OrdbokWord:
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=begge'.format(word)
 
 class GlosbeWord:
-    URL: str
     def __init__(self, client, word):
         self.word = word
         soup = parse(client.get(self.get_url(word)))
@@ -358,15 +357,20 @@ class GlosbeWord:
     def styled(self):
         return self.style() + self.html
     def get_url(self, word):
-        return self.URL.format(word)
+        pass
     def style(self):
         return css('glosbe-style.css')
 
 class GlosbeNoRuWord(GlosbeWord):
-    URL = 'https://nb.glosbe.com/nb/ru/{0}'
+    def get_url(self, word):
+        nbru = 'https://nb.glosbe.com/nb/ru/{0}'
+        runb = 'https://nb.glosbe.com/ru/nb/{0}'
+        url = runb if re.search(r'[\u0400-\u04FF]', word) is not None else nbru
+        return url.format(word)
 
 class GlosbeNoEnWord(GlosbeWord):
-    URL = 'https://nb.glosbe.com/nb/en/{0}'
+    def get_url(self, word):
+        return 'https://nb.glosbe.com/nb/en/{0}'.format(word)
 
 class WiktionaryNo:
     def __init__(self, client, word):
