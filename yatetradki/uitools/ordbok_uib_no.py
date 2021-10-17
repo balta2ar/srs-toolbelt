@@ -378,6 +378,10 @@ class GlosbeNoEnWord(GlosbeWord):
     def get_url(self, word):
         return 'https://nb.glosbe.com/nb/en/{0}'.format(word)
 
+class GlosbeEnNoWord(GlosbeWord):
+    def get_url(self, word):
+        return 'https://nb.glosbe.com/en/nb/{0}'.format(word)
+
 class WiktionaryNo:
     def __init__(self, client, word):
         self.word = word
@@ -765,6 +769,7 @@ class GoldenDictProxy:
         self.app.route('/naob/word/<word>', methods=['GET'])(self.route_naob_word)
         self.app.route('/glosbe/noru/<word>', methods=['GET'])(self.route_glosbe_noru)
         self.app.route('/glosbe/noen/<word>', methods=['GET'])(self.route_glosbe_noen)
+        self.app.route('/glosbe/enno/<word>', methods=['GET'])(self.route_glosbe_enno)
         self.app.route('/wiktionary/no/<word>', methods=['GET'])(self.route_wiktionary_no)
         self.app.route('/cambridge/enno/<word>', methods=['GET'])(self.route_cambridge_enno)
         self.app.route('/static/css/iframe.css', methods=['GET'])(self.route_iframe_css)
@@ -784,6 +789,8 @@ class GoldenDictProxy:
         return GlosbeNoRuWord(self.static_client, word).styled()
     def route_glosbe_noen(self, word):
         return GlosbeNoEnWord(self.static_client, word).styled()
+    def route_glosbe_enno(self, word):
+        return GlosbeEnNoWord(self.static_client, word).styled()
     def route_ordbok_inflect(self, word):
         return Article(self.static_client, word).styled()
     def route_ordbok_word(self, word):
