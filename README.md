@@ -5,29 +5,31 @@ srs-toolbelt (former yandex-slovari-tetradki)
 
 <!-- TOC -->
 
-- [Contents](#contents)
-- [Intro](#intro)
-- [1. Sync local Anki DB with ankiweb](#1-sync-local-anki-db-with-ankiweb)
-- [2. Print recent hard cards from Anki DB](#2-print-recent-hard-cards-from-anki-db)
-- [3. Convert a list of new English words into Anki flash cards.](#3-convert-a-list-of-new-english-words-into-anki-flash-cards)
-- [4. Convert Korean sentences from Google Keep into Anki cards](#4-convert-korean-sentences-from-google-keep-into-anki-cards)
-- [5. Easily add pronunciation to Korean words in Memrise](#5-easily-add-pronunciation-to-korean-words-in-memrise)
-- [6. Convert Google Keep note with Korean words into Memrise course with pronunciation](#6-convert-google-keep-note-with-korean-words-into-memrise-course-with-pronunciation)
-- [7. Do forced alignment for korean sentences from my Korean textbook and convert them to Memrise course (flash cards).](#7-do-forced-alignment-for-korean-sentences-from-my-korean-textbook-and-convert-them-to-memrise-course-flash-cards)
-- [My decks](#my-decks)
+- [srs-toolbelt (former yandex-slovari-tetradki)](#srs-toolbelt-former-yandex-slovari-tetradki)
+  - [Contents](#contents)
+  - [Intro](#intro)
+  - [1. Sync local Anki DB with ankiweb](#1-sync-local-anki-db-with-ankiweb)
+  - [2. Print recent hard cards from Anki DB](#2-print-recent-hard-cards-from-anki-db)
+  - [3. Convert a list of new English words into Anki flash cards.](#3-convert-a-list-of-new-english-words-into-anki-flash-cards)
+  - [4. Convert Korean sentences from Google Keep into Anki cards](#4-convert-korean-sentences-from-google-keep-into-anki-cards)
+  - [5. Easily add pronunciation to Korean words in Memrise](#5-easily-add-pronunciation-to-korean-words-in-memrise)
+  - [6. Convert Google Keep note with Korean words into Memrise course with pronunciation](#6-convert-google-keep-note-with-korean-words-into-memrise-course-with-pronunciation)
+  - [7. Do forced alignment for korean sentences from my Korean textbook and convert them to Memrise course (flash cards).](#7-do-forced-alignment-for-korean-sentences-from-my-korean-textbook-and-convert-them-to-memrise-course-flash-cards)
+  - [8. Multi-sourced UI for several norwegian dictionaries](#8-multi-sourced-ui-for-several-norwegian-dictionaries)
+  - [My decks](#my-decks)
     - [Anki](#anki)
     - [Memrise](#memrise)
-- [Screenshots of anki](#screenshots-of-anki)
-- [Screenshots of conky](#screenshots-of-conky)
+  - [Screenshots of anki](#screenshots-of-anki)
+  - [Screenshots of conky](#screenshots-of-conky)
     - [Translation & syn & ant](#translation--syn--ant)
     - [Defs](#defs)
-- [Related materials](#related-materials)
-- [Theory and methods](#theory-and-methods)
+  - [Related materials](#related-materials)
+  - [Theory and methods](#theory-and-methods)
     - [SRS Flash Cards](#srs-flash-cards)
     - [Method by Anastasia Kuznetsova](#method-by-anastasia-kuznetsova)
     - [Method by Maru Kachko](#method-by-maru-kachko)
     - [Goldlist method](#goldlist-method)
-- [Author](#author)
+  - [Author](#author)
 
 <!-- /TOC -->
 
@@ -235,6 +237,30 @@ python ./memrise_sync.py --driver phantomjs upload --only-log-changes --pronunci
 ## 7. Do forced alignment for korean sentences from my Korean textbook and convert them to Memrise course (flash cards).
 
 TODO.
+
+## 8. Multi-sourced UI for several norwegian dictionaries
+
+![page1](https://i.imgur.com/woKdYHJ.png)
+![page2](https://i.imgur.com/Q82LjRK.png)
+![page3](https://i.imgur.com/woKdYHJ.png)
+
+This script [ordbok_uib_no.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/uitools/ordbok_uib_no.py) collects the output from multiple sources in a condensed nice format so that you get quick access to dictionary articles as you type. Results are cached, so servers are not stressed. Currently supported sources:
+
+Page 1:
+* Inflections from https://ordbok.uib.no/
+* Nor, Rus, Eng from https://lexin.oslomet.no/#/findwords/message.bokmal-russian
+* Nor->Rus / Rus-Nor direction from https://nb.glosbe.com/nb/ru/
+* Nor->Eng direction from https://nb.glosbe.com/nb/en/
+
+Page 2:
+* Definitions from https://ordbok.uib.no/
+* Definitions from https://naob.no/
+
+Page 3:
+* Definitions from https://no.wiktionary.org/wiki/
+* Definitions from https://dictionary.cambridge.org/dictionary/english-norwegian/
+
+**Shortcuts**: switch between pages with `Alt-!`, `Alt-@`, `Alt-#` (weird shortcuts are convenient in my layout).
 
 ## My decks
 
