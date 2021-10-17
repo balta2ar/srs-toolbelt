@@ -240,7 +240,7 @@ TODO.
 
 ## 8. Multi-sourced UI for several norwegian dictionaries
 
-![page1](https://i.imgur.com/woKdYHJ.png)
+![page1](https://i.imgur.com/JKmHrHA.png)
 ![page2](https://i.imgur.com/Q82LjRK.png)
 ![page3](https://i.imgur.com/woKdYHJ.png)
 
