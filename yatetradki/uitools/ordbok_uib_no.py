@@ -71,7 +71,7 @@ from itertools import groupby
 import asyncio
 
 from requests import Session
-from requests.exceptions import HTTPError, ReadTimeout
+from requests.exceptions import HTTPError, ReadTimeout, ConnectionError
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
@@ -753,6 +753,7 @@ class GoldenDictProxy:
         logging.info('Starting GoldenDictProxy on %s:%s', self.host, self.port)
         self.app.register_error_handler(HTTPError, self.error_handler)
         self.app.register_error_handler(ReadTimeout, self.error_handler)
+        self.app.register_error_handler(ConnectionError, self.error_handler)
         self.app.register_error_handler(TimeoutError, self.error_handler)
         self.app.register_error_handler(NoContent, self.error_handler)
         self.app.route('/ui/mix/<word>', methods=['GET'])(self.route_ui_mix)
