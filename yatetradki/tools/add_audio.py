@@ -16,7 +16,8 @@ from yatetradki.utils import mute_networking_logging
 from yatetradki.utils import must_env
 from yatetradki.utils import html_to_text
 
-ERROR_OK = 0
+ERROR_OK_FOUND_CHANGES = 0
+ERROR_OK_NO_CHANGES = 1
 ERROR_ANKI_ALREADY_RUNNING = 2
 
 COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/share/Anki2/bz/collection.anki2')))
@@ -46,7 +47,7 @@ def add_audio(args):
     found_notes = col.findNotes(query)
     #if (not found_notes) or (not args.update):
     if (not found_notes):
-        return ERROR_OK
+        return ERROR_OK_NO_CHANGES
 
     added = []
     for fnote in found_notes:
@@ -74,7 +75,8 @@ def add_audio(args):
             args.audio, len(added), body))
         # if args.update:
         #     web_sync()
-    return ERROR_OK
+        return ERROR_OK_FOUND_CHANGES
+    return ERROR_OK_NO_CHANGES
 
 
 def main():
