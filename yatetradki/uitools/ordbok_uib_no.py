@@ -82,7 +82,7 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QWidget, QCompleter,
                              QSystemTrayIcon, QMenu, QAction)
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtGui import QIcon, QFont, QKeyEvent
+from PyQt5.QtGui import QIcon, QFont, QKeyEvent, QClipboard
 from PyQt5.QtCore import Qt, QTimer, QObject, QUrl, QEvent
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
@@ -647,9 +647,13 @@ class MainWindow(QWidget):
         self.browser.show(index)
 
     def grab_clipboard(self):
-        content = QApplication.clipboard().text()
-        if content and len(content.split()) <= 5:
-            self.set_text(content)
+        def grab(content):
+            if content and len(content.split()) <= 5:
+                self.set_text(content)
+                return True
+            return False
+        grab(QApplication.clipboard().text(QClipboard.Selection)) or \
+            grab(QApplication.clipboard().text())
 
     def activate(self):
         self.grab_clipboard()
