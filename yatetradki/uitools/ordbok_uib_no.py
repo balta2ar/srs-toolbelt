@@ -90,9 +90,11 @@ FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 
+WINDOW_TITLE = 'OrdbokUibNo'
 WINDOW_WIDTH = 1300
 WINDOW_HEIGHT = 800
 UPDATE_DELAY = 500
+ACTIVE_MODE_DELAY = 1000
 ICON_FILENAME = dirname(__file__) + '/ordbok_uib_no.png'
 ADD_TO_FONT_SIZE = 6
 NETWORK_TIMEOUT = 5000
@@ -226,6 +228,10 @@ def iframe_third(word):
     t = Template(open(here('iframe-third.html')).read())
     return t.substitute(word=word)
 
+def iframe_fourth(word):
+    t = Template(open(here('iframe-fourth.html')).read())
+    return t.substitute(word=word)
+
 def ui_mix_url(word):
     return 'http://{0}:{1}/ui/mix/{2}'.format(UI_HOST, UI_PORT, word)
 
@@ -234,6 +240,9 @@ def ui_nor_url(word):
 
 def ui_third_url(word):
     return 'http://{0}:{1}/ui/third/{2}'.format(UI_HOST, UI_PORT, word)
+
+def ui_fourth_url(word):
+    return 'http://{0}:{1}/ui/fourth/{2}'.format(UI_HOST, UI_PORT, word)
 
 def css(filename):
     return '<style>{0}</style>'.format(slurp(open, here(filename)))
@@ -590,6 +599,8 @@ class Browsers:
             return 1
         if (e.key() == Qt.Key_NumberSign) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
             return 2
+        if (e.key() == Qt.Key_Dollar) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+            return 3
         return None
     def on_key_press(self, e):
         index = self.scan_shortcut(e)
@@ -616,7 +627,7 @@ class MainWindow(QWidget):
         self.setLayout(mainLayout)
         self.main_layout = mainLayout
 
-        self.browsers = Browsers(self, mainLayout, 3)
+        self.browsers = Browsers(self, mainLayout, 4)
         self.browsers.zoom(self.ZOOM)
 
         self.comboBox = QComboBoxKey(self, self.browsers.on_key_press)
@@ -634,11 +645,13 @@ class MainWindow(QWidget):
         mainLayout.addWidget(self.comboBox)
         self.browsers.show(0)
 
-        self.setWindowTitle('OrdbokUibNo')
+        self.setWindowTitle(WINDOW_TITLE)
         self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.setWindowIcon(QIcon(ICON_FILENAME))
 
         QTimer.singleShot(1, self.center)
+        self.active_mode = False
+        QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
 
         self.center()
         self.show()
@@ -646,14 +659,30 @@ class MainWindow(QWidget):
     def show_browser(self, index):
         self.browser.show(index)
 
+    def toggle_active_mode(self):
+        self.active_mode = not self.active_mode
+        if self.active_mode:
+            self.setWindowTitle(WINDOW_TITLE + ' | A')
+        else:
+            self.setWindowTitle(WINDOW_TITLE)
+
+    def focused(self):
+        return QApplication.activeWindow() == self
+
+    def on_active_mode(self):
+        if self.active_mode and not self.focused():
+            self.grab(QApplication.clipboard().text(QClipboard.Selection))
+        QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
+
+    def grab(self, content):
+        if content and (len(content.split()) <= 5) and not self.same_text(content):
+            self.set_text(content)
+            return True
+        return False
+
     def grab_clipboard(self):
-        def grab(content):
-            if content and len(content.split()) <= 5:
-                self.set_text(content)
-                return True
-            return False
-        grab(QApplication.clipboard().text(QClipboard.Selection)) or \
-            grab(QApplication.clipboard().text())
+        self.grab(QApplication.clipboard().text(QClipboard.Selection)) or \
+            self.grab(QApplication.clipboard().text())
 
     def activate(self):
         self.grab_clipboard()
@@ -681,7 +710,11 @@ class MainWindow(QWidget):
     def set_text(self, text):
         logging.info('Setting text: %s', text)
         self.comboBox.setCurrentText(text)
-        urls = [ui_mix_url(text), ui_nor_url(text), ui_third_url(text)]
+        urls = [ui_mix_url(text),
+                ui_nor_url(text),
+                ui_third_url(text),
+                ui_fourth_url(text),
+               ]
         self.browsers.load(urls)
 
     def on_text_changed(self, text):
@@ -723,13 +756,13 @@ class MainWindow(QWidget):
     def text(self):
         return self.comboBox.currentText()
 
-    def eventFilter(self, obj, e):
-        if isinstance(e, QKeyEvent):
-            if e.key() == Qt.Key_Exclam and e.type == QEvent.KeyPress:
-                return True
-            elif e.key() == Qt.Key_At and e.type == QEvent.KeyPress:
-                return True
-        return super(MainWindow, self).eventFilter(obj, e)
+    # def eventFilter(self, obj, e):
+    #     if isinstance(e, QKeyEvent):
+    #         if e.key() == Qt.Key_Exclam and e.type == QEvent.KeyPress:
+    #             return True
+    #         elif e.key() == Qt.Key_At and e.type == QEvent.KeyPress:
+    #             return True
+    #     return super(MainWindow, self).eventFilter(obj, e)
 
     def keyPressEvent(self, e):
         if self.browsers.on_key_press(e):
@@ -741,6 +774,8 @@ class MainWindow(QWidget):
         elif (e.key() == Qt.Key_L) and (e.modifiers() == Qt.ControlModifier):
             self.comboBox.lineEdit().selectAll()
             self.comboBox.setFocus()
+        elif (e.key() == Qt.Key_W) and (e.modifiers() == Qt.ControlModifier):
+            self.toggle_active_mode()
         elif e.key() == Qt.Key_Return:
             self.set_text(self.text())
         else:
@@ -767,6 +802,7 @@ class GoldenDictProxy:
         self.app.route('/ui/mix/<word>', methods=['GET'])(self.route_ui_mix)
         self.app.route('/ui/nor/<word>', methods=['GET'])(self.route_ui_nor)
         self.app.route('/ui/third/<word>', methods=['GET'])(self.route_ui_third)
+        self.app.route('/ui/fourth/<word>', methods=['GET'])(self.route_ui_fourth)
         self.app.route('/lexin/word/<word>', methods=['GET'])(self.route_lexin_word)
         self.app.route('/ordbok/inflect/<word>', methods=['GET'])(self.route_ordbok_inflect)
         self.app.route('/ordbok/word/<word>', methods=['GET'])(self.route_ordbok_word)
@@ -787,6 +823,8 @@ class GoldenDictProxy:
         return iframe_nor(word)
     def route_ui_third(self, word):
         return iframe_third(word)
+    def route_ui_fourth(self, word):
+        return iframe_fourth(word)
     def route_lexin_word(self, word):
         return LexinOsloMetArticle(self.static_client, word).styled()
     def route_glosbe_noru(self, word):
