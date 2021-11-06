@@ -1,3 +1,4 @@
+import re
 import sys
 import argparse
 from os import getenv
@@ -23,6 +24,37 @@ ERROR_ANKI_ALREADY_RUNNING = 2
 COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/share/Anki2/bz/collection.anki2')))
 _logger = get_logger('add_audio')
 
+def cleanup_html(text):
+    text = re.sub(r'<br>$', '', text)
+    text = re.sub(r'&nbsp;', ' ', text)
+    text = re.sub(r'  ', ' ', text)
+    return text
+
+def cleanup_fields(deck, deck_name, model_name, field_names, col, allowed):
+    query_template = 'deck:"%s" note:"%s"'
+    query = cleanup_query(query_template % (deck_name, model_name))
+    found_notes = col.findNotes(query)
+    if (not found_notes):
+        return
+
+    added = []
+    for fnote in found_notes:
+        note = col.getNote(fnote)
+        note.model()['did'] = deck['id']
+        fields = {field: note.fields[field_names.index(field)]
+                  for field in field_names}
+        for field_name in allowed:
+            field_value = fields[field_name]
+            new_value = cleanup_html(field_value)
+            if new_value != field_value:
+                _logger.info('Fixed field "%s", new value="%s"', field_name, new_value)
+                note.fields[field_names.index(field_name)] = new_value
+                added.append(new_value)
+                note.flush()
+                col.save()
+    if added:
+        mute_networking_logging()
+        notify('Fixed html in {0} fields'.format(len(added)))
 
 def add_audio(args):
     if anki_is_running():
@@ -41,6 +73,8 @@ def add_audio(args):
     deck = col.decks.byName(args.deck)
     col.decks.select(deck['id'])
     col.decks.current()['mid'] = modelBasic['id']
+
+    cleanup_fields(deck, args.deck, args.model, args.fields, col, set(['Example', 'Word', 'Description']))
 
     query_template = 'audio: deck:"%s" note:"%s"'
     query = cleanup_query(query_template % (args.deck, args.model))
