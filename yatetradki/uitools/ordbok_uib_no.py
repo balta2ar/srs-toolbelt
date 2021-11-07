@@ -684,11 +684,16 @@ class MainWindow(QWidget):
         self.grab(QApplication.clipboard().text(QClipboard.Selection)) or \
             self.grab(QApplication.clipboard().text())
 
+    def unminimize(self):
+        if self.windowState() == Qt.WindowMinimized:
+            self.setWindowState(Qt.WindowNoState)
+
     def activate(self):
         self.grab_clipboard()
         self.center()
-        self.show()
+        self.unminimize()
         self.raise_()
+        self.show()
         self.activateWindow()
         self.comboBox.lineEdit().selectAll()
         self.comboBox.setFocus()
