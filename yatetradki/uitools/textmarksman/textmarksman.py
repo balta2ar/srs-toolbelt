@@ -9,6 +9,7 @@ import pyperclip
 
 EXIT_OK = 0
 EXIT_CANCEL = 1
+UPPER = "".join([chr(i) for i in range(sys.maxunicode) if chr(i).isupper()])
 
 def capture() -> Optional[str]:
     filename = '/tmp/textmarksman.png'
@@ -25,8 +26,8 @@ def ocr(filename: str, lang: str) -> str:
 def unwrap(text: str) -> str:
     # remove trailing whitespace
     text = re.sub(r'\s+$', '', text)
-    text = re.sub(r'\s+\n', '\n', text)
-    text = re.sub(r'\n\s+', '\n', text)
+    text = re.sub(r' +\n', '\n', text)
+    text = re.sub(r'\n +', '\n', text)
     # join hyphen
     text = re.sub(r'[-\u2014]\s*\u2029\s*', '', text)
     pre, suc = '', ''
@@ -46,8 +47,8 @@ def unwrap(text: str) -> str:
     #expr = pre + '\u2029' + suc
     expr = pre + ' ' + suc
     #expr = r'([^\u2029\.\?!]) (?![\u2029])'
-    expr = r'([^\.])\n(?!\n)'
-    print(expr)
+    expr = r'([^\.\n])\n(?![\n' + UPPER + '])'
+    #print(expr)
     text = re.sub(expr, r'\1 ' if pre else ' ', text)
     # collapse spaces
     text = re.sub(r'[ \t]+', ' ', text)
