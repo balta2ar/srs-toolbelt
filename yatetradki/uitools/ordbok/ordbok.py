@@ -90,12 +90,12 @@ FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 
-WINDOW_TITLE = 'OrdbokUibNo'
+WINDOW_TITLE = 'Ordbok'
 WINDOW_WIDTH = 1300
 WINDOW_HEIGHT = 800
 UPDATE_DELAY = 500
 ACTIVE_MODE_DELAY = 1000
-ICON_FILENAME = dirname(__file__) + '/ordbok_uib_no.png'
+ICON_FILENAME = dirname(__file__) + '/ordbok.png'
 ADD_TO_FONT_SIZE = 6
 NETWORK_TIMEOUT = 5000
 
@@ -217,19 +217,19 @@ def parse(body):
     return BeautifulSoup(body, features='lxml')
 
 def iframe_mix(word):
-    t = Template(open(here('iframe-mix.html')).read())
+    t = Template(open(here_html('iframe-mix.html')).read())
     return t.substitute(word=word)
 
 def iframe_nor(word):
-    t = Template(open(here('iframe-nor.html')).read())
+    t = Template(open(here_html('iframe-nor.html')).read())
     return t.substitute(word=word)
 
 def iframe_third(word):
-    t = Template(open(here('iframe-third.html')).read())
+    t = Template(open(here_html('iframe-third.html')).read())
     return t.substitute(word=word)
 
 def iframe_fourth(word):
-    t = Template(open(here('iframe-fourth.html')).read())
+    t = Template(open(here_html('iframe-fourth.html')).read())
     return t.substitute(word=word)
 
 def ui_mix_url(word):
@@ -245,10 +245,16 @@ def ui_fourth_url(word):
     return 'http://{0}:{1}/ui/fourth/{2}'.format(UI_HOST, UI_PORT, word)
 
 def css(filename):
-    return '<style>{0}</style>'.format(slurp(open, here(filename)))
+    return '<style>{0}</style>'.format(slurp(open, here_css(filename)))
 
 def here(name):
     return join(dirname(__file__), name)
+
+def here_css(name):
+    return join(dirname(__file__), 'static/css', name)
+
+def here_html(name):
+    return join(dirname(__file__), 'static/html', name)
 
 def pretty(html):
     return parse(html).prettify()
@@ -845,7 +851,7 @@ class GoldenDictProxy:
     def route_naob_word(self, word):
         return NaobWord(self.dynamic_client, word).styled()
     def route_iframe_css(self):
-        return Response(open(here('iframe.css')).read(), mimetype='text/css')
+        return Response(open(here_css('iframe.css')).read(), mimetype='text/css')
     def route_wiktionary_no(self, word):
         return WiktionaryNo(self.static_client, word).styled()
     def route_cambridge_enno(self, word):
@@ -869,7 +875,7 @@ if __name__ == '__main__':
     qtApp = QApplication(sys.argv)
     window = MainWindow(qtApp)
 
-    tray = QSystemTrayIcon(QIcon(dirname(__file__)+'/ordbok_uib_no.png'), qtApp)
+    tray = QSystemTrayIcon(QIcon(ICON_FILENAME), qtApp)
     menu = QMenu()
     show = QAction('Show')
     hide = QAction('Hide')
