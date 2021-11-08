@@ -1,0 +1,6 @@
+requests==2.24.0
+beautifulsoup4==4.8.2
+pyppeteer==0.2.2
+PyQt5==5.14.1
+PyQtWebEngine==5.14.0
+Flask==1.1.2
