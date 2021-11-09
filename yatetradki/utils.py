@@ -5,7 +5,7 @@ from os import dup, fdopen, popen, environ
 from os.path import expanduser, expandvars
 from re import sub
 from bs4 import BeautifulSoup
-#import unidecode
+import unidecode
 
 from pydub import AudioSegment
 
@@ -95,6 +95,7 @@ def cleanup_query(query: str) -> str:
 
 def cleanup_filename(name: str) -> str:
     name = name.lower().replace(' ', '_')
+    name = unidecode.unidecode(name)
     def valid(x):
         return x.isalnum() or x in '_'
     name = ''.join([x for x in name if valid(x)])
