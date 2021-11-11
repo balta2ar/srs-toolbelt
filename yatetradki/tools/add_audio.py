@@ -28,6 +28,7 @@ def cleanup_html(text):
     text = re.sub(r'<br>$', '', text)
     text = re.sub(r'&nbsp;', ' ', text)
     text = re.sub(r'  ', ' ', text)
+    text = re.sub(r' ([.,!?])', r'\1', text)
     return text
 
 def cleanup_fields(deck, deck_name, model_name, field_names, col, allowed):
