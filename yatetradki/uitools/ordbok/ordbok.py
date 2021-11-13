@@ -734,7 +734,7 @@ class MainWindow(QWidget):
         QTimer.singleShot(UPDATE_DELAY, lambda: self.update(text))
 
     def update(self, old_text):
-        if self.same_text(old_text):
+        if not self.same_text(old_text):
             self.set_text(old_text)
 
     @pyqtSlot(object)
