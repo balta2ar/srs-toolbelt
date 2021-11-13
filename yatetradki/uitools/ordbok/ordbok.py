@@ -660,7 +660,7 @@ class MainWindow(QWidget):
         QTimer.singleShot(1, self.center)
         self.active_mode = False
         QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
-        self.last_grab = time.time()
+        self.last_manual_change = time.time()
 
         self.center()
         self.show()
@@ -689,13 +689,13 @@ class MainWindow(QWidget):
             return True
         return False
 
-    def recent_grab(self):
-        return (time.time() - self.last_grab) < RECENT_GRAB_DELAY
+    def recent_manual_change(self):
+        return (time.time() - self.last_manual_change) < RECENT_GRAB_DELAY
 
     def grab_clipboard(self):
         self.grab(QApplication.clipboard().text(QClipboard.Selection)) or \
             self.grab(QApplication.clipboard().text())
-        self.last_grab = time.time()
+        self.last_manual_change = time.time()
 
     def unminimize(self):
         if self.windowState() == Qt.WindowMinimized:
@@ -741,7 +741,7 @@ class MainWindow(QWidget):
         QTimer.singleShot(UPDATE_DELAY, lambda: self.update(text))
 
     def update(self, old_text):
-        if self.recent_grab():
+        if self.recent_manual_change():
             return
         if self.same_text(old_text):
             self.set_text(old_text)
@@ -797,6 +797,7 @@ class MainWindow(QWidget):
         elif (e.key() == Qt.Key_W) and (e.modifiers() == Qt.ControlModifier):
             self.toggle_active_mode()
         elif e.key() == Qt.Key_Return:
+            self.last_manual_change = time.time()
             self.set_text(self.text())
         else:
             print('>>>EVENT', e.key(), e.modifiers())
