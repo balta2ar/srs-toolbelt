@@ -9,7 +9,6 @@ import pyperclip
 
 EXIT_OK = 0
 EXIT_CANCEL = 1
-UPPER = "".join([chr(i) for i in range(sys.maxunicode) if chr(i).isupper()])
 
 def capture() -> Optional[str]:
     filename = '/tmp/textmarksman.png'
@@ -24,32 +23,15 @@ def ocr(filename: str, lang: str) -> str:
         return api.GetUTF8Text()
 
 def unwrap(text: str) -> str:
+    upper = "".join([chr(i) for i in range(sys.maxunicode) if chr(i).isupper()])
     # remove trailing whitespace
     text = re.sub(r'\s+$', '', text)
     text = re.sub(r' +\n', '\n', text)
     text = re.sub(r'\n +', '\n', text)
     # join hyphen
     text = re.sub(r'[-\u2014]\s*\u2029\s*', '', text)
-    pre, suc = '', ''
-    # keep paragraphs
-    pre += r'\u2029'
-    # keep endmark
-    pre += r'\.\?!'
-    # keep quote
-    # pre += r"'\"\u00BB\u00AB"
-    # suc += r"'\"\u00AB\u00BB"
-    # keep paragraphs
-    suc += r'\u2029'
-    if pre:
-        pre = '([^' + pre + '])'
-    if suc:
-        suc = '(?![' + suc + '])'
-    #expr = pre + '\u2029' + suc
-    expr = pre + ' ' + suc
-    #expr = r'([^\u2029\.\?!]) (?![\u2029])'
-    expr = r'([^\.\n])\n(?![\n' + UPPER + '])'
-    #print(expr)
-    text = re.sub(expr, r'\1 ' if pre else ' ', text)
+    expr = r'([^\.\n])\n(?![\n' + upper + '])'
+    text = re.sub(expr, r'\1 ', text)
     # collapse spaces
     text = re.sub(r'[ \t]+', ' ', text)
     return text
