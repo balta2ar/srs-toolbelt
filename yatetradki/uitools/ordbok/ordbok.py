@@ -69,6 +69,7 @@ from json import loads
 from string import Template
 from itertools import groupby
 import asyncio
+import time
 
 from requests import Session
 from requests.exceptions import HTTPError, ReadTimeout, ConnectionError
@@ -94,10 +95,11 @@ WINDOW_TITLE = 'Ordbok'
 WINDOW_WIDTH = 1300
 WINDOW_HEIGHT = 800
 UPDATE_DELAY = 1000
-ACTIVE_MODE_DELAY = 1000
+ACTIVE_MODE_DELAY = 1000 # milliseconds
 ICON_FILENAME = dirname(__file__) + '/ordbok.png'
 ADD_TO_FONT_SIZE = 6
-NETWORK_TIMEOUT = 5000
+NETWORK_TIMEOUT = 5000 # milliseconds
+RECENT_GRAB_DELAY = (UPDATE_DELAY / 1000.0) + 0.1 # seconds
 
 
 def disable_logging():
@@ -658,6 +660,7 @@ class MainWindow(QWidget):
         QTimer.singleShot(1, self.center)
         self.active_mode = False
         QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
+        self.last_grab = time.time()
 
         self.center()
         self.show()
@@ -686,9 +689,13 @@ class MainWindow(QWidget):
             return True
         return False
 
+    def recent_grab(self):
+        return (time.time() - self.last_grab) < RECENT_GRAB_DELAY
+
     def grab_clipboard(self):
         self.grab(QApplication.clipboard().text(QClipboard.Selection)) or \
             self.grab(QApplication.clipboard().text())
+        self.last_grab = time.time()
 
     def unminimize(self):
         if self.windowState() == Qt.WindowMinimized:
@@ -734,7 +741,9 @@ class MainWindow(QWidget):
         QTimer.singleShot(UPDATE_DELAY, lambda: self.update(text))
 
     def update(self, old_text):
-        if not self.same_text(old_text):
+        if self.recent_grab():
+            return
+        if self.same_text(old_text):
             self.set_text(old_text)
 
     @pyqtSlot(object)
