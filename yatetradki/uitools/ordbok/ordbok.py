@@ -82,8 +82,8 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QWidget, QCompleter,
                              QSystemTrayIcon, QMenu, QAction)
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtGui import QIcon, QFont, QKeyEvent, QClipboard
-from PyQt5.QtCore import Qt, QTimer, QObject, QUrl, QEvent
+from PyQt5.QtGui import QIcon, QFont, QClipboard
+from PyQt5.QtCore import Qt, QTimer, QObject, QUrl
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
@@ -93,7 +93,7 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 WINDOW_TITLE = 'Ordbok'
 WINDOW_WIDTH = 1300
 WINDOW_HEIGHT = 800
-UPDATE_DELAY = 500
+UPDATE_DELAY = 1000
 ACTIVE_MODE_DELAY = 1000
 ICON_FILENAME = dirname(__file__) + '/ordbok.png'
 ADD_TO_FONT_SIZE = 6
