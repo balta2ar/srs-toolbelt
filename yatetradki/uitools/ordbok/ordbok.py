@@ -684,6 +684,7 @@ class MainWindow(QWidget):
         QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
 
     def grab(self, content):
+        self.last_manual_change = time.time()
         if content and (len(content.split()) <= 5) and not self.same_text(content):
             self.set_text(content)
             return True
@@ -695,7 +696,6 @@ class MainWindow(QWidget):
     def grab_clipboard(self):
         self.grab(QApplication.clipboard().text(QClipboard.Selection)) or \
             self.grab(QApplication.clipboard().text())
-        self.last_manual_change = time.time()
 
     def unminimize(self):
         if self.windowState() == Qt.WindowMinimized:
