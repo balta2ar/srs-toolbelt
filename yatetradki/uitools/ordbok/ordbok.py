@@ -875,7 +875,7 @@ class GoldenDictProxy:
         return render_template("index.html", links=links)
 
 
-if __name__ == '__main__':
+def main():
     disable_logging()
     static_client = CachedHttpClient(StaticHttpClient(), 'cache')
     dynamic_client = CachedHttpClient(DynamicHttpClient(), 'cache')
@@ -908,3 +908,5 @@ def testnaob(word):
     client = CachedHttpClient(DynamicHttpClient(), 'cache')
     print(NaobWord(client, word).html)
 
+if __name__ == '__main__':
+    main()
