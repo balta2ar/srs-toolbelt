@@ -46,7 +46,8 @@ def play(filename):
     if pid:
         print('killing running sound: %d' % pid)
         psutil.Process(pid).kill()
-    p = subprocess.Popen(['play', '-t', 'mp3', filename])
+    #p = subprocess.Popen(['play', '-t', 'mp3', filename])
+    p = subprocess.Popen(['mplayer', filename])
     print(p.pid)
     print(psutil.Process(p.pid).cmdline())
     save_running(p.pid)
@@ -59,14 +60,17 @@ def pronounce(text) -> str:
         tts.save(filename)
     return filename
 
+def sayit(text: str) -> None:
+    mp3 = pronounce(text)
+    play(mp3)
+
 def selection() -> str:
     return QApplication.clipboard().text(QClipboard.Selection)
 
 def main():
     _ = QApplication(sys.argv)
     text = selection()
-    mp3 = pronounce(text)
-    play(mp3)
+    sayit(text)
 
 if __name__ == '__main__':
     main()

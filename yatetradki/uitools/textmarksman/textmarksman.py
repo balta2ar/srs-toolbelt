@@ -2,10 +2,13 @@
 
 import re
 import sys
+import argparse
 import subprocess
 from typing import Optional
 import tesserocr
 import pyperclip
+
+from yatetradki.uitools.sayit.sayit import sayit
 
 EXIT_OK = 0
 EXIT_CANCEL = 1
@@ -43,7 +46,13 @@ def copy(text: str) -> str:
 def notify(title, message):
     subprocess.run(['notify-send', title, message], check=True)
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='OCR text from screen')
+    parser.add_argument('--sayit', default=False, action='store_true', help='Pronounce text after OCR')
+    return parser.parse_args()
+
 def main():
+    args = parse_args()
     print(tesserocr.tesseract_version())
     print(tesserocr.get_languages())
     filename = capture()
@@ -54,6 +63,8 @@ def main():
         copy(text)
         notify('OCR', text)
         print(text)
+        if args.sayit:
+            sayit(text)
         return EXIT_OK
     return EXIT_CANCEL
 
