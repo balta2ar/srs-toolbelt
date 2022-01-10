@@ -10,12 +10,14 @@ from tesserocr import PSM, OEM
 import pyperclip
 
 from yatetradki.uitools.sayit.sayit import sayit
+#from yatetradki.uitools.textmarksman.deskew_wrapper import deskew
 
 EXIT_OK = 0
 EXIT_CANCEL = 1
 
 def capture() -> Optional[str]:
     filename = '/tmp/textmarksman.png'
+    #filename = '/tmp/textmarksman.jpg'
     p = subprocess.run(['maim', '-s', '-o', filename])
     if p.returncode == 0:
         return filename
@@ -81,6 +83,7 @@ def main():
     filename = capture()
     #filename = '/tmp/textmarksman.png'
     if filename:
+        #deskew(filename, filename)
         text = ocr(filename, 'nor')
         text = unwrap(text)
         copy(text)

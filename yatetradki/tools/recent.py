@@ -6,9 +6,13 @@ import os
 import sys
 import argparse
 
-sys.path.insert(0, '/usr/share/anki')
+#sys.path.insert(0, '/usr/share/anki')
 
-from anki import Collection
+import anki
+try:
+    from anki import Collection
+except ImportError:
+    from anki.collection import Collection
 
 MIN_COLUMN_WIDTH = 10
 MIN_HEADER_WIDTH = 80
@@ -47,9 +51,9 @@ def get_collection():
     ids = col.findCards(QUERY)
     print(ids)
     for id in ids:
-        card = col.getCard(id)
+        card = col.get_card(id)
         print(card)
-        note = col.getNote(card.nid)
+        note = col.get_note(card.nid)
         print(note['Word'])
     return col
 
@@ -99,14 +103,14 @@ def format_n_columns(lines, maxlen, n):
 
 def show_recent(col, query, field):
     try:
-        ids = col.findCards(query)
+        ids = col.find_cards(query)
     except Exception as e:
         print('Search error: %s (col=%s, query=%s, field=%s)', e, col, query, field)
         return []
     words = []
     for id in ids:
-        card = col.getCard(id)
-        note = col.getNote(card.nid)
+        card = col.get_card(id)
+        note = col.get_note(card.nid)
         words.append(note[field])
     return sorted(set(words))
     # return '\n'.join(words)
