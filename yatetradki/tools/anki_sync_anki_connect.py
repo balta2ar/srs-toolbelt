@@ -15,9 +15,19 @@ from os.path import expanduser, expandvars
 from os import getenv
 from typing import Optional
 
-sys.path.insert(0, '/usr/share/anki')
+
+#sys.path.insert(0, '/usr/share/anki')
+#sys.path.insert(0, '/home/ybochkarev/miniconda3/envs/ankienv39/lib/python3.9/site-packages')
+#sys.path.insert(0, '/home/ybochkarev/miniconda3/envs/ankienv39/lib/python3.9/PyQt5')
+#print(sys.path)
+#sys.path.insert(0, '/usr/share/local/anki')
+#sys.path.insert(0, '/home/ybochkarev/bin/anki/anki-2.1.49/qt')
+#sys.path.insert(0, '/home/ybochkarev/bin/anki/anki-2.1.49/pylib')
 import aqt
-from anki import Collection
+try:
+    from anki.collection import Collection
+except ImportError:
+    from anki import Collection
 
 from yatetradki.tools.anki_connect import invoke
 from yatetradki.tools.anki_control import anki_is_running, wait_for
@@ -35,14 +45,14 @@ COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/s
 
 def get_latest_mod(deck_name: str, model_name: str) -> Optional[int]:
     col = Collection(COLLECTION, log=True)
-    modelBasic = col.models.byName(model_name)
-    deck = col.decks.byName(deck_name)
+    modelBasic = col.models.by_name(model_name)
+    deck = col.decks.by_name(deck_name)
     col.decks.select(deck['id'])
     col.decks.current()['mid'] = modelBasic['id']
 
     query_template = 'deck:"%s" note:"%s"'
     query = query_template % (deck_name, model_name)
-    found_notes = col.findNotes(query)
+    found_notes = col.find_notes(query)
     if (not found_notes):
         col.close()
         return ERROR_OK_NO_CHANGES
@@ -50,7 +60,7 @@ def get_latest_mod(deck_name: str, model_name: str) -> Optional[int]:
     latest = None
     for fnote in found_notes:
         note = col.getNote(fnote)
-        note.model()['did'] = deck['id']
+        note.note_type()['did'] = deck['id']
         if latest is None or note.mod > latest:
             latest = note.mod
     col.close()

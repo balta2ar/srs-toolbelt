@@ -4,8 +4,11 @@ import argparse
 from os import getenv
 from os.path import expanduser, expandvars
 
-sys.path.insert(0, '/usr/share/anki')
-from anki import Collection
+#sys.path.insert(0, '/usr/share/anki')
+try:
+    from anki.collection import Collection
+except ImportError:
+    from anki import Collection
 
 from yatetradki.tools.log import get_logger
 from yatetradki.tools.anki_control import anki_is_running
@@ -34,14 +37,14 @@ def cleanup_html(text):
 def cleanup_fields(deck, deck_name, model_name, field_names, col, allowed):
     query_template = 'deck:"%s" note:"%s"'
     query = cleanup_query(query_template % (deck_name, model_name))
-    found_notes = col.findNotes(query)
+    found_notes = col.find_notes(query)
     if (not found_notes):
         return
 
     added = []
     for fnote in found_notes:
         note = col.getNote(fnote)
-        note.model()['did'] = deck['id']
+        note.note_type()['did'] = deck['id']
         fields = {field: note.fields[field_names.index(field)]
                   for field in field_names}
         for field_name in allowed:
@@ -70,8 +73,8 @@ def add_audio(args):
     col = Collection(COLLECTION, log=True)
     pronunciation = Pronunciation(args.audio)
 
-    modelBasic = col.models.byName(args.model)
-    deck = col.decks.byName(args.deck)
+    modelBasic = col.models.by_name(args.model)
+    deck = col.decks.by_name(args.deck)
     col.decks.select(deck['id'])
     col.decks.current()['mid'] = modelBasic['id']
 
@@ -81,7 +84,7 @@ def add_audio(args):
 
     query_template = 'audio: deck:"%s" note:"%s"'
     query = cleanup_query(query_template % (args.deck, args.model))
-    found_notes = col.findNotes(query)
+    found_notes = col.find_notes(query)
     #if (not found_notes) or (not args.update):
     if (not found_notes):
         return ERROR_OK_NO_CHANGES
@@ -89,7 +92,7 @@ def add_audio(args):
     added = []
     for fnote in found_notes:
         note = col.getNote(fnote)
-        note.model()['did'] = deck['id']
+        note.note_type()['did'] = deck['id']
         fields = {field: note.fields[args.fields.index(field)]
                   for field in args.fields}
         word = fields[args.word_field]

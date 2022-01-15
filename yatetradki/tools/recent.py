@@ -156,6 +156,7 @@ def show_recent_from_collection(queries, header_width):
         header = header.ljust(header_width, COLUMN_SEPARATOR)
         words = show_recent(col, query, field)
         words = [w.replace('<b>', '[bold green]').replace('</b>', '[/bold green]') for w in words]
+        words = [w.replace('<strong>', '[bold green]').replace('</strong>', '[/bold green]') for w in words]
         print('\n'.join(words))
         #print_formatted_text(HTML('\n'.join(words)))
         # if words:

@@ -103,7 +103,7 @@ def cleanup_filename(name: str) -> str:
 
 
 def html_to_text(data: str) -> str:
-    soup = BeautifulSoup(data, features="lxml")
+    soup = BeautifulSoup(data, features="html.parser")
     #result = unidecode.unidecode(soup.get_text())
     result = soup.get_text()
     #print('>>>>>>', data, '========>>>>', result)
