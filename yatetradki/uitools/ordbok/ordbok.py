@@ -19,6 +19,10 @@ class WatchDog:
                 self.end_headers()
                 self.wfile.write(b'OK')
                 self.server.on_show()
+            def do_GET(self):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'This is WatchDog endpoint. Use POST to show main window.\n')
         def __init__(self, host, port, on_show):
             HTTPServer.__init__(self, (host, port), WatchDog.Server.RequestHandler)
             self.host = host
