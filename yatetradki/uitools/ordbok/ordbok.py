@@ -6,6 +6,13 @@ from urllib.request import urlopen
 from threading import Thread
 from queue import Queue
 
+def http_post(url, data):
+    with urlopen(url, data) as r:
+        return r.read()
+
+def http_get(url):
+    with urlopen(url) as r:
+        return r.read()
 
 class WatchDog:
     class Server(HTTPServer):
@@ -44,8 +51,7 @@ class WatchDog:
             return False
     def show(self):
         print('Watchdog already running, showing previous instance')
-        with urlopen(self.get_show_url(), b'') as r:
-            r.read()
+        http_post(self.get_show_url(), b'')
     def get_show_url(self):
         return 'http://{0}:{1}/'.format(self.host, self.port)
     def _call_on_show(self):
@@ -204,7 +210,6 @@ def spit(do_open, filename, content):
 
 def to_text(html):
     return parse(html).text
-
 
 def uniq(items, key):
     seen = set()
@@ -807,6 +812,13 @@ class MainWindow(QWidget):
             print('>>>EVENT', e.key(), e.modifiers())
 
 
+def timed_http_get(url):
+    t0 = time.time()
+    http_get(url)
+    t1 = time.time()
+    return t1 - t0
+
+
 from flask import Flask, Response, render_template, url_for
 class GoldenDictProxy:
     def __init__(self, static_client, dynamic_client, host, port):
@@ -815,6 +827,8 @@ class GoldenDictProxy:
         self.host = host
         self.port = port
         self.app = Flask(__name__, template_folder=join(dirname(__file__), 'static/html'))
+    def url(self, path):
+        return 'http://{}:{}{}'.format(self.host, self.port, path)
     def serve_background(self):
         Thread(target=self.serve, daemon=True).start()
     def serve(self):
@@ -824,6 +838,7 @@ class GoldenDictProxy:
         self.app.register_error_handler(ConnectionError, self.error_handler)
         self.app.register_error_handler(TimeoutError, self.error_handler)
         self.app.register_error_handler(NoContent, self.error_handler)
+        self.app.route('/static/css/iframe.css', methods=['GET'])(self.route_iframe_css)
         self.app.route('/ui/mix/<word>', methods=['GET'])(self.route_ui_mix)
         self.app.route('/ui/nor/<word>', methods=['GET'])(self.route_ui_nor)
         self.app.route('/ui/third/<word>', methods=['GET'])(self.route_ui_third)
@@ -837,11 +852,13 @@ class GoldenDictProxy:
         self.app.route('/glosbe/enno/<word>', methods=['GET'])(self.route_glosbe_enno)
         self.app.route('/wiktionary/no/<word>', methods=['GET'])(self.route_wiktionary_no)
         self.app.route('/cambridge/enno/<word>', methods=['GET'])(self.route_cambridge_enno)
-        self.app.route('/static/css/iframe.css', methods=['GET'])(self.route_iframe_css)
+        self.app.route('/all/word/<word>', methods=['GET'])(self.route_all_word)
         self.app.route('/', methods=['GET'])(self.route_index)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
     def error_handler(self, e):
         return '{0}: {1}'.format(type(e).__name__, e)
+    def route_iframe_css(self):
+        return Response(open(here_css('iframe.css')).read(), mimetype='text/css')
     def route_ui_mix(self, word):
         return iframe_mix(word)
     def route_ui_nor(self, word):
@@ -864,12 +881,24 @@ class GoldenDictProxy:
         return OrdbokWord(self.static_client, word).styled()
     def route_naob_word(self, word):
         return NaobWord(self.dynamic_client, word).styled()
-    def route_iframe_css(self):
-        return Response(open(here_css('iframe.css')).read(), mimetype='text/css')
     def route_wiktionary_no(self, word):
         return WiktionaryNo(self.static_client, word).styled()
     def route_cambridge_enno(self, word):
         return CambridgeEnNo(self.static_client, word).styled()
+    def route_all_word(self, word):
+        urls = [
+            self.url('/lexin/word/{}'.format(word)),
+            self.url('/ordbok/inflect/{}'.format(word)),
+            self.url('/ordbok/word/{}'.format(word)),
+            self.url('/naob/word/{}'.format(word)),
+            self.url('/glosbe/noru/{}'.format(word)),
+            self.url('/glosbe/noen/{}'.format(word)),
+            self.url('/glosbe/enno/{}'.format(word)),
+            self.url('/wiktionary/no/{}'.format(word)),
+            self.url('/cambridge/enno/{}'.format(word)),
+        ]
+        times = [timed_http_get(url) for url in urls]
+        return ' '.join(['{:.2f}'.format(x) for x in times]) + '\n'
     def route_index(self):
         links = []
         for rule in self.app.url_map.iter_rules():
