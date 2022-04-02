@@ -810,7 +810,7 @@ class GoldenDictProxy:
         self.dynamic_client = dynamic_client
         self.host = host
         self.port = port
-        self.app = Flask(__name__, template_folder=dirname(__file__))
+        self.app = Flask(__name__, template_folder=join(dirname(__file__), 'static/html'))
     def serve_background(self):
         Thread(target=self.serve, daemon=True).start()
     def serve(self):
