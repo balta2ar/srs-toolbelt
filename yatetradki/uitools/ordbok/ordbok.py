@@ -86,8 +86,10 @@ from requests.exceptions import HTTPError, ReadTimeout, ConnectionError
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
-from pyppeteer import launch
+from pyppeteer import launch as launch_pyppeteer
 from pyppeteer.errors import TimeoutError
+from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
 
 from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QWidget, QCompleter,
@@ -112,6 +114,7 @@ ICON_FILENAME = dirname(__file__) + '/ordbok.png'
 ADD_TO_FONT_SIZE = 6
 NETWORK_TIMEOUT = 5000 # milliseconds
 RECENT_GRAB_DELAY = (UPDATE_DELAY / 1000.0) + 0.1 # seconds
+USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36'
 
 
 def disable_logging():
@@ -139,16 +142,29 @@ class StaticHttpClient:
         return result.text
 
 
-
 class DynamicHttpClient:
     TIMEOUT = NETWORK_TIMEOUT
     def __init__(self, timeout=None):
         self.timeout = timeout or self.TIMEOUT
     def get(self, url, selector=None):
+        return self.get_playwright(url, selector)
+        #return self.get_pyppeteer(url, selector)
+    def get_playwright(self, url, selector=None):
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url)
+            if selector is not None:
+                page.wait_for_selector(selector, timeout=self.timeout)
+            content = page.evaluate('document.body.innerHTML')
+            logging.info('playwright "%d"', len(content))
+            browser.close()
+            return content
+    def get_pyppeteer(self, url, selector=None):
         disable_logging()
         result = [no_content()]
         async def fetch():
-            browser = await launch(handleSIGINT=False, handleSIGTERM=False, handleSIGHUP=False)
+            browser = await launch_pyppeteer(handleSIGINT=False, handleSIGTERM=False, handleSIGHUP=False)
             page = await browser.newPage()
             await page.goto(url)
             if selector is not None:
@@ -234,7 +250,7 @@ def extract(soup, *args):
     #return result.prettify() if result else no_content()
 
 def parse(body):
-    return BeautifulSoup(body, features='lxml')
+    return BeautifulSoup(body, features='html.parser')
 
 def iframe_mix(word):
     t = Template(open(here_html('iframe-mix.html')).read())
@@ -252,6 +268,22 @@ def iframe_fourth(word):
     t = Template(open(here_html('iframe-fourth.html')).read())
     return t.substitute(word=word)
 
+def iframe_q(word):
+    t = Template(open(here_html('iframe-q.html')).read())
+    return t.substitute(word=word)
+
+def iframe_w(word):
+    t = Template(open(here_html('iframe-w.html')).read())
+    return t.substitute(word=word)
+
+def iframe_e(word):
+    t = Template(open(here_html('iframe-e.html')).read())
+    return t.substitute(word=word)
+
+def iframe_r(word):
+    t = Template(open(here_html('iframe-r.html')).read())
+    return t.substitute(word=word)
+
 def ui_mix_url(word):
     return 'http://{0}:{1}/ui/mix/{2}'.format(UI_HOST, UI_PORT, word)
 
@@ -263,6 +295,18 @@ def ui_third_url(word):
 
 def ui_fourth_url(word):
     return 'http://{0}:{1}/ui/fourth/{2}'.format(UI_HOST, UI_PORT, word)
+
+def ui_q_url(word):
+    return 'http://{0}:{1}/ui/q/{2}'.format(UI_HOST, UI_PORT, word)
+
+def ui_w_url(word):
+    return 'http://{0}:{1}/ui/w/{2}'.format(UI_HOST, UI_PORT, word)
+
+def ui_e_url(word):
+    return 'http://{0}:{1}/ui/e/{2}'.format(UI_HOST, UI_PORT, word)
+
+def ui_r_url(word):
+    return 'http://{0}:{1}/ui/r/{2}'.format(UI_HOST, UI_PORT, word)
 
 def css(filename):
     return '<style>{0}</style>'.format(slurp(open, here_css(filename)))
@@ -442,12 +486,18 @@ class CambridgeEnNo:
         return 'https://dictionary.cambridge.org/dictionary/english-norwegian/{0}'.format(word)
 
 class DslWord:
+    FILENAME = '~/.ordbok.dsl.txt'
     def __init__(self, word):
         # TODO: is file is empty or missing, show a hint on what to put there
         # and where
-        dsls = slurp_lines(open, '~/.ordbok.dsl.txt')
+        dsls = slurp_lines(open, self.FILENAME)
         self.word = word
-        self.html = dsl_lookup(dsls, [word]) or 'No DSL word found for "{0}"'.format(word)
+        self.html = self.no_dictionary()
+        if dsls:
+            self.html = dsl_lookup(dsls, [word]) or 'No DSL word found for "{0}"'.format(word)
+    def no_dictionary(self):
+        return 'No dictionaries found. Put full filename paths to DSL ' \
+            'dictionaries into {0}, one filename per line'.format(self.FILENAME)
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -641,6 +691,14 @@ class Browsers:
             return 2
         if (e.key() == Qt.Key_Dollar) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
             return 3
+        if (e.key() == Qt.Key_Q) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+            return 4
+        if (e.key() == Qt.Key_W) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+            return 5
+        if (e.key() == Qt.Key_F) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+            return 6
+        if (e.key() == Qt.Key_P) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+            return 7
         return None
     def on_key_press(self, e):
         index = self.scan_shortcut(e)
@@ -667,7 +725,7 @@ class MainWindow(QWidget):
         self.setLayout(mainLayout)
         self.main_layout = mainLayout
 
-        self.browsers = Browsers(self, mainLayout, 4)
+        self.browsers = Browsers(self, mainLayout, 8)
         self.browsers.zoom(self.ZOOM)
 
         self.comboBox = QComboBoxKey(self, self.browsers.on_key_press)
@@ -764,6 +822,10 @@ class MainWindow(QWidget):
                 ui_nor_url(text),
                 ui_third_url(text),
                 ui_fourth_url(text),
+                ui_q_url(text),
+                ui_w_url(text),
+                ui_e_url(text),
+                ui_r_url(text),
                ]
         self.browsers.load(urls)
 
@@ -866,6 +928,10 @@ class FlaskUIServer:
         self.app.route('/ui/nor/<word>', methods=['GET'])(self.route_ui_nor)
         self.app.route('/ui/third/<word>', methods=['GET'])(self.route_ui_third)
         self.app.route('/ui/fourth/<word>', methods=['GET'])(self.route_ui_fourth)
+        self.app.route('/ui/q/<word>', methods=['GET'])(self.route_ui_q)
+        self.app.route('/ui/w/<word>', methods=['GET'])(self.route_ui_w)
+        self.app.route('/ui/e/<word>', methods=['GET'])(self.route_ui_e)
+        self.app.route('/ui/r/<word>', methods=['GET'])(self.route_ui_r)
         self.app.route('/lexin/word/<word>', methods=['GET'])(self.route_lexin_word)
         self.app.route('/ordbok/inflect/<word>', methods=['GET'])(self.route_ordbok_inflect)
         self.app.route('/ordbok/word/<word>', methods=['GET'])(self.route_ordbok_word)
@@ -891,6 +957,14 @@ class FlaskUIServer:
         return iframe_third(word)
     def route_ui_fourth(self, word):
         return iframe_fourth(word)
+    def route_ui_q(self, word):
+        return iframe_q(word)
+    def route_ui_w(self, word):
+        return iframe_w(word)
+    def route_ui_e(self, word):
+        return iframe_e(word)
+    def route_ui_r(self, word):
+        return iframe_r(word)
     def route_lexin_word(self, word):
         return LexinOsloMetArticle(self.static_client, word).styled()
     def route_glosbe_noru(self, word):
@@ -904,10 +978,10 @@ class FlaskUIServer:
     def route_ordbok_word(self, word):
         return OrdbokWord(self.static_client, word).styled()
     def route_naob_word(self, word):
-        return DslWord(word).styled()
+        #return DslWord(word).styled()
         # TODO: fix pyppeteer
         #return 'pyppeteer is crashing, disabled for now'
-        #return NaobWord(self.dynamic_client, word).styled()
+        return NaobWord(self.dynamic_client, word).styled()
     def route_wiktionary_no(self, word):
         return WiktionaryNo(self.static_client, word).styled()
     def route_cambridge_enno(self, word):
