@@ -284,6 +284,10 @@ def iframe_r(word):
     t = Template(open(here_html('iframe-r.html')).read())
     return t.substitute(word=word)
 
+def iframe_h(word):
+    t = Template(open(here_html('iframe-h.html')).read())
+    return t.substitute(word=word)
+
 def ui_mix_url(word):
     return 'http://{0}:{1}/ui/mix/{2}'.format(UI_HOST, UI_PORT, word)
 
@@ -307,6 +311,9 @@ def ui_e_url(word):
 
 def ui_r_url(word):
     return 'http://{0}:{1}/ui/r/{2}'.format(UI_HOST, UI_PORT, word)
+
+def ui_h_url(word):
+    return 'http://{0}:{1}/ui/h/{2}'.format(UI_HOST, UI_PORT, word)
 
 def css(filename):
     return '<style>{0}</style>'.format(slurp(open, here_css(filename)))
@@ -699,6 +706,8 @@ class Browsers:
             return 6
         if (e.key() == Qt.Key_P) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
             return 7
+        if (e.key() == Qt.Key_H) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+            return 8
         return None
     def on_key_press(self, e):
         index = self.scan_shortcut(e)
@@ -725,7 +734,7 @@ class MainWindow(QWidget):
         self.setLayout(mainLayout)
         self.main_layout = mainLayout
 
-        self.browsers = Browsers(self, mainLayout, 8)
+        self.browsers = Browsers(self, mainLayout, 9)
         self.browsers.zoom(self.ZOOM)
 
         self.comboBox = QComboBoxKey(self, self.browsers.on_key_press)
@@ -826,6 +835,7 @@ class MainWindow(QWidget):
                 ui_w_url(text),
                 ui_e_url(text),
                 ui_r_url(text),
+                ui_h_url(text),
                ]
         self.browsers.load(urls)
 
@@ -932,6 +942,7 @@ class FlaskUIServer:
         self.app.route('/ui/w/<word>', methods=['GET'])(self.route_ui_w)
         self.app.route('/ui/e/<word>', methods=['GET'])(self.route_ui_e)
         self.app.route('/ui/r/<word>', methods=['GET'])(self.route_ui_r)
+        self.app.route('/ui/h/<word>', methods=['GET'])(self.route_ui_h)
         self.app.route('/lexin/word/<word>', methods=['GET'])(self.route_lexin_word)
         self.app.route('/ordbok/inflect/<word>', methods=['GET'])(self.route_ordbok_inflect)
         self.app.route('/ordbok/word/<word>', methods=['GET'])(self.route_ordbok_word)
@@ -965,6 +976,8 @@ class FlaskUIServer:
         return iframe_e(word)
     def route_ui_r(self, word):
         return iframe_r(word)
+    def route_ui_h(self, word):
+        return iframe_h(word)
     def route_lexin_word(self, word):
         return LexinOsloMetArticle(self.static_client, word).styled()
     def route_glosbe_noru(self, word):
