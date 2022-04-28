@@ -326,21 +326,15 @@ def _uniq_at(current_chunk, all_words):
     return [word for word in current_chunk if word in uniq]
 
 
-def main():
-    parser = ArgumentParser('Extract word articles from a DSL file')
-    parser.add_argument('--dsl', dest='dsl', type=str, action='append',
-                        help='path to a dsl dictionary file')
-    args = parser.parse_args()
-
-    #path = '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/long-8.dsl'
-    #path = '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
-    _ensure_indexes_present(args.dsl)
-    dsl_lookupers = [DSLLookuper(dsl) for dsl in args.dsl]
+def lookup(dsls, words):
+    _ensure_indexes_present(dsls)
+    dsl_lookupers = [DSLLookuper(dsl) for dsl in dsls]
     # print(dsl_reader.lookup('abrade'))
     words_found = 0
     words_missing = 0
 
-    for word in fileinput.input('-'):
+    result = []
+    for word in words:
         found = 0
         articles = []
         examples = []
@@ -359,15 +353,29 @@ def main():
             examples = ''.join(['<li>%s</li>' % ex for ex in examples])
             if examples:
                 examples = '<ul>%s</ul>' % examples
-            print('%s\t%s\t%s' % (word, examples, articles))
+            result.append(articles)
+            # print('%s\t%s\t%s' % (word, examples, articles))
             #print(examples, file=stderr)
             words_found += 1
         else:
             words_missing += 1
             # logging.info('Missing word: %s', word)
 
-    logging.info('Found %d words, %d missing words, %d total',
-                 words_found, words_missing, words_found + words_missing)
+    # logging.info('Found %d words, %d missing words, %d total',
+    #              words_found, words_missing, words_found + words_missing)
+    return ''.join(result)
+
+
+def main():
+    parser = ArgumentParser('Extract word articles from a DSL file')
+    parser.add_argument('--dsl', dest='dsl', type=str, action='append',
+                        help='path to a dsl dictionary file')
+    args = parser.parse_args()
+
+    #path = '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/long-8.dsl'
+    #path = '/mnt/big_ntfs/distrib/lang/dictionaries/LDOCE5 for Lingvo/dsl/En-En-Longman_DOCE5.dsl'
+    words = [word for word in fileinput.input('-')]
+    print(lookup(args.dsl, words))
 
 
 if __name__ == '__main__':

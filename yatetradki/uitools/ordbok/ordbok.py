@@ -73,7 +73,7 @@ import logging
 import re
 import bz2
 from os import makedirs
-from os.path import dirname, exists, normpath, join
+from os.path import dirname, exists, normpath, join, expanduser, expandvars
 from urllib.parse import urlparse
 from json import loads
 from string import Template
@@ -96,6 +96,8 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtGui import QIcon, QFont, QClipboard
 from PyQt5.QtCore import Qt, QTimer, QObject, QUrl
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
+
+from yatetradki.reader.dsl import lookup as dsl_lookup
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -194,7 +196,13 @@ class CachedHttpClient:
 class NoContent(Exception):
     pass
 
+def slurp_lines(do_open, filename):
+    result = slurp(do_open, filename)
+    if result:
+        return [x.strip() for x in result.splitlines()]
+
 def slurp(do_open, filename):
+    filename = expanduser(expandvars(filename))
     try:
         with do_open(filename, 'rb') as file_:
             return file_.read().decode()
@@ -202,6 +210,7 @@ def slurp(do_open, filename):
         return None
 
 def spit(do_open, filename, content):
+    filename = expanduser(expandvars(filename))
     dir = dirname(filename)
     if not exists(dir):
         makedirs(dir)
@@ -431,6 +440,20 @@ class CambridgeEnNo:
         return css('cambridge-style.css')
     def get_url(self, word):
         return 'https://dictionary.cambridge.org/dictionary/english-norwegian/{0}'.format(word)
+
+class DslWord:
+    def __init__(self, word):
+        # TODO: is file is empty or missing, show a hint on what to put there
+        # and where
+        dsls = slurp_lines(open, '~/.ordbok.dsl.txt')
+        self.word = word
+        self.html = dsl_lookup(dsls, [word]) or 'No DSL word found for "{0}"'.format(word)
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return '' # css('wiktionary-style.css')
+    # def get_url(self, word):
+    #     return 'https://no.wiktionary.org/wiki/{0}'.format(word)
 
 def pluck(regexp, group):
     yes, no = [], []
@@ -820,7 +843,7 @@ def timed_http_get(url):
 
 
 from flask import Flask, Response, render_template, url_for
-class GoldenDictProxy:
+class FlaskUIServer:
     def __init__(self, static_client, dynamic_client, host, port):
         self.static_client = static_client
         self.dynamic_client = dynamic_client
@@ -832,7 +855,7 @@ class GoldenDictProxy:
     def serve_background(self):
         Thread(target=self.serve, daemon=True).start()
     def serve(self):
-        logging.info('Starting GoldenDictProxy on %s:%s', self.host, self.port)
+        logging.info('Starting FlaskUIServer on %s:%s', self.host, self.port)
         self.app.register_error_handler(HTTPError, self.error_handler)
         self.app.register_error_handler(ReadTimeout, self.error_handler)
         self.app.register_error_handler(ConnectionError, self.error_handler)
@@ -852,6 +875,7 @@ class GoldenDictProxy:
         self.app.route('/glosbe/enno/<word>', methods=['GET'])(self.route_glosbe_enno)
         self.app.route('/wiktionary/no/<word>', methods=['GET'])(self.route_wiktionary_no)
         self.app.route('/cambridge/enno/<word>', methods=['GET'])(self.route_cambridge_enno)
+        self.app.route('/dsl/word/<word>', methods=['GET'])(self.route_dsl_word)
         self.app.route('/all/word/<word>', methods=['GET'])(self.route_all_word)
         self.app.route('/', methods=['GET'])(self.route_index)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
@@ -880,11 +904,16 @@ class GoldenDictProxy:
     def route_ordbok_word(self, word):
         return OrdbokWord(self.static_client, word).styled()
     def route_naob_word(self, word):
-        return NaobWord(self.dynamic_client, word).styled()
+        return DslWord(word).styled()
+        # TODO: fix pyppeteer
+        #return 'pyppeteer is crashing, disabled for now'
+        #return NaobWord(self.dynamic_client, word).styled()
     def route_wiktionary_no(self, word):
         return WiktionaryNo(self.static_client, word).styled()
     def route_cambridge_enno(self, word):
         return CambridgeEnNo(self.static_client, word).styled()
+    def route_dsl_word(self, word):
+        return DslWord(word).styled()
     def route_all_word(self, word):
         urls = [
             self.url('/lexin/word/{}'.format(word)),
@@ -896,6 +925,7 @@ class GoldenDictProxy:
             self.url('/glosbe/enno/{}'.format(word)),
             self.url('/wiktionary/no/{}'.format(word)),
             self.url('/cambridge/enno/{}'.format(word)),
+            self.url('/dsl/word/{}'.format(word)),
         ]
         times = [timed_http_get(url) for url in urls]
         return ' '.join(['{:.2f}'.format(x) for x in times]) + '\n'
@@ -912,8 +942,8 @@ def main():
     disable_logging()
     static_client = CachedHttpClient(StaticHttpClient(), 'cache')
     dynamic_client = CachedHttpClient(DynamicHttpClient(), 'cache')
-    golden_dict_proxy = GoldenDictProxy(static_client, dynamic_client, UI_HOST, UI_PORT)
-    golden_dict_proxy.serve_background()
+    ui_server = FlaskUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
+    ui_server.serve_background()
 
     qtApp = QApplication(sys.argv)
     window = MainWindow(qtApp)

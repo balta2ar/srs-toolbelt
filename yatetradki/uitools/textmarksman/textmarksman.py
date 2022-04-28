@@ -84,7 +84,8 @@ def main():
     #filename = '/tmp/textmarksman.png'
     if filename:
         #deskew(filename, filename)
-        text = ocr(filename, 'nor')
+        #text = ocr(filename, 'nor+rus')
+        text = ocr(filename, 'nor+rus')
         text = unwrap(text)
         copy(text)
         notify('OCR', text)
