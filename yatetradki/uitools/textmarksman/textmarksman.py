@@ -85,7 +85,7 @@ def main():
     if filename:
         #deskew(filename, filename)
         #text = ocr(filename, 'nor+rus')
-        text = ocr(filename, 'nor+rus')
+        text = ocr(filename, 'nor')
         text = unwrap(text)
         copy(text)
         notify('OCR', text)
