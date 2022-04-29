@@ -73,15 +73,15 @@ def notify(title, message):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='OCR text from screen')
-    parser.add_argument('--sayit', default=False, action='store_true', help='Pronounce text after OCR')
+    parser.add_argument('-s', '--sayit', default=False, action='store_true', help='Pronounce text after OCR')
+    parser.add_argument('-i', '--input', default=None, help='Input file name, instead of taking a screenshot')
     return parser.parse_args()
 
 def main():
     args = parse_args()
     print(tesserocr.tesseract_version())
     print(tesserocr.get_languages())
-    filename = capture()
-    #filename = '/tmp/textmarksman.png'
+    filename = args.input if args.input else capture()
     if filename:
         #deskew(filename, filename)
         #text = ocr(filename, 'nor+rus')
