@@ -87,9 +87,9 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 from pyppeteer import launch as launch_pyppeteer
-from pyppeteer.errors import TimeoutError
+from pyppeteer.errors import TimeoutError as PyppeteerTimeoutError
 from playwright.sync_api import sync_playwright
-from playwright.async_api import async_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QWidget, QCompleter,
@@ -931,7 +931,8 @@ class FlaskUIServer:
         self.app.register_error_handler(HTTPError, self.error_handler)
         self.app.register_error_handler(ReadTimeout, self.error_handler)
         self.app.register_error_handler(ConnectionError, self.error_handler)
-        self.app.register_error_handler(TimeoutError, self.error_handler)
+        self.app.register_error_handler(PyppeteerTimeoutError, self.error_handler)
+        self.app.register_error_handler(PlaywrightTimeoutError, self.error_handler)
         self.app.register_error_handler(NoContent, self.error_handler)
         self.app.route('/static/css/iframe.css', methods=['GET'])(self.route_iframe_css)
         self.app.route('/ui/mix/<word>', methods=['GET'])(self.route_ui_mix)
