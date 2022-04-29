@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
+import os
 import re
 import sys
 import argparse
 import subprocess
 from typing import Optional
 import tesserocr
-from tesserocr import PSM, OEM
+from tesserocr import PSM, OEM, PyTessBaseAPI, RIL
+from PIL import Image, ImageDraw
+# import pytesseract
 import pyperclip
 
 from yatetradki.uitools.sayit.sayit import sayit
@@ -22,6 +25,21 @@ def capture() -> Optional[str]:
     if p.returncode == 0:
         return filename
     return None
+
+def ensure_dir(name):
+    if not os.path.exists(name):
+        os.makedirs(name)
+    return name
+
+# cdef class RIL(_Enum):
+#     """An enum that defines available Page Iterator levels.
+#     Attributes:
+#         BLOCK: of text/image/separator line.
+#         PARA: within a block.
+#         TEXTLINE: within a paragraph.
+#         WORD: within a textline.
+#         SYMBOL: character within a word.
+#     """
 
 def ocr(filename: str, lang: str) -> str:
     # https://github.com/sirfz/tesserocr/blob/master/tesseract.pxd#L293
@@ -43,8 +61,27 @@ def ocr(filename: str, lang: str) -> str:
     # RAW_LINE,                # Treat the image as a single text line, bypassing
     #                          # hacks that are Tesseract-specific.
     # COUNT                    # Number of enum entries.
-    with tesserocr.PyTessBaseAPI(lang=lang, psm=PSM.SINGLE_COLUMN) as api:
+    #print(pytesseract.image_to_boxes(Image.open(filename), lang=lang))
+    modes = [RIL.BLOCK, RIL.PARA, RIL.TEXTLINE, RIL.WORD, RIL.SYMBOL]
+    with PyTessBaseAPI(lang=lang, psm=PSM.SINGLE_COLUMN) as api:
         api.SetImageFile(filename)
+        for mode in modes:
+            mode_dir = ensure_dir('out{}'.format(mode))
+            with Image.open(filename) as orig:
+                draw = ImageDraw.Draw(orig)
+                boxes = api.GetComponentImages(mode, True)
+                print('boxes', len(boxes))
+                print('boxes', boxes)
+                for i, (im, box, _, _) in enumerate(boxes):
+                    # im is a PIL image object
+                    # box is a dict with x, y, w and h keys
+                    #api.SetRectangle(box['x'], box['y'], box['w'], box['h'])
+                    print(i, im, box)
+                    x, y, w, h = box['x'], box['y'], box['w'], box['h']
+                    draw.rectangle((x, y, x+w, y+h), outline='red')
+                    im.save('{}/{:05d}.png'.format(mode_dir, i))
+                orig.save('out{}.png'.format(mode))
+
         return api.GetUTF8Text()
 
 def unwrap(text: str) -> str:

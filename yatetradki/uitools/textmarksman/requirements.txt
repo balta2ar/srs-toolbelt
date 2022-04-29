@@ -1,3 +1,4 @@
 pyperclip==1.7.0
 tesserocr==2.5.2
 deskew==0.10.39
+pillow==9.1.0
