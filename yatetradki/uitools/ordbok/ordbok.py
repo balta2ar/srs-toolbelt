@@ -531,6 +531,28 @@ class DslWord:
     # def get_url(self, word):
     #     return 'https://no.wiktionary.org/wiki/{0}'.format(word)
 
+class GoogleTranslate:
+    FROM = 'NA'
+    TO = 'NA'
+    def __init__(self, client, word):
+        self.word = word
+        soup = parse(client.get(self.get_url(word, self.FROM, self.TO)))
+        self.html = extract(soup, 'div', {'class': 'result-container'})
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return '' #css('wiktionary-style.css')
+    def get_url(self, word, src, dest):
+        return 'https://translate.google.com/m?hl=en&sl={0}&tl={1}&prev=_m&q={2}'.format(src, dest, word)
+
+class GoogleTranslateNoEn(GoogleTranslate):
+    FROM = 'no'
+    TO = 'en'
+
+class GoogleTranslateEnNo(GoogleTranslate):
+    FROM = 'en'
+    TO = 'no'
+
 def pluck(regexp, group):
     yes, no = [], []
     for x in group:
@@ -973,6 +995,8 @@ class FlaskUIServer:
         self.app.route('/wiktionary/no/<word>', methods=['GET'])(self.route_wiktionary_no)
         self.app.route('/cambridge/enno/<word>', methods=['GET'])(self.route_cambridge_enno)
         self.app.route('/dsl/word/<word>', methods=['GET'])(self.route_dsl_word)
+        self.app.route('/gtrans/noen/<word>', methods=['GET'])(self.route_gtrans_noen)
+        self.app.route('/gtrans/enno/<word>', methods=['GET'])(self.route_gtrans_enno)
         self.app.route('/all/word/<word>', methods=['GET'])(self.route_all_word)
         self.app.route('/', methods=['GET'])(self.route_index)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
@@ -1021,6 +1045,10 @@ class FlaskUIServer:
         return CambridgeEnNo(self.static_client, word).styled()
     def route_dsl_word(self, word):
         return DslWord(word).styled()
+    def route_gtrans_noen(self, word):
+        return GoogleTranslateNoEn(self.static_client, word).styled()
+    def route_gtrans_enno(self, word):
+        return GoogleTranslateEnNo(self.static_client, word).styled()
     def route_all_word(self, word):
         urls = [
             self.url('/lexin/word/{}'.format(word)),
@@ -1033,6 +1061,8 @@ class FlaskUIServer:
             self.url('/wiktionary/no/{}'.format(word)),
             self.url('/cambridge/enno/{}'.format(word)),
             self.url('/dsl/word/{}'.format(word)),
+            self.url('/gtrans/noen/{}'.format(word)),
+            self.url('/gtrans/enno/{}'.format(word)),
         ]
         times = [timed_http_get(url) for url in urls]
         return ' '.join(['{:.2f}'.format(x) for x in times]) + '\n'
