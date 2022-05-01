@@ -3,6 +3,7 @@
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.request import urlopen
+from urllib3 import disable_warnings
 from threading import Thread
 from queue import Queue
 
@@ -118,6 +119,7 @@ USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Ge
 
 
 def disable_logging():
+    disable_warnings()
     #print(logging.root.manager.loggerDict)
     blacklist = r'.*pyppeteer.*|.*urllib.*'
     for name in logging.root.manager.loggerDict:
@@ -150,6 +152,7 @@ class DynamicHttpClient:
         return self.get_playwright(url, selector)
         #return self.get_pyppeteer(url, selector)
     def get_playwright(self, url, selector=None):
+        disable_logging()
         with sync_playwright() as p:
             browser = p.chromium.launch()
             page = browser.new_page()
@@ -904,7 +907,7 @@ class MainWindow(QWidget):
             self.last_manual_change = time.time()
             self.set_text(self.text())
         else:
-            print('>>>EVENT', e.key(), e.modifiers())
+            logging.info('key event: %s, %s', e.key(), e.modifiers())
 
 
 def timed_http_get(url):
