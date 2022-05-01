@@ -323,11 +323,17 @@ def ui_r_url(word):
 def ui_h_url(word):
     return 'http://{0}:{1}/ui/h/{2}'.format(UI_HOST, UI_PORT, word)
 
+def ui_aulismedia_norsk(word):
+    return 'http://{0}:{1}/aulismedia/norsk/{2}'.format(UI_HOST, UI_PORT, word)
+
 def css(filename):
     return '<style>{0}</style>'.format(slurp(open, here_css(filename)))
 
 def here(name):
     return join(dirname(__file__), name)
+
+def here_js(name):
+    return join(dirname(__file__), 'static/js', name)
 
 def here_css(name):
     return join(dirname(__file__), 'static/css', name)
@@ -552,6 +558,37 @@ class GoogleTranslateNoEn(GoogleTranslate):
 class GoogleTranslateEnNo(GoogleTranslate):
     FROM = 'en'
     TO = 'no'
+
+class AulismediaWord:
+    def __init__(self, client, word):
+        self.word = word
+        # {"lastpage": 1470,"firstpage": 1,"page": 14,"direction": "nor","term": "al"}
+        data = loads(client.get(self.get_url(word)))
+        page = '{}{:04d}.jpg'.format(data['direction'], data['page'])
+        self.html = Template(open(here_html('aulismedia-norsk.html')).read()).substitute(word=page)
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return '' # css('aulismedia-style.css')
+    def get_url(self, word):
+        return 'http://norsk.dicts.aulismedia.com/processnorsk.php?search={0}'.format(word)
+    # @staticmethod
+    # def static(word):
+    #     filename = 'aulismedia/norsk/{0}'.format(word)
+    #     try:
+    #         with open(here(filename), 'rb') as f:
+    #             response = make_response(f.read())
+    #             response.headers['Content-Type'] = 'image/jpeg'
+    #             response.cache_control.max_age = 24 * 3600
+    #             return response
+    #     except Exception as e:
+    #         logging.error(e)
+    #         return make_response('Not found', 404)
+    @staticmethod
+    def flip(word, increment):
+        index = int(''.join(filter(lambda x: x.isdigit(), word))) + increment
+        url = ui_aulismedia_norsk('{:04d}.jpg'.format(index))
+        return redirect(url, code=302)
 
 def pluck(regexp, group):
     yes, no = [], []
@@ -955,7 +992,7 @@ def timed_http_get(url):
     return t1 - t0
 
 
-from flask import Flask, Response, render_template, url_for
+from flask import Flask, Response, render_template, url_for, make_response, redirect
 class FlaskUIServer:
     def __init__(self, static_client, dynamic_client, host, port):
         self.static_client = static_client
@@ -997,6 +1034,10 @@ class FlaskUIServer:
         self.app.route('/dsl/word/<word>', methods=['GET'])(self.route_dsl_word)
         self.app.route('/gtrans/noen/<word>', methods=['GET'])(self.route_gtrans_noen)
         self.app.route('/gtrans/enno/<word>', methods=['GET'])(self.route_gtrans_enno)
+        self.app.route('/aulismedia/norsk/<word>', methods=['GET'])(self.route_aulismedia_norsk)
+        self.app.route('/aulismedia/prev/<word>', methods=['GET'])(self.route_aulismedia_prev)
+        self.app.route('/aulismedia/next/<word>', methods=['GET'])(self.route_aulismedia_next)
+        # self.app.route('/aulismedia/static/<word>', methods=['GET'])(self.route_aulismedia_static)
         self.app.route('/all/word/<word>', methods=['GET'])(self.route_all_word)
         self.app.route('/', methods=['GET'])(self.route_index)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
@@ -1049,6 +1090,14 @@ class FlaskUIServer:
         return GoogleTranslateNoEn(self.static_client, word).styled()
     def route_gtrans_enno(self, word):
         return GoogleTranslateEnNo(self.static_client, word).styled()
+    def route_aulismedia_norsk(self, word):
+        return AulismediaWord(self.static_client, word).styled()
+    def route_aulismedia_prev(self, word):
+        return AulismediaWord.flip(word, -1)
+    def route_aulismedia_next(self, word):
+        return AulismediaWord.flip(word, 1)
+    # def route_aulismedia_static(self, word):
+    #     return AulismediaWord.static(word)
     def route_all_word(self, word):
         urls = [
             self.url('/lexin/word/{}'.format(word)),

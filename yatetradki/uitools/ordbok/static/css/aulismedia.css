@@ -1,0 +1,16 @@
+.container {
+}
+.panel {
+    position: absolute;
+}
+.left {
+    width: 50px;
+    background-color: transparent;
+    font-size: 30px;
+}
+.right {
+    width: 50px;
+    background-color: transparent;
+    font-size: 30px;
+    float: right;
+}
