@@ -252,6 +252,11 @@ def extract(soup, *args):
     raise NoContent('NoContent: {0}'.format(args))
     #return result.prettify() if result else no_content()
 
+def remove_one(soup, selector):
+    target = soup.select_one(selector)
+    if target: target.decompose()
+    return soup
+
 def parse(body):
     return BeautifulSoup(body, features='html.parser')
 
@@ -422,8 +427,18 @@ class Article:
 class NaobWord:
     def __init__(self, client, word):
         self.word = word
-        soup = parse(client.get(self.get_url(word), selector='div.article'))
-        self.html = extract(soup, 'div', {'class': 'article'})
+        soup = parse(client.get(self.get_url(word), selector='main > div.container'))
+        article = soup.select_one('div.article')
+        container = soup.select_one('main > div.container')
+        main = container.parent
+        main = remove_one(main, '.vipps-box')
+        main = remove_one(main, '.prompt')
+        if article:
+            self.html = extract(main, 'div', {'class': 'article'})
+        elif container.select_one('div.list-item'):
+            self.html = extract(main, 'div', {'class': 'container'})
+        else:
+            raise NoContent('NoContent: Naob: word="{0}"'.format(word))
     def styled(self):
         return self.style() + self.html
     def style(self):
