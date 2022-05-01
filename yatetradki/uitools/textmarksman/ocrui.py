@@ -1,9 +1,11 @@
 import logging
 import sys
+from dataclasses import dataclass
 from os.path import basename
 
 from PIL import Image
 from PIL import ImageDraw
+from PIL.ImageQt import ImageQt
 from PyQt5.QtCore import QPoint
 from PyQt5.QtCore import QRect
 from PyQt5.QtCore import Qt
@@ -17,10 +19,13 @@ from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QMainWindow
 from PyQt5.QtWidgets import QMenu
 from PyQt5.QtWidgets import QPushButton
+from PyQt5.QtWidgets import QSlider
 from tesserocr import PSM
 from tesserocr import PyTessBaseAPI
 from tesserocr import RIL
 from tesserocr import get_languages
+
+from weight import get_pil_image_weight
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -38,6 +43,21 @@ def by_key(pairs, key):
         if k == key:
             return v
     raise ValueError('No value found for key: {}'.format(key))
+
+
+def pil_image_to_qpixmap(image):
+    filename = '/tmp/ocrui-image.png'
+    image.save(filename)
+    return QPixmap(filename)
+
+@dataclass
+class Box:
+    x1: int
+    y1: int
+    x2: int
+    y2: int
+    weight: float
+    text: str
 
 
 class Menu(QMainWindow):
@@ -82,6 +102,7 @@ class Menu(QMainWindow):
         self.lang = 'nor'
         self.psm = PSM.AUTO
         self.ril = RIL.WORD
+        self.boxes = []
 
         def set_lang(action):
             logging.info('lang={}'.format(action.text()))
@@ -97,6 +118,12 @@ class Menu(QMainWindow):
             logging.info('RIL={}'.format(action.text()))
             page_iteration_level_button.setText('RIL={}'.format(action.text()))
             self.ril = by_value(Menu.RIL_MODES, action.text())
+
+        def threshold_slider_released():
+            value = self.threshold_slider.value()
+            logging.info('threshold={}'.format(value))
+            self.update_layers()
+            self.update()
 
         run_ocr_action = QAction('Run OCR', self)
         run_ocr_action.setStatusTip('Run OCR on the current image')
@@ -123,6 +150,13 @@ class Menu(QMainWindow):
             ril_menu.addAction(mode)
         page_iteration_level_button.setMenu(ril_menu)
         ril_menu.triggered.connect(set_ril)
+
+        self.threshold_slider = QSlider(Qt.Horizontal)
+        self.threshold_slider.setMinimum(0)
+        self.threshold_slider.setMaximum(100)
+        self.threshold_slider.setSingleStep(1)
+        self.threshold_slider.setValue(90)
+        self.threshold_slider.sliderReleased.connect(threshold_slider_released)
 
         # New snip
         new_snip_action = QAction('New', self)
@@ -163,11 +197,12 @@ class Menu(QMainWindow):
         self.toolbar.addWidget(lang_button)
         self.toolbar.addWidget(page_segmentation_mode_button)
         self.toolbar.addWidget(page_iteration_level_button)
-        self.toolbar.addAction(new_snip_action)
-        self.toolbar.addAction(save_action)
-        self.toolbar.addWidget(brush_color_button)
-        self.toolbar.addWidget(brush_size_button)
+        # self.toolbar.addAction(new_snip_action)
+        # self.toolbar.addAction(save_action)
+        # self.toolbar.addWidget(brush_color_button)
+        # self.toolbar.addWidget(brush_size_button)
         self.toolbar.addAction(exit_window)
+        self.toolbar.addWidget(self.threshold_slider)
 
         # self.snippingTool = SnippingTool.SnippingWidget()
         self.setGeometry(*start_position)
@@ -201,25 +236,43 @@ class Menu(QMainWindow):
             # api.SetImage(self.image)
             api.SetImageFile(self.background_filename)
             # mode_dir = ensure_dir('out{}'.format(mode))
-            boxes = api.GetComponentImages(self.ril, True)
-            print('boxes', len(boxes))
-            print('boxes', boxes)
+            components = api.GetComponentImages(self.ril, True)
+            print('components', len(components))
+            print('components', components)
+            self.boxes = []
 
-            with Image.open(self.background_filename) as orig:
-                draw = ImageDraw.Draw(orig)
-                for i, (im, box, _, _) in enumerate(boxes):
-                    # im is a PIL image object
-                    # box is a dict with x, y, w and h keys
-                    # api.SetRectangle(box['x'], box['y'], box['w'], box['h'])
-                    x, y, w, h = box['x'], box['y'], box['w'], box['h']
-                    draw.rectangle((x, y, x + w, y + h), outline='red')
-                    # im.save('{}/{:05d}.png'.format(mode_dir, i))
-                orig.save(self.overlay_filename)
-                self.background = QPixmap(self.overlay_filename)
-            # text = api.GetUTF8Text()
-            # print(text)
+            for i, (im, comp, _, _) in enumerate(components):
+                # im -- PIL image object
+                x, y, w, h = comp['x'], comp['y'], comp['w'], comp['h']
+                weight = float(get_pil_image_weight(im))
+                logging.info('weight: %s', weight)
+                api.SetRectangle(x, y, w, h)
+                text = api.GetUTF8Text()
+                self.boxes.append(Box(x, y, x + w, y + h, weight, text))
+
+        self.boxes.sort(key=lambda box: box.weight)
+        self.update_layers()
         self.update()
         logging.info('OCR finished')
+
+    def update_layers(self):
+        boxes = self.boxes
+        if len(boxes) == 0: return
+        delta = boxes[-1].weight - boxes[0].weight
+        threshold = self.threshold_slider.value() / 100.0
+        threshold = boxes[0].weight + delta * threshold
+        logging.info('min=%s, max=%s, delta=%s, threshold=%s', boxes[0].weight, boxes[-1].weight, delta, threshold)
+
+        with Image.open(self.background_filename) as orig:
+            draw = ImageDraw.Draw(orig)
+            for box in boxes:
+                if box.weight < threshold:
+                    continue
+                draw.rectangle((box.x1, box.y1, box.x2, box.y2), outline='red')
+                # im.save('{}/{:05d}.png'.format(mode_dir, i))
+            # orig.save(self.overlay_filename)
+            # self.background = QPixmap(self.overlay_filename)
+            self.background = pil_image_to_qpixmap(orig)
 
     # snippingTool.start() will open a new window, so if this is the first snip, close the first window.
     def new_image_window(self):

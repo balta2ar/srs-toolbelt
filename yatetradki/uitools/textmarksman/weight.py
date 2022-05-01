@@ -13,11 +13,15 @@ def ensure_dir(name):
     return name
 
 
+def get_pil_image_weight(image):
+    data = np.array(image)
+    rows, cols = data.shape
+    return data.sum() / cols
+
+
 def get_weight(path):
-    with Image.open(path) as img:
-        data = np.array(img)
-        rows, cols = data.shape
-        return data.sum() / (cols)
+    with Image.open(path) as image:
+        return get_pil_image_weight(image)
 
 
 def get_weights(names):
