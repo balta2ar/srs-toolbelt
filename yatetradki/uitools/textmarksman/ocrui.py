@@ -3,9 +3,11 @@ import sys
 from dataclasses import dataclass
 from os.path import basename
 
+import numpy as np
 from PIL import Image
 from PIL import ImageDraw
 from PIL.ImageQt import ImageQt
+import pyqtgraph as pg
 from PyQt5.QtCore import QPoint
 from PyQt5.QtCore import QRect
 from PyQt5.QtCore import Qt
@@ -20,6 +22,8 @@ from PyQt5.QtWidgets import QMainWindow
 from PyQt5.QtWidgets import QMenu
 from PyQt5.QtWidgets import QPushButton
 from PyQt5.QtWidgets import QSlider
+from PyQt5.QtWidgets import QVBoxLayout
+from PyQt5.QtWidgets import QWidget
 from tesserocr import PSM
 from tesserocr import PyTessBaseAPI
 from tesserocr import RIL
@@ -90,7 +94,7 @@ class Menu(QMainWindow):
     ]
 
     # numpy_image is the desired image we want to display given as a numpy array.
-    def __init__(self, numpy_image=None, snip_number=None, start_position=(300, 300, 350, 250)):
+    def __init__(self, numpy_image=None, snip_number=None, start_position=(100, 100, 1000, 800)):
         super().__init__()
 
         self.drawing = False
@@ -158,6 +162,8 @@ class Menu(QMainWindow):
         self.threshold_slider.setValue(90)
         self.threshold_slider.sliderReleased.connect(threshold_slider_released)
 
+        self.histogram_widget = pg.PlotWidget()
+
         # New snip
         new_snip_action = QAction('New', self)
         new_snip_action.setShortcut('Ctrl+N')
@@ -202,7 +208,16 @@ class Menu(QMainWindow):
         # self.toolbar.addWidget(brush_color_button)
         # self.toolbar.addWidget(brush_size_button)
         self.toolbar.addAction(exit_window)
-        self.toolbar.addWidget(self.threshold_slider)
+        # self.toolbar.addWidget(self.threshold_slider)
+        two_level_widget = QWidget(self.toolbar)
+        two_level_layout = QVBoxLayout()
+        two_level_widget.setLayout(two_level_layout)
+        two_level_layout.addWidget(self.histogram_widget)
+        two_level_layout.addWidget(self.threshold_slider)
+
+        # two_level_widget.setMaximumHeight(100)
+        self.toolbar.addWidget(two_level_widget)
+        # self.toolbar.setMinimumHeight(100)
 
         # self.snippingTool = SnippingTool.SnippingWidget()
         self.setGeometry(*start_position)
@@ -217,7 +232,7 @@ class Menu(QMainWindow):
             self.background = QPixmap(self.background_filename)
             self.change_and_set_title(Menu.default_title)
 
-        self.resize(self.background.width(), self.background.height() + self.toolbar.height())
+        # self.resize(self.background.width(), self.background.height() + self.toolbar.height())
         self.show()
 
         def change_brush_color(new_color):
@@ -263,9 +278,11 @@ class Menu(QMainWindow):
         threshold = boxes[0].weight + delta * threshold
         logging.info('min=%s, max=%s, delta=%s, threshold=%s', boxes[0].weight, boxes[-1].weight, delta, threshold)
 
+        weights = []
         with Image.open(self.background_filename) as orig:
             draw = ImageDraw.Draw(orig)
             for box in boxes:
+                weights.append(box.weight)
                 if box.weight < threshold:
                     continue
                 draw.rectangle((box.x1, box.y1, box.x2, box.y2), outline='red')
@@ -273,6 +290,10 @@ class Menu(QMainWindow):
             # orig.save(self.overlay_filename)
             # self.background = QPixmap(self.overlay_filename)
             self.background = pil_image_to_qpixmap(orig)
+        y, x = np.histogram(weights, bins=np.linspace(boxes[0].weight, boxes[-1].weight, 50))
+        self.histogram_widget.plot(x, y, clear=True, stepMode="center", fillLevel=0, fillOutline=True, brush=(0, 0, 255, 150))
+        self.histogram_widget.plot([threshold, threshold], [0, max(y)], brush=(255, 0, 0, 255))
+        # self.histogram_widget.plot(x, y, stepMode="center", fillLevel=0, fillOutline=True, brush=(0, 0, 255, 150))
 
     # snippingTool.start() will open a new window, so if this is the first snip, close the first window.
     def new_image_window(self):
