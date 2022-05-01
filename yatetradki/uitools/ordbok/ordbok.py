@@ -513,13 +513,14 @@ class CambridgeEnNo:
 class DslWord:
     FILENAME = '~/.ordbok.dsl.txt'
     def __init__(self, word):
-        # TODO: is file is empty or missing, show a hint on what to put there
-        # and where
+        # TODO: is file is empty or missing, show a hint on what to put there and where
         dsls = slurp_lines(open, self.FILENAME)
         self.word = word
-        self.html = self.no_dictionary()
-        if dsls:
-            self.html = dsl_lookup(dsls, [word]) or 'No DSL word found for "{0}"'.format(word)
+        if not dsls:
+            raise NoContent(self.no_dictionary())
+        self.html = dsl_lookup(dsls, [word])
+        if not self.html:
+            raise NoContent('No DSL word found for "{0}"'.format(word))
     def no_dictionary(self):
         return 'No dictionaries found. Put full filename paths to DSL ' \
             'dictionaries into {0}, one filename per line'.format(self.FILENAME)
