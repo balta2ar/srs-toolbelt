@@ -1,18 +1,30 @@
-import sys
 import logging
+import sys
 from os.path import basename
-from PyQt5.QtCore import QPoint, Qt, QRect
-from PyQt5.QtWidgets import QAction, QMainWindow, QApplication, QPushButton, QMenu, QFileDialog
-from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen
 
-from tesserocr import PSM, OEM, PyTessBaseAPI, RIL, get_languages
-from PIL import Image, ImageDraw
+from PIL import Image
+from PIL import ImageDraw
+from PyQt5.QtCore import QPoint
+from PyQt5.QtCore import QRect
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QImage
+from PyQt5.QtGui import QPainter
+from PyQt5.QtGui import QPen
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import QAction
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QMainWindow
+from PyQt5.QtWidgets import QMenu
+from PyQt5.QtWidgets import QPushButton
+from tesserocr import PSM
+from tesserocr import PyTessBaseAPI
+from tesserocr import RIL
+from tesserocr import get_languages
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
-
-# import SnippingTool
 
 def by_value(pairs, value):
     for k, v in pairs:
@@ -31,7 +43,7 @@ def by_key(pairs, key):
 class Menu(QMainWindow):
     COLORS = ['Red', 'Black', 'Blue', 'Green', 'Yellow']
     SIZES = [1, 3, 5, 7, 9, 11]
-    default_title = "Snipping Tool"
+    default_title = "OCR Tool"
     RIL_MODES = [
         (RIL.BLOCK, 'BLOCK'),
         (RIL.PARA, 'PARA'),
