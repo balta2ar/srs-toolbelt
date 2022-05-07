@@ -1,0 +1,7 @@
+.item {
+    display: block;
+}
+input[type="text"] {
+    font-size: 40px;
+    width: 49%;
+}
