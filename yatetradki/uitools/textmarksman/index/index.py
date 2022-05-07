@@ -41,6 +41,9 @@ def save_index(index):
 
 @app.route('/')
 def root():
+    global INDEX
+    INDEX = read_index(args.index)
+
     offset = request.args.get('offset')
     offset = int(offset or 0)
     logging.info('offset: {}'.format(offset))
@@ -83,7 +86,5 @@ if __name__ == '__main__':
     # IMAGES = load_images(args.images)
     # logging.info('Found {} images'.format(len(IMAGES)))
     IMAGES = args.images.rstrip('/')
-    INDEX = read_index(args.index)
     INDEX_NAME = args.index
-    logging.info('Loaded {} index entries'.format(len(INDEX)))
     main()
