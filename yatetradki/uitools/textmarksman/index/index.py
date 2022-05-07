@@ -21,13 +21,14 @@ def read_index(path):
         reader = csv.reader(f, delimiter=',')
         for row in reader:
             index[row[0]] = row[1:]
+            assert len(row) == 3, 'Invalid row: {}'.format(row)
     return index
 
 
 def save_index(index):
     with open('index.csv', 'w') as f:
         writer = csv.writer(f, delimiter=',')
-        for key, value in index.items():
+        for key, value in sorted(index.items()):
             writer.writerow([key] + value)
 
 
@@ -56,7 +57,7 @@ def change():
         INDEX[name][int(index)] = value
         if old != value:
             logging.info('Changed "{}" #{} {}=>{}'.format(name, index, old, value))
-            # save_index(INDEX)
+            save_index(INDEX)
             return jsonify({'status': 'ok', 'state': 'modified'})
     return jsonify({'status': 'ok', 'state': 'unmodified'})
 
