@@ -95,7 +95,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QWidget, QCompleter,
                              QSystemTrayIcon, QMenu, QAction)
-from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtGui import QIcon, QFont, QClipboard
 from PyQt5.QtCore import Qt, QTimer, QObject, QUrl
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
@@ -748,9 +748,15 @@ class QComboBoxKey(QComboBox):
             super(QComboBoxKey, self).keyPressEvent(e)
 
 
+class WebEnginePage(QWebEnginePage):
+    def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
+        logging.info("js console: %s %s %s %s", level, message, lineNumber, sourceID)
+
+
 class Browsers:
     def __init__(self, parent, layout, num):
         self.browsers = [QWebEngineView(parent) for _ in range(num)]
+        [b.setPage(WebEnginePage(b)) for b in self.browsers]
         self.current = 0
         self.layout = layout
     def load(self, urls):
@@ -1112,6 +1118,7 @@ class FlaskUIServer:
             self.url('/dsl/word/{}'.format(word)),
             self.url('/gtrans/noen/{}'.format(word)),
             self.url('/gtrans/enno/{}'.format(word)),
+            self.url('/aulismedia/norsk/{}'.format(word)),
         ]
         times = [timed_http_get(url) for url in urls]
         return ' '.join(['{:.2f}'.format(x) for x in times]) + '\n'
