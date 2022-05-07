@@ -1,7 +1,14 @@
 .item {
     display: block;
 }
+.right {
+    float: right;
+    text-align: right;
+}
 input[type="text"] {
     font-size: 40px;
-    width: 49%;
+    width: 30%;
+}
+img {
+    width: 100%;
 }

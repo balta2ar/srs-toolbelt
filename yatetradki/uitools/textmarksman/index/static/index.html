@@ -8,9 +8,10 @@
 <body>
 {% for item in items %}
 <div class="item">
-    <img src="{{ images }}/{{ item.name }}">
     <input type="text" id="{{ item.name }}/0" name="{{ item.name }}/0" value="{{ item.left }}" placeholder="{{ item.left }}" onfocusout="OnFocusOut(this)">
-    <input type="text" id="{{ item.name }}/1" name="{{ item.name }}/1" value="{{ item.right }}" placeholder="{{ item.right }}" onfocusout="OnFocusOut(this)">
+    <input class="right" type="text" id="{{ item.name }}/1" name="{{ item.name }}/1" value="{{ item.right }}" placeholder="{{ item.right }}" onfocusout="OnFocusOut(this)">
+    <img src="{{ images }}/{{ item.name }}">
+    <hr>
 <!--    <p>{{ item.name }} = {{ item.left }} = {{item.right }}</p>-->
 </div>
 {% endfor %}
