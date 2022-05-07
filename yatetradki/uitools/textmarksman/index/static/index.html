@@ -6,6 +6,8 @@
 </head>
 
 <body>
+<a href="?offset={{ prev }}">prev</a>
+<a href="?offset={{ next }}">next</a>
 {% for item in items %}
 <div class="item">
     <input type="text" id="{{ item.name }}/0" name="{{ item.name }}/0" value="{{ item.left }}" placeholder="{{ item.left }}" onfocusout="OnFocusOut(this)">
@@ -15,6 +17,8 @@
 <!--    <p>{{ item.name }} = {{ item.left }} = {{item.right }}</p>-->
 </div>
 {% endfor %}
+<a href="?offset={{ prev }}">prev</a>
+<a href="?offset={{ next }}">next</a>
 </body>
 
 

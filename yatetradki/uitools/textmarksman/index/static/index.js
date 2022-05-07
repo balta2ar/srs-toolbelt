@@ -32,6 +32,7 @@ function xhr(url, req, ok, err) {
     }
     if (req !== null) {
         xhr.open("POST", url)
+        xhr.send()
 //        xhr.send(JSON.stringify(req))
     } else {
         xhr.open("GET", url)

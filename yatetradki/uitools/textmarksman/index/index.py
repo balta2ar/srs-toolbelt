@@ -12,6 +12,7 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 app = Flask(__name__, static_folder='static', template_folder='static')
 IMAGES = ''
+INDEX_NAME = ''
 INDEX = {}
 
 
@@ -26,7 +27,7 @@ def read_index(path):
 
 
 def save_index(index):
-    with open('index.csv', 'w') as f:
+    with open(INDEX_NAME, 'w') as f:
         writer = csv.writer(f, delimiter=',')
         for key, value in sorted(index.items()):
             writer.writerow([key] + value)
@@ -40,15 +41,23 @@ def save_index(index):
 
 @app.route('/')
 def root():
+    offset = request.args.get('offset')
+    offset = int(offset or 0)
+    logging.info('offset: {}'.format(offset))
+    limit = 100  # request.args.get('limit')
     items = []
     for name, (left, right) in INDEX.items():
         items.append({'name': name, 'left': left, 'right': right})
     items = sorted(items, key=lambda x: x['name'])
-    return render_template('index.html', items=items, images=IMAGES)
+    items = items[offset:offset + int(limit or len(items))]
+    next = offset + len(items)
+    prev = max(0, offset - limit)
+    return render_template('index.html', items=items, images=IMAGES, next=next, prev=prev)
 
 
 @app.route('/change', methods=['POST'])
 def change():
+    logging.info('change')
     name = request.args.get('name')
     index = request.args.get('index')
     value = request.args.get('value')
@@ -68,12 +77,13 @@ def main():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run index editor')
-    parser.add_argument('--images', type=str, help='Path to imades folder')
+    parser.add_argument('--images', type=str, help='Path to images folder')
     parser.add_argument('--index', type=str, help='Path to index file')
     args = parser.parse_args()
     # IMAGES = load_images(args.images)
     # logging.info('Found {} images'.format(len(IMAGES)))
     IMAGES = args.images.rstrip('/')
     INDEX = read_index(args.index)
+    INDEX_NAME = args.index
     logging.info('Loaded {} index entries'.format(len(INDEX)))
     main()
