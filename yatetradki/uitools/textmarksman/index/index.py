@@ -1,13 +1,14 @@
 import argparse
 import csv
 import logging
+from bisect import bisect_left
+from urllib.request import urlopen
 
+import icu
 from flask import Flask
 from flask import jsonify
 from flask import render_template
 from flask import request
-
-import icu
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -18,12 +19,40 @@ INDEX_NAME = ''
 INDEX = {}
 
 
+def http_get(url):
+    with urlopen(url) as r:
+        return r.read()
+
+
+def reference(word):
+    url = 'http://norsk.dicts.aulismedia.com/processnorsk.php?search={}'.format(word)
+    return http_get(url).decode('utf-8')
+
+
 def less_equal(a, b):
     collator = icu.Collator.createInstance(icu.Locale('nb_NO.UTF-8'))
+
     def key(x):
         return collator.getSortKey(x)
+
     s = sorted([a, b], key=key)
     return s[0] == a
+
+
+def search(path, query):
+    index = read_index(path)
+    print(len(index))
+    pages = sorted(index.items())
+    index = bisect_left(pages, query, lo=0, hi=len(pages), key=lambda x: x[1][1])
+    return pages[index]
+
+
+def test_search(path, query):
+    print(path, query)
+    my = search(path, query)
+    ref = reference(query)
+    print('my = ', my)
+    print('ref = ', ref)
 
 
 def verify(path):
@@ -34,7 +63,7 @@ def verify(path):
         left, right = left.lower(), right.lower()
         assert less_equal(left, right), '{}: left <= right: {} <= {}'.format(key, left, right)
         if i > 0:
-            pleft, pright = pages[i-1][1]
+            pleft, pright = pages[i - 1][1]
             assert less_equal(pleft, left), '{}: pleft <= left: {} <= {}'.format(key, pleft, left)
             assert less_equal(pright, left), '{}: pright <= left: {} <= {}'.format(key, pright, left)
             assert less_equal(pleft, right), '{}: pleft <= right: {} <= {}'.format(key, pleft, right)
@@ -47,7 +76,7 @@ def read_index(path):
     with open(path, 'r') as f:
         reader = csv.reader(f, delimiter=',')
         for row in reader:
-            index[row[0]] = row[1:]
+            index[row[0]] = [r.lower() for r in row[1:]]
             assert len(row) == 3, 'Invalid row: {}'.format(row)
     return index
 
