@@ -7,6 +7,8 @@ from flask import jsonify
 from flask import render_template
 from flask import request
 
+import icu
+
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
@@ -14,6 +16,30 @@ app = Flask(__name__, static_folder='static', template_folder='static')
 IMAGES = ''
 INDEX_NAME = ''
 INDEX = {}
+
+
+def less_equal(a, b):
+    collator = icu.Collator.createInstance(icu.Locale('nb_NO.UTF-8'))
+    def key(x):
+        return collator.getSortKey(x)
+    s = sorted([a, b], key=key)
+    return s[0] == a
+
+
+def verify(path):
+    index = read_index(path)
+    print(len(index))
+    pages = sorted(index.items())
+    for i, (key, (left, right)) in enumerate(pages):
+        left, right = left.lower(), right.lower()
+        assert less_equal(left, right), '{}: left <= right: {} <= {}'.format(key, left, right)
+        if i > 0:
+            pleft, pright = pages[i-1][1]
+            assert less_equal(pleft, left), '{}: pleft <= left: {} <= {}'.format(key, pleft, left)
+            assert less_equal(pright, left), '{}: pright <= left: {} <= {}'.format(key, pright, left)
+            assert less_equal(pleft, right), '{}: pleft <= right: {} <= {}'.format(key, pleft, right)
+            assert less_equal(pright, right), '{}: pright <= right: {} <= {}'.format(key, pright, right)
+    print('OK')
 
 
 def read_index(path):
