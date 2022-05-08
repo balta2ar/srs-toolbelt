@@ -2,13 +2,16 @@
 
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler
+from http.server import HTTPServer
+from queue import Queue
+from threading import Thread
 from urllib.request import urlopen
 
+from flask import jsonify
 from flask import request
 from urllib3 import disable_warnings
-from threading import Thread
-from queue import Queue
+
 
 def http_post(url, data):
     with urlopen(url, data) as r:
@@ -89,7 +92,6 @@ from requests import Session
 from requests.exceptions import HTTPError, ReadTimeout, ConnectionError
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-import cchardet as chardet
 from bs4 import BeautifulSoup
 from pyppeteer import launch as launch_pyppeteer
 from pyppeteer.errors import TimeoutError as PyppeteerTimeoutError
@@ -105,6 +107,7 @@ from PyQt5.QtCore import Qt, QTimer, QObject, QUrl
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 from yatetradki.reader.dsl import lookup as dsl_lookup
+from yatetradki.uitools.index.search import search as index_search, INDEX_PATH
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -334,6 +337,9 @@ def ui_h_url(word):
 
 def ui_aulismedia_norsk(word):
     return 'http://{0}:{1}/aulismedia/norsk/{2}'.format(UI_HOST, UI_PORT, word)
+
+def ui_aulismedia_search_norsk(word):
+    return 'http://{0}:{1}/aulismedia/search_norsk/{2}'.format(UI_HOST, UI_PORT, word)
 
 def css(filename):
     return '<style>{0}</style>'.format(slurp(open, here_css(filename)))
@@ -580,7 +586,8 @@ class AulismediaWord:
     def style(self):
         return '' # css('aulismedia-style.css')
     def get_url(self, word):
-        return 'http://norsk.dicts.aulismedia.com/processnorsk.php?search={0}'.format(word)
+        return ui_aulismedia_search_norsk(word)
+        # return 'http://norsk.dicts.aulismedia.com/processnorsk.php?search={0}'.format(word)
     # @staticmethod
     # def static(word):
     #     filename = 'aulismedia/norsk/{0}'.format(word)
@@ -1022,7 +1029,7 @@ class AIOHttpServer:
         logging.info('Starting AIOHttpServer on %s:%s', self.host, self.port)
 
 
-from flask import Flask, Response, render_template, url_for, make_response, redirect
+from flask import Flask, Response, render_template, url_for, redirect
 class FlaskUIServer:
     def __init__(self, static_client, dynamic_client, host, port):
         self.static_client = static_client
@@ -1067,6 +1074,7 @@ class FlaskUIServer:
         self.app.route('/aulismedia/norsk/<word>', methods=['GET'])(self.route_aulismedia_norsk)
         self.app.route('/aulismedia/prev/<word>', methods=['GET'])(self.route_aulismedia_prev)
         self.app.route('/aulismedia/next/<word>', methods=['GET'])(self.route_aulismedia_next)
+        self.app.route('/aulismedia/search_norsk/<word>', methods=['GET'])(self.route_aulismedia_search_norsk)
         self.app.route('/all/word/<word>', methods=['GET'])(self.route_all_word)
         self.app.route('/', methods=['GET'])(self.route_index)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
@@ -1125,6 +1133,8 @@ class FlaskUIServer:
         return AulismediaWord.flip(word, -1)
     def route_aulismedia_next(self, word):
         return AulismediaWord.flip(word, 1)
+    def route_aulismedia_search_norsk(self, word):
+        return jsonify(index_search(INDEX_PATH, word))
     # def route_aulismedia_static(self, word):
     #     return AulismediaWord.static(word)
     def route_all_word(self, word):
