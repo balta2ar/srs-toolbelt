@@ -1134,7 +1134,7 @@ class FlaskUIServer:
     def route_aulismedia_next(self, word):
         return AulismediaWord.flip(word, 1)
     def route_aulismedia_search_norsk(self, word):
-        return jsonify(index_search(INDEX_PATH, word))
+        return jsonify(index_search(INDEX_PATH, word.lower()))
     # def route_aulismedia_static(self, word):
     #     return AulismediaWord.static(word)
     def route_all_word(self, word):
