@@ -1001,6 +1001,21 @@ def timed_http_get(url):
     return t1 - t0
 
 
+class AIOHttpServer:
+    def __init__(self, static_client, dynamic_client, host, port):
+        self.static_client = static_client
+        self.dynamic_client = dynamic_client
+        self.host = host
+        self.port = port
+        self.app = Flask(__name__, template_folder=join(dirname(__file__), 'static/html'))
+    def url(self, path):
+        return 'http://{}:{}{}'.format(self.host, self.port, path)
+    def serve_background(self):
+        Thread(target=self.serve, daemon=True).start()
+    def serve(self):
+        logging.info('Starting AIOHttpServer on %s:%s', self.host, self.port)
+
+
 from flask import Flask, Response, render_template, url_for, make_response, redirect
 class FlaskUIServer:
     def __init__(self, static_client, dynamic_client, host, port):
@@ -1046,7 +1061,6 @@ class FlaskUIServer:
         self.app.route('/aulismedia/norsk/<word>', methods=['GET'])(self.route_aulismedia_norsk)
         self.app.route('/aulismedia/prev/<word>', methods=['GET'])(self.route_aulismedia_prev)
         self.app.route('/aulismedia/next/<word>', methods=['GET'])(self.route_aulismedia_next)
-        # self.app.route('/aulismedia/static/<word>', methods=['GET'])(self.route_aulismedia_static)
         self.app.route('/all/word/<word>', methods=['GET'])(self.route_all_word)
         self.app.route('/', methods=['GET'])(self.route_index)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
@@ -1108,6 +1122,7 @@ class FlaskUIServer:
     # def route_aulismedia_static(self, word):
     #     return AulismediaWord.static(word)
     def route_all_word(self, word):
+        parallel = request.args.get('parallel', '')
         urls = [
             self.url('/lexin/word/{}'.format(word)),
             self.url('/ordbok/inflect/{}'.format(word)),
