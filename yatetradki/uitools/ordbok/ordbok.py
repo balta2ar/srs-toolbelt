@@ -89,6 +89,7 @@ from requests import Session
 from requests.exceptions import HTTPError, ReadTimeout, ConnectionError
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+import cchardet as chardet
 from bs4 import BeautifulSoup
 from pyppeteer import launch as launch_pyppeteer
 from pyppeteer.errors import TimeoutError as PyppeteerTimeoutError
@@ -261,7 +262,12 @@ def remove_one(soup, selector):
     return soup
 
 def parse(body):
-    return BeautifulSoup(body, features='html.parser')
+    t0 = time.time()
+    # result = BeautifulSoup(body, features='html.parser')
+    result = BeautifulSoup(body, features='lxml')
+    t1 = time.time()
+    logging.info('parse: %.2f (size=%d)', t1-t0, len(body))
+    return result
 
 def iframe_mix(word):
     t = Template(open(here_html('iframe-mix.html')).read())
