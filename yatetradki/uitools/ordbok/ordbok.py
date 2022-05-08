@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.request import urlopen
+
+from flask import request
 from urllib3 import disable_warnings
 from threading import Thread
 from queue import Queue
@@ -1120,8 +1123,14 @@ class FlaskUIServer:
             self.url('/gtrans/enno/{}'.format(word)),
             self.url('/aulismedia/norsk/{}'.format(word)),
         ]
-        times = [timed_http_get(url) for url in urls]
-        return ' '.join(['{:.2f}'.format(x) for x in times]) + '\n'
+        header = f'parallel={bool(parallel)}\n'
+        if parallel:
+            with ThreadPoolExecutor(max_workers=len(urls)) as pool:
+                times = list(pool.map(timed_http_get, urls))
+        else:
+            times = [timed_http_get(url) for url in urls]
+        return header + ' '.join(['{:.2f}'.format(x) for x in times]) + '\n'
+
     def route_index(self):
         links = []
         for rule in self.app.url_map.iter_rules():
