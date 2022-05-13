@@ -8,6 +8,7 @@ from queue import Queue
 from threading import Thread
 from urllib.request import urlopen
 
+from aiohttp import web
 from flask import jsonify
 from flask import request
 from urllib3 import disable_warnings
@@ -86,7 +87,13 @@ from json import loads
 from string import Template
 from itertools import groupby
 import asyncio
+# # https://bugs.python.org/issue34679#msg347525
+# policy = asyncio.get_event_loop_policy()
+# policy._loop_factory = asyncio.SelectorEventLoop
+
 import time
+from multiprocessing import cpu_count
+from functools import wraps
 
 from requests import Session
 from requests.exceptions import HTTPError, ReadTimeout, ConnectionError
@@ -119,6 +126,9 @@ WINDOW_HEIGHT = 800
 UPDATE_DELAY = 1000
 ACTIVE_MODE_DELAY = 1000 # milliseconds
 ICON_FILENAME = dirname(__file__) + '/ordbok.png'
+CACHE_DIR = join(dirname(__file__), 'cache')
+CACHE_BY_METHOD = join(CACHE_DIR, 'by_method')
+CACHE_BY_URL = join(CACHE_DIR, 'by_url')
 ADD_TO_FONT_SIZE = 6
 NETWORK_TIMEOUT = 5000 # milliseconds
 RECENT_GRAB_DELAY = (UPDATE_DELAY / 1000.0) + 0.1 # seconds
@@ -193,11 +203,40 @@ class DynamicHttpClient:
         asyncio.new_event_loop().run_until_complete(fetch())
         return result[0]
 
+def cache_get(basedir, keypath):
+    path = join(basedir, *keypath)
+    if not exists(path):
+        logging.info('cache miss "%s"', keypath)
+        return None
+    logging.info('cache hit "%s"', keypath)
+    return slurp(bz2.open, path)
+
+def cache_set(basedir, keypath, value):
+    path = join(basedir, *keypath)
+    makedirs(dirname(path), exist_ok=True)
+    spit(bz2.open, path, value)
+
+def cached(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        keypath = f.__name__.split('_')
+        #keypath.append(args[0])
+        keypath.extend(args[1:])
+        keypath.extend(kwargs.values())
+        logging.info('cache keypath "%s", args %s %s', keypath, args, kwargs)
+        # keypath.extend(kwargs.values())
+        # keypath = tuple(keypath)
+        value = cache_get(CACHE_BY_METHOD, keypath)
+        if value is None:
+            value = f(*args, **kwargs)
+            cache_set(CACHE_BY_METHOD, keypath, value)
+        return value
+    return wrapper
 
 class CachedHttpClient:
-    def __init__(self, client, dirname):
+    def __init__(self, client, cachedir):
         self.client = client
-        self.dirname = dirname
+        self.cachedir = cachedir
 
     def get(self, url, **kwargs):
         path = self.get_path(self.get_key(url))
@@ -209,7 +248,7 @@ class CachedHttpClient:
         return content
 
     def get_path(self, key):
-        return '{0}/{1}/{2}'.format(dirname(__file__), self.dirname, key)
+        return join(self.cachedir, key)
 
     def get_key(self, url):
         J = lambda x: re.sub(r'\W+', '', x)
@@ -825,8 +864,8 @@ class MainWindow(QWidget):
         self.myActivate.connect(self.activate)
 
         self.app = app
-        self.async_fetch = AsyncFetch(CachedHttpClient(StaticHttpClient(), 'cache'))
-        self.async_fetch.ready.connect(self.on_fetch_ready)
+        # self.async_fetch = AsyncFetch(CachedHttpClient(StaticHttpClient(), 'cache'))
+        # self.async_fetch.ready.connect(self.on_fetch_ready)
 
         mainLayout = QVBoxLayout(self)
         mainLayout.setSpacing(0)
@@ -1020,22 +1059,61 @@ class AIOHttpServer:
         self.dynamic_client = dynamic_client
         self.host = host
         self.port = port
-        self.app = Flask(__name__, template_folder=join(dirname(__file__), 'static/html'))
+        self.app = web.Application()
+        # TODO: use app runner: https://docs.aiohttp.org/en/stable/web_advanced.html#application-runners
     def url(self, path):
         return 'http://{}:{}{}'.format(self.host, self.port, path)
     def serve_background(self):
         Thread(target=self.serve, daemon=True).start()
     def serve(self):
         logging.info('Starting AIOHttpServer on %s:%s', self.host, self.port)
+        # asyncio.new_event_loop()
+        web.run_app(self.app, host=self.host, port=self.port)
 
 
-from flask import Flask, Response, render_template, url_for, redirect
+def run_wsgi(app, host, port, workers):
+    # https://docs.gunicorn.org/en/latest/custom.html
+    from gunicorn.app.base import BaseApplication
+    class StandaloneApplication(BaseApplication):
+        def __init__(self, app, options=None):
+            self.options = options or {}
+            self.application = app
+            super().__init__()
+        def load_config(self):
+            config = {key: value for key, value in self.options.items()
+                      if key in self.cfg.settings and value is not None}
+            for key, value in config.items():
+                self.cfg.set(key.lower(), value)
+        def load(self):
+            return self.application
+    options = {
+        'bind': '%s:%s' % (host, port),
+        'workers': workers,
+        'debug': False,
+        'use_reloader': False,
+    }
+    logging.info('Starting Gunicorn WSGI on %s:%s, workers=%s', host, port, workers)
+    StandaloneApplication(app, options).run()
+
+class TimingStats:
+    def __init__(self):
+        self.times = {}
+    def set(self, path, value):
+        self.times[path] = {'took': value, 'at': time.time()}
+    def get_all(self):
+        result = [{'path': path, 'took': value['took'], 'at': value['at']}
+                  for path, value in self.times.items()]
+        result.sort(key=lambda x: x['took'])
+        return result
+
+from flask import Flask, Response, render_template, url_for, redirect, request, g as ctx
 class FlaskUIServer:
     def __init__(self, static_client, dynamic_client, host, port):
         self.static_client = static_client
         self.dynamic_client = dynamic_client
         self.host = host
         self.port = port
+        self.stats = TimingStats()
         self.app = Flask(__name__, template_folder=join(dirname(__file__), 'static/html'))
     def url(self, path):
         return 'http://{}:{}{}'.format(self.host, self.port, path)
@@ -1076,8 +1154,22 @@ class FlaskUIServer:
         self.app.route('/aulismedia/next/<word>', methods=['GET'])(self.route_aulismedia_next)
         self.app.route('/aulismedia/search_norsk/<word>', methods=['GET'])(self.route_aulismedia_search_norsk)
         self.app.route('/all/word/<word>', methods=['GET'])(self.route_all_word)
+        self.app.route('/stats', methods=['GET'])(self.route_stats)
         self.app.route('/', methods=['GET'])(self.route_index)
+        self.app.before_request(self.before_handler)
+        self.app.after_request(self.after_handler)
         self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
+        # self.app.debug = False
+        # self.app.use_reloader = False
+        # self.app.threaded = False
+        #run_wsgi(self.app, self.host, self.port, workers=1)
+    def before_handler(self):
+        ctx.t0 = time.time()
+    def after_handler(self, response):
+        total = time.time() - ctx.t0
+        #logging.info('took %0.3f %s %s %s %s', total, response.status_code, request.method, request.path, dict(request.args))
+        self.stats.set(request.path, total)
+        return response
     def error_handler(self, e):
         return '{0}: {1}'.format(type(e).__name__, e)
     def route_iframe_css(self):
@@ -1100,27 +1192,37 @@ class FlaskUIServer:
         return iframe_r(word)
     def route_ui_h(self, word):
         return iframe_h(word)
+    @cached
     def route_lexin_word(self, word):
         return LexinOsloMetArticle(self.static_client, word).styled()
+    @cached
     def route_glosbe_noru(self, word):
         return GlosbeNoRuWord(self.static_client, word).styled()
+    @cached
     def route_glosbe_noen(self, word):
         return GlosbeNoEnWord(self.static_client, word).styled()
+    @cached
     def route_glosbe_enno(self, word):
         return GlosbeEnNoWord(self.static_client, word).styled()
+    @cached
     def route_ordbok_inflect(self, word):
         return Article(self.static_client, word).styled()
+    @cached
     def route_ordbok_word(self, word):
         return OrdbokWord(self.static_client, word).styled()
+    @cached
     def route_naob_word(self, word):
         #return DslWord(word).styled()
         # TODO: fix pyppeteer
         #return 'pyppeteer is crashing, disabled for now'
         return NaobWord(self.dynamic_client, word).styled()
+    @cached
     def route_wiktionary_no(self, word):
         return WiktionaryNo(self.static_client, word).styled()
+    @cached
     def route_cambridge_enno(self, word):
         return CambridgeEnNo(self.static_client, word).styled()
+    @cached
     def route_dsl_word(self, word):
         return DslWord(word).styled()
     def route_gtrans_noen(self, word):
@@ -1161,7 +1263,8 @@ class FlaskUIServer:
         else:
             times = [timed_http_get(url) for url in urls]
         return header + ' '.join(['{:.2f}'.format(x) for x in times]) + '\n'
-
+    def route_stats(self):
+        return jsonify(self.stats.get_all())
     def route_index(self):
         links = []
         for rule in self.app.url_map.iter_rules():
@@ -1172,10 +1275,13 @@ class FlaskUIServer:
 
 
 def main():
+    logging.info(CACHE_BY_URL)
+    logging.info(CACHE_BY_METHOD)
     disable_logging()
-    static_client = CachedHttpClient(StaticHttpClient(), 'cache')
-    dynamic_client = CachedHttpClient(DynamicHttpClient(), 'cache')
+    static_client = CachedHttpClient(StaticHttpClient(), CACHE_BY_URL)
+    dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_BY_URL)
     ui_server = FlaskUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
+    # ui_server = AIOHttpServer(static_client, dynamic_client, UI_HOST, UI_PORT)
     ui_server.serve_background()
 
     qtApp = QApplication(sys.argv)
