@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 from queue import Queue
 from threading import Thread
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 
 from aiohttp import web, ClientSession
 from aiohttp_jinja2 import setup as aiohttp_jinja2_setup
@@ -16,17 +16,22 @@ from flask import jsonify
 from flask import request
 from urllib3 import disable_warnings
 
+USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36'
+
 def is_interactive():
     import __main__ as main
     return not hasattr(main, '__file__')
 
 def http_post(url, data):
-    with urlopen(url, data) as r:
-        return r.read()
+    with urlopen(url, data) as resp:
+        return resp.read()
 
 def http_get(url):
-    with urlopen(url) as r:
-        return r.read()
+    req = Request(url)
+    req.add_header('User-Agent', USER_AGENT)
+    req.add_header('Accept', '*/*')
+    with urlopen(req) as resp:
+        return resp.read()
 
 class WatchDog:
     class Server(HTTPServer):
@@ -101,6 +106,7 @@ from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as Asyn
 import time
 from multiprocessing import cpu_count
 from functools import wraps
+import socket
 
 from requests import Session
 from requests.exceptions import HTTPError, ReadTimeout, ConnectionError
@@ -143,11 +149,23 @@ CACHE_BY_METHOD = CACHE_DIR / 'by_method'
 CACHE_BY_URL = CACHE_DIR / 'by_url'
 ADD_TO_FONT_SIZE = 6
 NETWORK_TIMEOUT = 5000 # milliseconds
+NETWORK_RETRIES = 3
 RECENT_GRAB_DELAY = (UPDATE_DELAY / 1000.0) + 0.1 # seconds
-USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36'
 
 #POOL = ProcessPoolExecutor()
 
+def force_ipv4():
+    """
+    https://ordbok.uib.no gets stuck when accessed by IPV6.
+    Should be disbled when switched to https://ordbokene.no.
+    """
+    old_getaddrinfo = socket.getaddrinfo
+    def new_getaddrinfo(*args, **kwargs):
+        responses = old_getaddrinfo(*args, **kwargs)
+        return [response
+                for response in responses
+                if response[0] == socket.AF_INET]
+    socket.getaddrinfo = new_getaddrinfo
 
 def disable_logging():
     disable_warnings()
@@ -161,32 +179,37 @@ def disable_logging():
             #logging.info('Disabled logger "%s"', name)
 
 async def http_get_async(url, timeout=None):
-    retries = 3
+    USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0'
+    headers = {'User-Agent': USER_AGENT}
+    retries = NETWORK_RETRIES
     async with ClientSession() as session:
         for i in range(retries):
-            async with session.get(url, timeout=timeout) as resp:
-                try:
+            try:
+                async with session.get(url, timeout=timeout, headers=headers) as resp:
                     return await resp.text()
-                except AsyncioTimeoutError as e:
-                    logging.warning('timeout (%s) getting "%s": "%s"', timeout, url, e)
-                    if i == retries-1:
-                        raise
+            except AsyncioTimeoutError as e:
+                logging.warning('timeout (%s) getting "%s": "%s"', timeout, url, e)
+                if i == retries-1:
+                    raise
 
 class StaticHttpClient:
-    USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0'
+    USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0'
     TIMEOUT = NETWORK_TIMEOUT/1000.0
-    RETRIES = 3
+    RETRIES = NETWORK_RETRIES
     def headers(self, origin=None):
         headers = {'User-Agent': self.USER_AGENT}
         if origin: headers['Origin'] = origin
         return headers
     def get(self, url, origin=None):
+        t0 = time.time()
         logging.info('http get "%s"', url)
         session = Session()
         retries = Retry(total=self.RETRIES, backoff_factor=1, status_forcelist=[])
         session.mount('http://', HTTPAdapter(max_retries=retries))
         session.mount('https://', HTTPAdapter(max_retries=retries))
         result = session.get(url, verify=False, headers=self.headers(origin), allow_redirects=True, timeout=self.TIMEOUT)
+        took = time.time() - t0
+        logging.info('http get took=%0.2f "%s"', took, url)
         result.raise_for_status()
         return result.text
     async def get_async(self, url, origin=None):
@@ -194,13 +217,15 @@ class StaticHttpClient:
         logging.info('http get async "%s"', url)
         async with ClientSession() as session:
             for i in range(retries):
-                async with session.get(url, timeout=self.TIMEOUT, headers=self.headers(origin), ssl=False, allow_redirects=True) as resp:
-                    try:
-                        return await resp.text()
-                    except AsyncioTimeoutError as e:
-                        logging.warning('timeout (%s) getting "%s": "%s"', self.TIMEOUT, url, e)
-                        if i == retries-1:
-                            raise
+                try:
+                    async with session.get(url, timeout=self.TIMEOUT, headers=self.headers(origin), ssl=False, allow_redirects=True) as resp:
+                        result = await resp.text()
+                        logging.info('http get async done: "%s"', url)
+                        return result
+                except AsyncioTimeoutError as e:
+                    logging.warning('async timeout (%s) getting "%s": "%s"', self.TIMEOUT, url, e)
+                    if i == retries-1:
+                        raise
 
 class DynamicClient:
     TIMEOUT = NETWORK_TIMEOUT
@@ -247,7 +272,7 @@ class PlaywrightClientAsync(DynamicClient):
             if selector is not None:
                 await page.wait_for_selector(selector, timeout=self.TIMEOUT)
             content = await page.evaluate('document.body.innerHTML')
-            logging.info('playwright "%d"', len(content))
+            logging.info('async playwright "%d"', len(content))
             await browser.close()
             return content
 
@@ -625,21 +650,22 @@ class OrdbokArticle(WordGetter):
         soup = parse(self.client.get(self.get_url(self.word)))
         args = ('span', {"class": "oppsgramordklasse"})
         parts = soup.find_all(*args)
-        parts = [PartOfSpeech(self.client, p) for p in parts]
         if not parts:
             raise NoContent('Ordbok: word={0}, args={1}'.format(self.word, args))
+        parts = [PartOfSpeech(self.client, p) for p in parts]
         [p.get() for p in parts]
-        self.parts = parts
+        self.parts = [p for p in parts if p.inflection]
         self.parse()
         return self.styled()
     async def get_async(self):
         soup = parse(await self.client.get_async(self.get_url(self.word)))
         args = ('span', {"class": "oppsgramordklasse"})
         parts = soup.find_all(*args)
-        parts = [PartOfSpeech(self.client, p) for p in parts]
         if not parts:
             raise NoContent('Ordbok: word={0}, args={1}'.format(self.word, args))
-        self.parts = [await p.get_async() for p in parts]
+        parts = [PartOfSpeech(self.client, p) for p in parts]
+        [await p.get_async() for p in parts]
+        self.parts = [p for p in parts if p.inflection]
         self.parse()
         return self.styled()
     def parse(self):
@@ -848,8 +874,7 @@ class AulismediaWord(WordGetter):
     def flip(word, increment):
         index = int(''.join(filter(lambda x: x.isdigit(), word))) + increment
         url = ui_aulismedia_norsk('{:04d}.jpg'.format(index))
-        return web.HTTPFound(url)
-        #return redirect(url, code=302)
+        return url
 
 def pluck(regexp, group):
     yes, no = [], []
@@ -1145,7 +1170,13 @@ async def timed_http_get_async(url):
     t1 = time.time()
     return t1 - t0
 
-class AIOHttpServer:
+def text_html(text):
+    return web.Response(text=text, content_type='text/html')
+
+def text_css(text):
+    return web.Response(text=text, content_type='text/css')
+
+class AIOHTTPUIServer:
     def __init__(self, static_client, dynamic_client, host, port):
         self.static_client = static_client
         self.dynamic_client = dynamic_client
@@ -1162,7 +1193,7 @@ class AIOHttpServer:
     def serve_background(self):
         Thread(target=self.serve, daemon=True).start()
     def serve(self):
-        logging.info('Starting AIOHttpServer on %s:%s', self.host, self.port)
+        logging.info('Starting AIOHTTPUIServer on %s:%s', self.host, self.port)
         loop = new_event_loop()
         set_event_loop(loop)
         loop.run_until_complete(self.runner.setup())
@@ -1192,14 +1223,14 @@ class AIOHttpServer:
             AsyncioTimeoutError,
             NoContent,
         ) as e:
-            return web.Response(text='{0}: {1}'.format(type(e).__name__, e))
+            return text_html('{0}: {1}'.format(type(e).__name__, e))
     def setup_routes(self, app):
         def wrap(fn):
-            def handler(request):
+            async def handler(request):
                 word = request.match_info.get('word')
-                result = fn(word)
+                result = await fn(word)
                 if isinstance(result, str):
-                    return web.Response(text=result, content_type='text/html')
+                    return text_html(result)
                 return web.json_response(result)
             return handler
         router = app.router
@@ -1234,59 +1265,59 @@ class AIOHttpServer:
         router.add_get('/', self.route_index)
         app.add_routes([web.static('/static', STATIC_DIR)])
     def route_iframe_css(self, _request):
-        return web.Response(text=open(here_css('iframe.css')).read(), content_type='text/css')
-    def route_ui_mix(self, word):
+        return text_css(open(here_css('iframe.css')).read())
+    async def route_ui_mix(self, word):
         return iframe_mix(word)
-    def route_ui_nor(self, word):
+    async def route_ui_nor(self, word):
         return iframe_nor(word)
-    def route_ui_third(self, word):
+    async def route_ui_third(self, word):
         return iframe_third(word)
-    def route_ui_fourth(self, word):
+    async def route_ui_fourth(self, word):
         return iframe_fourth(word)
-    def route_ui_q(self, word):
+    async def route_ui_q(self, word):
         return iframe_q(word)
-    def route_ui_w(self, word):
+    async def route_ui_w(self, word):
         return iframe_w(word)
-    def route_ui_e(self, word):
+    async def route_ui_e(self, word):
         return iframe_e(word)
-    def route_ui_r(self, word):
+    async def route_ui_r(self, word):
         return iframe_r(word)
-    def route_ui_h(self, word):
+    async def route_ui_h(self, word):
         return iframe_h(word)
-    def route_lexin_word(self, word):
-        return LexinOsloMetArticle(self.static_client, word).styled()
-    def route_glosbe_noru(self, word):
-        return GlosbeNoRuWord(self.static_client, word).styled()
-    def route_glosbe_noen(self, word):
-        return GlosbeNoEnWord(self.static_client, word).styled()
-    def route_glosbe_enno(self, word):
-        return GlosbeEnNoWord(self.static_client, word).styled()
-    def route_ordbok_inflect(self, word):
-        return OrdbokArticle(self.static_client, word).styled()
-    def route_ordbok_word(self, word):
-        return OrdbokWord(self.static_client, word).styled()
-    def route_naob_word(self, word):
-        #return DslWord(word).styled()
+    async def route_lexin_word(self, word):
+        return await LexinOsloMetArticle(self.static_client, word).get_async()
+    async def route_glosbe_noru(self, word):
+        return await GlosbeNoRuWord(self.static_client, word).get_async()
+    async def route_glosbe_noen(self, word):
+        return await GlosbeNoEnWord(self.static_client, word).get_async()
+    async def route_glosbe_enno(self, word):
+        return await GlosbeEnNoWord(self.static_client, word).get_async()
+    async def route_ordbok_inflect(self, word):
+        return await OrdbokArticle(self.static_client, word).get_async()
+    async def route_ordbok_word(self, word):
+        return await OrdbokWord(self.static_client, word).get_async()
+    async def route_naob_word(self, word):
+        #return await DslWord(word).get_async()
         # TODO: fix pyppeteer
         #return 'pyppeteer is crashing, disabled for now'
-        return NaobWord(self.dynamic_client, word).styled()
-    def route_wiktionary_no(self, word):
-        return WiktionaryNo(self.static_client, word).styled()
-    def route_cambridge_enno(self, word):
-        return CambridgeEnNo(self.static_client, word).styled()
-    def route_dsl_word(self, word):
-        return DslWord(None, word).styled()
-    def route_gtrans_noen(self, word):
-        return GoogleTranslateNoEn(self.static_client, word).styled()
-    def route_gtrans_enno(self, word):
-        return GoogleTranslateEnNo(self.static_client, word).styled()
-    def route_aulismedia_norsk(self, word):
-        return AulismediaWord(self.static_client, word).styled()
-    def route_aulismedia_prev(self, word):
-        return AulismediaWord.flip(word, -1)
-    def route_aulismedia_next(self, word):
-        return AulismediaWord.flip(word, 1)
-    def route_aulismedia_search_norsk(self, word):
+        return await NaobWord(self.dynamic_client, word).get_async()
+    async def route_wiktionary_no(self, word):
+        return await WiktionaryNo(self.static_client, word).get_async()
+    async def route_cambridge_enno(self, word):
+        return await CambridgeEnNo(self.static_client, word).get_async()
+    async def route_dsl_word(self, word):
+        return await DslWord(None, word).get_async()
+    async def route_gtrans_noen(self, word):
+        return await GoogleTranslateNoEn(self.static_client, word).get_async()
+    async def route_gtrans_enno(self, word):
+        return await GoogleTranslateEnNo(self.static_client, word).get_async()
+    async def route_aulismedia_norsk(self, word):
+        return await AulismediaWord(self.static_client, word).get_async()
+    async def route_aulismedia_prev(self, word):
+        return web.HTTPFound(AulismediaWord.flip(word, -1))
+    async def route_aulismedia_next(self, word):
+        return web.HTTPFound(AulismediaWord.flip(word, 1))
+    async def route_aulismedia_search_norsk(self, word):
         return index_search(INDEX_PATH, word.lower())
     # def route_aulismedia_static(self, word):
     #     return AulismediaWord.static(word)
@@ -1316,10 +1347,13 @@ class AIOHttpServer:
             times = await gather(*[timed_http_get_async(url) for url in urls])
         else:
             times = [await timed_http_get_async(url) for url in urls]
-        return web.Response(text=header + ' '.join(['{:.2f}'.format(x) for x in times]) + '\n')
-    def route_stats(self, _request):
+        strs = ['{:.2f}'.format(x) for x in times]
+        details = ''.join('{} {}\n'.format(t, u) for t, u in zip(strs, urls))
+        result = header + details + ' '.join(strs) + '\n'
+        return text_html(result)
+    async def route_stats(self, _request):
         return web.json_response(self.stats.get_all(), dumps=lambda x: dumps(x, indent=2))
-    def route_index(self, request):
+    async def route_index(self, request):
         links = []
         for r in self.app.router.resources():
             info = r.get_info()
@@ -1328,7 +1362,6 @@ class AIOHttpServer:
                 links.append((pattern, pattern))
         context = {'links': links}
         return aiohttp_jinja2_render_template("index.html", request, context=context)
-
 
 class TimingStats:
     def __init__(self):
@@ -1467,9 +1500,9 @@ class FlaskUIServer:
     def route_aulismedia_norsk(self, word):
         return AulismediaWord(self.static_client, word).get()
     def route_aulismedia_prev(self, word):
-        return AulismediaWord.flip(word, -1)
+        return redirect(AulismediaWord.flip(word, -1), code=302)
     def route_aulismedia_next(self, word):
-        return AulismediaWord.flip(word, 1)
+        return redirect(AulismediaWord.flip(word, 1), code=302)
     def route_aulismedia_search_norsk(self, word):
         return jsonify(index_search(INDEX_PATH, word.lower()))
     # def route_aulismedia_static(self, word):
@@ -1513,10 +1546,11 @@ def main():
     logging.info(CACHE_BY_URL)
     logging.info(CACHE_BY_METHOD)
     disable_logging()
+    force_ipv4()
     static_client = CachedHttpClient(StaticHttpClient(), CACHE_BY_URL)
     dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_BY_URL)
     #ui_server = FlaskUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
-    ui_server = AIOHttpServer(static_client, dynamic_client, UI_HOST, UI_PORT)
+    ui_server = AIOHTTPUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
     ui_server.serve_background()
 
     qtApp = QApplication(sys.argv)
