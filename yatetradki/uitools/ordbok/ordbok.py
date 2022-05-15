@@ -1275,7 +1275,7 @@ class AIOHttpServer:
     def route_cambridge_enno(self, word):
         return CambridgeEnNo(self.static_client, word).styled()
     def route_dsl_word(self, word):
-        return DslWord(word).styled()
+        return DslWord(None, word).styled()
     def route_gtrans_noen(self, word):
         return GoogleTranslateNoEn(self.static_client, word).styled()
     def route_gtrans_enno(self, word):
@@ -1323,37 +1323,12 @@ class AIOHttpServer:
         links = []
         for r in self.app.router.resources():
             info = r.get_info()
-            args = []
             pattern = info.get('formatter', info.get('path', None))
             if pattern:
                 links.append((pattern, pattern))
         context = {'links': links}
         return aiohttp_jinja2_render_template("index.html", request, context=context)
 
-
-def run_wsgi(app, host, port, workers):
-    # https://docs.gunicorn.org/en/latest/custom.html
-    from gunicorn.app.base import BaseApplication
-    class StandaloneApplication(BaseApplication):
-        def __init__(self, app, options=None):
-            self.options = options or {}
-            self.application = app
-            super().__init__()
-        def load_config(self):
-            config = {key: value for key, value in self.options.items()
-                      if key in self.cfg.settings and value is not None}
-            for key, value in config.items():
-                self.cfg.set(key.lower(), value)
-        def load(self):
-            return self.application
-    options = {
-        'bind': '%s:%s' % (host, port),
-        'workers': workers,
-        'debug': False,
-        'use_reloader': False,
-    }
-    logging.info('Starting Gunicorn WSGI on %s:%s, workers=%s', host, port, workers)
-    StandaloneApplication(app, options).run()
 
 class TimingStats:
     def __init__(self):
@@ -1540,8 +1515,8 @@ def main():
     disable_logging()
     static_client = CachedHttpClient(StaticHttpClient(), CACHE_BY_URL)
     dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_BY_URL)
-    ui_server = FlaskUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
-    #ui_server = AIOHttpServer(static_client, dynamic_client, UI_HOST, UI_PORT)
+    #ui_server = FlaskUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
+    ui_server = AIOHttpServer(static_client, dynamic_client, UI_HOST, UI_PORT)
     ui_server.serve_background()
 
     qtApp = QApplication(sys.argv)
