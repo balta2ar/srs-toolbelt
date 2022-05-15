@@ -389,10 +389,10 @@ def uniq(items, key):
 def no_content():
     return '<body>No content</body>'
 
-def extract(soup, *args):
+def extract(source, soup, *args):
     result = soup.find(*args)
     if result: return result.prettify()
-    raise NoContent('NoContent: {0}'.format(args))
+    raise NoContent('{0}: {1}'.format(source, args))
     #return result.prettify() if result else no_content()
 
 def remove_one(soup, selector):
@@ -542,6 +542,8 @@ class LexinOsloMetArticle(WordGetter):
         blocks = []
         for group in groups:
             blocks.append(self.paint(group))
+        if not blocks:
+            raise NoContent('LexinOsloMetArticle: "{0}"'.format(self.word))
         #return '<br>\n<br>\n'.join(blocks)
         return '<br>\n'.join(blocks)
     def paint(self, group):
@@ -671,11 +673,11 @@ class NaobWord(WordGetter):
         main = remove_one(main, '.vipps-box')
         main = remove_one(main, '.prompt')
         if article:
-            self.html = extract(main, 'div', {'class': 'article'})
+            self.html = extract('NaobWord', main, 'div', {'class': 'article'})
         elif container.select_one('div.list-item'):
-            self.html = extract(main, 'div', {'class': 'container'})
+            self.html = extract('NoabWord', main, 'div', {'class': 'container'})
         else:
-            raise NoContent('NoContent: Naob: word="{0}"'.format(self.word))
+            raise NoContent('Naob: word="{0}"'.format(self.word))
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -696,7 +698,7 @@ class OrdbokArticle(WordGetter):
         args = ('span', {"class": "oppsgramordklasse"})
         parts = soup.find_all(*args)
         if not parts:
-            raise NoContent('Ordbok: word={0}, args={1}'.format(self.word, args))
+            raise NoContent('Ordbok: word="{0}", args={1}'.format(self.word, args))
         parts = [PartOfSpeech(self.client, p) for p in parts]
         [p.get() for p in parts]
         self.parts = [p for p in parts if p.inflection]
@@ -707,7 +709,7 @@ class OrdbokArticle(WordGetter):
         args = ('span', {"class": "oppsgramordklasse"})
         parts = soup.find_all(*args)
         if not parts:
-            raise NoContent('Ordbok: word={0}, args={1}'.format(self.word, args))
+            raise NoContent('Ordbok: word="{0}", args={1}'.format(self.word, args))
         parts = [PartOfSpeech(self.client, p) for p in parts]
         [await p.get_async() for p in parts]
         self.parts = [p for p in parts if p.inflection]
@@ -734,7 +736,7 @@ class OrdbokWord(WordGetter):
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
-        self.html = extract(soup, 'table', {'id': 'byttutBM'})
+        self.html = extract('OrdbokWord', soup, 'table', {'id': 'byttutBM'})
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -752,7 +754,7 @@ class GlosbeWord(WordGetter):
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
-        self.html = extract(soup, 'div', {'id': 'dictionary-content'})
+        self.html = extract('GlosbeWord', soup, 'div', {'id': 'dictionary-content'})
     def styled(self):
         return self.style() + self.html
     def get_url(self, word):
@@ -786,7 +788,7 @@ class WiktionaryNo(WordGetter):
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
-        self.html = extract(soup, 'div', {'class': 'mw-parser-output'})
+        self.html = extract('WiktionaryNo', soup, 'div', {'class': 'mw-parser-output'})
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -804,7 +806,7 @@ class CambridgeEnNo(WordGetter):
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
-        self.html = extract(soup, 'div', {'class': 'dictionary'})
+        self.html = extract('CambridgeEnNo', soup, 'div', {'class': 'dictionary'})
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -828,9 +830,9 @@ class DslWord(WordGetter):
             raise NoContent(self.no_dictionary())
         self.html = dsl_lookup(dsls, [self.word])
         if not self.html:
-            raise NoContent('No DSL word found for "{0}"'.format(self.word))
+            raise NoContent('DslWord: "{0}"'.format(self.word))
     def no_dictionary(self):
-        return 'No dictionaries found. Put full filename paths to DSL ' \
+        return 'DslWord: No dictionaries found. Put full filename paths to DSL ' \
             'dictionaries into {0}, one filename per line'.format(self.FILENAME)
     def styled(self):
         return self.style() + self.html
@@ -851,7 +853,7 @@ class GoogleTranslate(WordGetter):
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
-        self.html = extract(soup, 'div', {'class': 'result-container'})
+        self.html = extract('GoogleTranslate', soup, 'div', {'class': 'result-container'})
     def styled(self):
         return self.style() + self.html
     def style(self):
