@@ -542,81 +542,108 @@ class LexinOsloMetArticle(WordGetter):
     def style(self):
         return css('lexin-style.css')
 
-class Suggestions:
-    # https://ordbok.uib.no/perl/lage_ordliste_liten_nr2000.cgi?spr=bokmaal&query=gam
-    #
-    # {query:'gam',
-    # suggestions:["gaman","gamasje","gambe","gambier","gambisk","gambit","gamble","gambler","game","game","gamet","gametofytt","gamla","gamle-","gamleby","gamlefar","gamleheim","gamlehjem","gamlekjжreste","gamlemor","gamlen","gamlestev","gamletid","gamleеr","gamling","gamma","gammaglobulin","gammal","gammaldags","gammaldans","gammaldansk","gammaldansk","gammalengelsk","gammalgresk","gammalkjent","gammalkjжreste","gammalkommunist","gammalmannsaktig","gammalmodig","gammalnorsk","gammalnorsk","gammalost","gammalrosa","gammalstev","gammaltestamentlig","gammaltid","gammalvoren","gammastrеle","gammastrеling","gamme","gammel","gammel jomfru","gammel norsk mil","gammel som alle haugene","gammeldags","gammeldans","gammeldansk","gammeldansk","gammelengelsk","gammelgresk","gammelkjent","gammelkjжreste","gammelkommunist","gammelmannsaktig","gammelmodig","gammelnorsk","gammelnorsk","gammelost","gammelrosa","gammelstev","gammeltestamentlig","gammeltid","gammelvoren","gammen","gamp","gampe"],
-    # data:["gaman","gamasje","gambe","gambier","gambisk","gambit","gamble","gambler","game","game","gamet","gametofytt","gamla","gamle-","gamleby","gamlefar","gamleheim","gamlehjem","gamlekjжreste","gamlemor","gamlen","gamlestev","gamletid","gamleеr","gamling","gamma","gammaglobulin","gammal","gammaldags","gammaldans","gammaldansk","gammaldansk","gammalengelsk","gammalgresk","gammalkjent","gammalkjжreste","gammalkommunist","gammalmannsaktig","gammalmodig","gammalnorsk","gammalnorsk","gammalost","gammalrosa","gammalstev","gammaltestamentlig","gammaltid","gammalvoren","gammastrеle","gammastrеling","gamme","gammel","gammel jomfru","gammel norsk mil","gammel som alle haugene","gammeldags","gammeldans","gammeldansk","gammeldansk","gammelengelsk","gammelgresk","gammelkjent","gammelkjжreste","gammelkommunist","gammelmannsaktig","gammelmodig","gammelnorsk","gammelnorsk","gammelost","gammelrosa","gammelstev","gammeltestamentlig","gammeltid","gammelvoren","gammen","gamp","gampe"]
-    # }
-    TOP_COUNT = 5
-    def __init__(self, client, word):
-        self.word = word
-        items = loads(self.cleanup(client.get(self.get_url(word)))).get('suggestions', [])
-        self.items = uniq(items, lambda s: s.lower())
-        self.top = self.items[:Suggestions.TOP_COUNT]
+# class Suggestions:
+#     # https://ordbok.uib.no/perl/lage_ordliste_liten_nr2000.cgi?spr=bokmaal&query=gam
+#     #
+#     # {query:'gam',
+#     # suggestions:["gaman","gamasje","gambe","gambier","gambisk","gambit","gamble","gambler","game","game","gamet","gametofytt","gamla","gamle-","gamleby","gamlefar","gamleheim","gamlehjem","gamlekjжreste","gamlemor","gamlen","gamlestev","gamletid","gamleеr","gamling","gamma","gammaglobulin","gammal","gammaldags","gammaldans","gammaldansk","gammaldansk","gammalengelsk","gammalgresk","gammalkjent","gammalkjжreste","gammalkommunist","gammalmannsaktig","gammalmodig","gammalnorsk","gammalnorsk","gammalost","gammalrosa","gammalstev","gammaltestamentlig","gammaltid","gammalvoren","gammastrеle","gammastrеling","gamme","gammel","gammel jomfru","gammel norsk mil","gammel som alle haugene","gammeldags","gammeldans","gammeldansk","gammeldansk","gammelengelsk","gammelgresk","gammelkjent","gammelkjжreste","gammelkommunist","gammelmannsaktig","gammelmodig","gammelnorsk","gammelnorsk","gammelost","gammelrosa","gammelstev","gammeltestamentlig","gammeltid","gammelvoren","gammen","gamp","gampe"],
+#     # data:["gaman","gamasje","gambe","gambier","gambisk","gambit","gamble","gambler","game","game","gamet","gametofytt","gamla","gamle-","gamleby","gamlefar","gamleheim","gamlehjem","gamlekjжreste","gamlemor","gamlen","gamlestev","gamletid","gamleеr","gamling","gamma","gammaglobulin","gammal","gammaldags","gammaldans","gammaldansk","gammaldansk","gammalengelsk","gammalgresk","gammalkjent","gammalkjжreste","gammalkommunist","gammalmannsaktig","gammalmodig","gammalnorsk","gammalnorsk","gammalost","gammalrosa","gammalstev","gammaltestamentlig","gammaltid","gammalvoren","gammastrеle","gammastrеling","gamme","gammel","gammel jomfru","gammel norsk mil","gammel som alle haugene","gammeldags","gammeldans","gammeldansk","gammeldansk","gammelengelsk","gammelgresk","gammelkjent","gammelkjжreste","gammelkommunist","gammelmannsaktig","gammelmodig","gammelnorsk","gammelnorsk","gammelost","gammelrosa","gammelstev","gammeltestamentlig","gammeltid","gammelvoren","gammen","gamp","gampe"]
+#     # }
+#     TOP_COUNT = 5
+#     def __init__(self, client, word):
+#         self.word = word
+#         items = loads(self.cleanup(client.get(self.get_url(word)))).get('suggestions', [])
+#         self.items = uniq(items, lambda s: s.lower())
+#         self.top = self.items[:Suggestions.TOP_COUNT]
+#
+#     def cleanup(self, text):
+#         text = '{}'[:1] + '\n' + text[text.index('\n')+1:]
+#         #a = text.replace("'", '"')
+#         # :2 because of the syntax parser in neovim plugin, if I leave one
+#         # bracket open, it will incorrectly detect indentation
+#         a = text
+#         #a = re.sub('^{}'[:2] + 'query', '{"query"}', a)
+#         a = re.sub('^suggestions', '"suggestions"', a, flags=re.MULTILINE)
+#         a = re.sub('^data', '"data"', a, flags=re.MULTILINE)
+#         return a
+#
+#     def get_url(self, query):
+#         return 'https://ordbok.uib.no/perl/lage_ordliste_liten_nr2000.cgi?spr=bokmaal&query={0}'.format(query)
+#
+#     def __repr__(self):
+#         return f'Suggestions(word={self.word}, count={len(self.items)}, top={self.top})'
 
-    def cleanup(self, text):
-        text = '{}'[:1] + '\n' + text[text.index('\n')+1:]
-        #a = text.replace("'", '"')
-        # :2 because of the syntax parser in neovim plugin, if I leave one
-        # bracket open, it will incorrectly detect indentation
-        a = text
-        #a = re.sub('^{}'[:2] + 'query', '{"query"}', a)
-        a = re.sub('^suggestions', '"suggestions"', a, flags=re.MULTILINE)
-        a = re.sub('^data', '"data"', a, flags=re.MULTILINE)
-        return a
-
-    def get_url(self, query):
-        return 'https://ordbok.uib.no/perl/lage_ordliste_liten_nr2000.cgi?spr=bokmaal&query={0}'.format(query)
-
-    def __repr__(self):
-        return f'Suggestions(word={self.word}, count={len(self.items)}, top={self.top})'
-
-class Inflection:
+class Inflection(WordGetter):
     # https://ordbok.uib.no/perl/bob_hente_paradigme.cgi?lid=41772
     #  <div id="41772"><table class="paradigmetabell" cellspacing="0" style="margin: 25px;"><tr><th class="nobgnola"><span class="grunnord">liv</span></th><th class="nola" colspan="2">Entall</th><th class="nola" colspan="2">Flertall</th></tr><tr><th class="nobg">&nbsp;&nbsp;</th><th>Ubestemt form</th><th>Bestemt form</th><th>Ubestemt form</th><th>Bestemt form</th></tr><tr id="41772_1"><td class="ledetekst">n1</td><td class="vanlig">et liv</td><td class="vanlig">livet</td><td class="vanlig">liv</td><td class="vanlig">liva</td></tr><tr id="41772_2"><td class="ledetekst">n1</td><td class="vanlig">et liv</td><td class="vanlig">livet</td><td class="vanlig">liv</td><td class="vanlig">livene</td></tr></table></div>
-    def __init__(self, client, lid):
-        self.lid = lid
-        self.html = self.cleanup(client.get(self.get_url(lid)))
-
+    def get(self):
+        self.html = self.cleanup(self.client.get(self.get_url(self.word)))
+    async def get_async(self):
+        self.html = self.cleanup(await self.client.get_async(self.get_url(self.word)))
     def cleanup(self, text):
         return re.sub(r'style="margin:[^"]*"', 'style="margin: 3px;"', text)
-
     def get_url(self, lid):
         return 'https://ordbok.uib.no/perl/bob_hente_paradigme.cgi?lid={0}'.format(lid)
-
     def __repr__(self):
-        return f'Inflection(lid={self.lid})'
+        return f'Inflection(lid={self.word})'
 
 class PartOfSpeech:
     # <span class="oppsgramordklasse" onclick="vise_fullformer(&quot;8225&quot;,'bob')">adj.</span>
     def __init__(self, client, soup):
+        self.client = client
+        self.soup = soup
+    def get(self):
+        self.parse(self.soup)
+    async def get_async(self):
+        await self.parse_async(self.soup)
+    def parse(self, soup):
         self.name = soup.text
         self.lid = None
         self.inflection = None
         m = re.search(r'\d+', soup['onclick'])
         if m:
             self.lid = m.group(0)
-            self.inflection = Inflection(client, self.lid)
-
+            self.inflection = Inflection(self.client, self.lid)
+            self.inflection.get()
+    async def parse_async(self, soup):
+        self.name = soup.text
+        self.lid = None
+        self.inflection = None
+        m = re.search(r'\d+', soup['onclick'])
+        if m:
+            self.lid = m.group(0)
+            self.inflection = Inflection(self.client, self.lid)
+            await self.inflection.get_async()
     def __repr__(self):
         return f'PartOfSpeech(name="{self.name}", lid={self.lid}, inflection={self.inflection})'
 
-class Article:
+class OrdbokArticle(WordGetter):
     # https://ordbok.uib.no/perl/ordbok.cgi?OPP=bra&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal
     # <span class="oppslagsord b" id="22720">gi</span>
     # <span class="oppsgramordklasse" onclick="vise_fullformer(&quot;8225&quot;,'bob')">adj.</span>
-    def __init__(self, client, word):
-        self.word = word
-        soup = parse(client.get(self.get_url(word)))
+    def get(self):
+        soup = parse(self.client.get(self.get_url(self.word)))
         args = ('span', {"class": "oppsgramordklasse"})
         parts = soup.find_all(*args)
-        parts = [PartOfSpeech(client, x) for x in parts]
+        parts = [PartOfSpeech(self.client, p) for p in parts]
         if not parts:
-            raise NoContent('Ordbok: word={0}, args={1}'.format(word, args))
+            raise NoContent('Ordbok: word={0}, args={1}'.format(self.word, args))
+        [p.get() for p in parts]
         self.parts = parts
-        self.html = ''.join(uniq([x.inflection.html for x in self.parts], to_text))
+        self.parse()
+        return self.styled()
+    async def get_async(self):
+        soup = parse(await self.client.get_async(self.get_url(self.word)))
+        args = ('span', {"class": "oppsgramordklasse"})
+        parts = soup.find_all(*args)
+        parts = [PartOfSpeech(self.client, p) for p in parts]
+        if not parts:
+            raise NoContent('Ordbok: word={0}, args={1}'.format(self.word, args))
+        self.parts = [await p.get_async() for p in parts]
+        self.parse()
+        return self.styled()
+    def parse(self):
+        self.html = ''.join(uniq([p.inflection.html for p in self.parts], to_text))
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -624,13 +651,18 @@ class Article:
     def get_url(self, word: str) -> str:
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal'.format(word)
     def __repr__(self):
-        return f'Article(word={self.word}, parts={self.parts})'
+        return f'OrdbokArticle(word={self.word}, parts={self.parts})'
 
-
-class NaobWord:
-    def __init__(self, client, word):
-        self.word = word
-        soup = parse(client.get(self.get_url(word), selector='main > div.container'))
+class NaobWord(WordGetter):
+    def get(self):
+        soup = parse(self.client.get(self.get_url(self.word), selector='main > div.container'))
+        self.parse(soup)
+        return self.styled()
+    async def get_async(self):
+        soup = parse(await self.client.get_async(self.get_url(self.word), selector='main > div.container'))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
         article = soup.select_one('div.article')
         container = soup.select_one('main > div.container')
         main = container.parent
@@ -641,7 +673,7 @@ class NaobWord:
         elif container.select_one('div.list-item'):
             self.html = extract(main, 'div', {'class': 'container'})
         else:
-            raise NoContent('NoContent: Naob: word="{0}"'.format(word))
+            raise NoContent('NoContent: Naob: word="{0}"'.format(self.word))
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -649,11 +681,16 @@ class NaobWord:
     def get_url(self, word):
         return 'https://naob.no/ordbok/{0}'.format(word)
 
-
-class OrdbokWord:
-    def __init__(self, client, word):
-        self.word = word
-        soup = parse(client.get(self.get_url(word)))
+class OrdbokWord(WordGetter):
+    def get(self):
+        soup = parse(self.client.get(self.get_url(self.word)))
+        self.parse(soup)
+        return self.styled()
+    async def get_async(self):
+        soup = parse(await self.client.get_async(self.get_url(self.word)))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
         self.html = extract(soup, 'table', {'id': 'byttutBM'})
     def styled(self):
         return self.style() + self.html
@@ -662,15 +699,22 @@ class OrdbokWord:
     def get_url(self, word):
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=begge'.format(word)
 
-class GlosbeWord:
-    def __init__(self, client, word):
-        self.word = word
-        soup = parse(client.get(self.get_url(word)))
+class GlosbeWord(WordGetter):
+    def get(self):
+        soup = parse(self.client.get(self.get_url(self.word)))
+        self.parse(soup)
+        return self.styled()
+    async def get_async(self):
+        soup = parse(await self.client.get_async(self.get_url(self.word)))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
         self.html = extract(soup, 'div', {'id': 'dictionary-content'})
     def styled(self):
         return self.style() + self.html
     def get_url(self, word):
         pass
+        #raise NotImplemented
     def style(self):
         return css('glosbe-style.css')
 
@@ -689,10 +733,16 @@ class GlosbeEnNoWord(GlosbeWord):
     def get_url(self, word):
         return 'https://nb.glosbe.com/en/nb/{0}'.format(word)
 
-class WiktionaryNo:
-    def __init__(self, client, word):
-        self.word = word
-        soup = parse(client.get(self.get_url(word)))
+class WiktionaryNo(WordGetter):
+    def get(self):
+        soup = parse(self.client.get(self.get_url(self.word)))
+        self.parse(soup)
+        return self.styled()
+    async def get_async(self):
+        soup = parse(await self.client.get_async(self.get_url(self.word)))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
         self.html = extract(soup, 'div', {'class': 'mw-parser-output'})
     def styled(self):
         return self.style() + self.html
@@ -701,10 +751,16 @@ class WiktionaryNo:
     def get_url(self, word):
         return 'https://no.wiktionary.org/wiki/{0}'.format(word)
 
-class CambridgeEnNo:
-    def __init__(self, client, word):
-        self.word = word
-        soup = parse(client.get(self.get_url(word)))
+class CambridgeEnNo(WordGetter):
+    def get(self):
+        soup = parse(self.client.get(self.get_url(self.word)))
+        self.parse(soup)
+        return self.styled()
+    async def get_async(self):
+        soup = parse(await self.client.get_async(self.get_url(self.word)))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
         self.html = extract(soup, 'div', {'class': 'dictionary'})
     def styled(self):
         return self.style() + self.html
@@ -713,17 +769,23 @@ class CambridgeEnNo:
     def get_url(self, word):
         return 'https://dictionary.cambridge.org/dictionary/english-norwegian/{0}'.format(word)
 
-class DslWord:
+class DslWord(WordGetter):
     FILENAME = '~/.ordbok.dsl.txt'
-    def __init__(self, word):
+    def get(self):
+        self.parse()
+        return self.styled()
+    async def get_async(self):
+        self.parse()
+        return self.styled()
+    def parse(self):
         # TODO: is file is empty or missing, show a hint on what to put there and where
         dsls = slurp_lines(open, self.FILENAME)
-        self.word = word
+        self.word = self.word
         if not dsls:
             raise NoContent(self.no_dictionary())
-        self.html = dsl_lookup(dsls, [word])
+        self.html = dsl_lookup(dsls, [self.word])
         if not self.html:
-            raise NoContent('No DSL word found for "{0}"'.format(word))
+            raise NoContent('No DSL word found for "{0}"'.format(self.word))
     def no_dictionary(self):
         return 'No dictionaries found. Put full filename paths to DSL ' \
             'dictionaries into {0}, one filename per line'.format(self.FILENAME)
@@ -734,12 +796,18 @@ class DslWord:
     # def get_url(self, word):
     #     return 'https://no.wiktionary.org/wiki/{0}'.format(word)
 
-class GoogleTranslate:
+class GoogleTranslate(WordGetter):
     FROM = 'NA'
     TO = 'NA'
-    def __init__(self, client, word):
-        self.word = word
-        soup = parse(client.get(self.get_url(word, self.FROM, self.TO)))
+    def get(self):
+        soup = parse(self.client.get(self.get_url(self.word, self.FROM, self.TO)))
+        self.parse(soup)
+        return self.styled()
+    async def get_async(self):
+        soup = parse(await self.client.get_async(self.get_url(self.word, self.FROM, self.TO)))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
         self.html = extract(soup, 'div', {'class': 'result-container'})
     def styled(self):
         return self.style() + self.html
@@ -756,12 +824,18 @@ class GoogleTranslateEnNo(GoogleTranslate):
     FROM = 'en'
     TO = 'no'
 
-class AulismediaWord:
-    def __init__(self, client, word):
-        self.word = word
-        # {"lastpage": 1470,"firstpage": 1,"page": 14,"direction": "nor","term": "al"}
-        data = loads(client.get(self.get_url(word)))
-        page = '{}{:04d}.jpg'.format(data['direction'], data['page'])
+class AulismediaWord(WordGetter):
+    # {"lastpage": 1470,"firstpage": 1,"page": 14,"direction": "nor","term": "al"}
+    def get(self):
+        soup = loads(self.client.get(self.get_url(self.word)))
+        self.parse(soup)
+        return self.styled()
+    async def get_async(self):
+        soup = loads(await self.client.get_async(self.get_url(self.word)))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
+        page = '{}{:04d}.jpg'.format(soup['direction'], soup['page'])
         self.html = Template(open(here_html('aulismedia-norsk.html')).read()).substitute(word=page)
     def styled(self):
         return self.style() + self.html
@@ -770,23 +844,12 @@ class AulismediaWord:
     def get_url(self, word):
         return ui_aulismedia_search_norsk(word)
         # return 'http://norsk.dicts.aulismedia.com/processnorsk.php?search={0}'.format(word)
-    # @staticmethod
-    # def static(word):
-    #     filename = 'aulismedia/norsk/{0}'.format(word)
-    #     try:
-    #         with open(here(filename), 'rb') as f:
-    #             response = make_response(f.read())
-    #             response.headers['Content-Type'] = 'image/jpeg'
-    #             response.cache_control.max_age = 24 * 3600
-    #             return response
-    #     except Exception as e:
-    #         logging.error(e)
-    #         return make_response('Not found', 404)
     @staticmethod
     def flip(word, increment):
         index = int(''.join(filter(lambda x: x.isdigit(), word))) + increment
         url = ui_aulismedia_norsk('{:04d}.jpg'.format(index))
-        return redirect(url, code=302)
+        return web.HTTPFound(url)
+        #return redirect(url, code=302)
 
 def pluck(regexp, group):
     yes, no = [], []
@@ -1199,7 +1262,7 @@ class AIOHttpServer:
     def route_glosbe_enno(self, word):
         return GlosbeEnNoWord(self.static_client, word).styled()
     def route_ordbok_inflect(self, word):
-        return Article(self.static_client, word).styled()
+        return OrdbokArticle(self.static_client, word).styled()
     def route_ordbok_word(self, word):
         return OrdbokWord(self.static_client, word).styled()
     def route_naob_word(self, word):
@@ -1391,43 +1454,43 @@ class FlaskUIServer:
         return iframe_h(word)
     @cached
     def route_lexin_word(self, word):
-        return LexinOsloMetArticle(self.static_client, word).styled()
+        return LexinOsloMetArticle(self.static_client, word).get()
     @cached
     def route_glosbe_noru(self, word):
-        return GlosbeNoRuWord(self.static_client, word).styled()
+        return GlosbeNoRuWord(self.static_client, word).get()
     @cached
     def route_glosbe_noen(self, word):
-        return GlosbeNoEnWord(self.static_client, word).styled()
+        return GlosbeNoEnWord(self.static_client, word).get()
     @cached
     def route_glosbe_enno(self, word):
-        return GlosbeEnNoWord(self.static_client, word).styled()
+        return GlosbeEnNoWord(self.static_client, word).get()
     @cached
     def route_ordbok_inflect(self, word):
-        return Article(self.static_client, word).styled()
+        return OrdbokArticle(self.static_client, word).get()
     @cached
     def route_ordbok_word(self, word):
-        return OrdbokWord(self.static_client, word).styled()
+        return OrdbokWord(self.static_client, word).get()
     @cached
     def route_naob_word(self, word):
-        #return DslWord(word).styled()
+        #return DslWord(word).get()
         # TODO: fix pyppeteer
         #return 'pyppeteer is crashing, disabled for now'
-        return NaobWord(self.dynamic_client, word).styled()
+        return NaobWord(self.dynamic_client, word).get()
     @cached
     def route_wiktionary_no(self, word):
-        return WiktionaryNo(self.static_client, word).styled()
+        return WiktionaryNo(self.static_client, word).get()
     @cached
     def route_cambridge_enno(self, word):
-        return CambridgeEnNo(self.static_client, word).styled()
+        return CambridgeEnNo(self.static_client, word).get()
     @cached
     def route_dsl_word(self, word):
-        return DslWord(word).styled()
+        return DslWord(None, word).get()
     def route_gtrans_noen(self, word):
-        return GoogleTranslateNoEn(self.static_client, word).styled()
+        return GoogleTranslateNoEn(self.static_client, word).get()
     def route_gtrans_enno(self, word):
-        return GoogleTranslateEnNo(self.static_client, word).styled()
+        return GoogleTranslateEnNo(self.static_client, word).get()
     def route_aulismedia_norsk(self, word):
-        return AulismediaWord(self.static_client, word).styled()
+        return AulismediaWord(self.static_client, word).get()
     def route_aulismedia_prev(self, word):
         return AulismediaWord.flip(word, -1)
     def route_aulismedia_next(self, word):
