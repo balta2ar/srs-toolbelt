@@ -457,6 +457,90 @@ def here_html(name):
 def pretty(html):
     return parse(html).prettify()
 
+class WordGetter:
+    def __init__(self, client, word):
+        self.client = client
+        self.word = word
+
+class LexinOsloMetArticle(WordGetter):
+    # curl -k
+    # 'https://editorportal.oslomet.no/api/v1/findwords?searchWord=gift&lang=bokm%C3%A5l-russisk&page=1&selectLang=bokm%C3%A5l-russisk'
+    # -H 'Origin: https://lexin.oslomet.no'
+    # {
+    #   "id": 1523,
+    #   "sub_id": 2,
+    #   "type": "E-lem",
+    #   "text": "gift"
+    # },
+    # "resArray": {
+    #      "0": {
+    #          "id": 1168
+    #      },
+    ORIGIN = 'https://lexin.oslomet.no'
+    def get(self):
+        soup = loads(self.client.get(self.get_url(self.word), origin=self.ORIGIN))
+        self.html = self.transform(soup)
+        return self.styled()
+    async def get_async(self):
+        soup = loads(await self.client.get_async(self.get_url(self.word), origin=self.ORIGIN))
+        self.html = self.transform(soup)
+        return self.styled()
+    def order(self, soup):
+        items = soup['resArray']
+        if isinstance(items, dict):
+            order1 = sorted(items.items(), key=lambda x: int(x[0]))
+            order2 = [x[1]['id'] for x in order1]
+            return order2
+        elif isinstance(items, list):
+            order1 = [x['id'] for x in items]
+            return order1
+        raise RuntimeError('unexpected type: %s' % items)
+    def transform(self, soup):
+        #items = [x['text'] for x in soup['result'][0]]
+        order = self.order(soup)
+        items = soup['result'][0]
+        group_map = {k: list(g) for k, g in groupby(items, lambda x: x['id'])}
+        groups = [group_map[b] for b in order if b in group_map]
+        blocks = []
+        for group in groups:
+            blocks.append(self.paint(group))
+        #return '<br>\n<br>\n'.join(blocks)
+        return '<br>\n'.join(blocks)
+    def paint(self, group):
+        lems, group = pluck('.*-lem$', group)
+        #lems = ', '.join(text(lems))
+        kats, group = pluck('.*-kat$', group)
+        defs, group = pluck('.*-def$', group)
+        eks, group = pluck('.*-eks$', group)
+        sms, group = pluck('.*-sms', group)
+        idi, group = pluck('.*-idi', group)
+        _, group = pluck('.*-div$', group) # something with bilde(127, ...)
+        _, group = pluck('.*-kom$', group)
+        mor, group = pluck('.*-mor$', group)
+        _, group = pluck('.*-utt$', group)
+        _, group = pluck('.*-alt', group)
+
+        # N, E
+        # B
+        # Ru
+        lines = []
+        lines.append(span('lem', notilda(comma(text(lems)))) + ' ' + span('kat', notilda(comma(text(kats)))))
+        lines.append(divs('def', combine(defs)))
+        lines.append(divs('eks', combine(eks)))
+        #lines.append(divs('sms', text(sms)))
+        lines.append(divs('sms', combine(sms)))
+        lines.append(divs('idi', combine(idi)))
+        lines.append(divs('mor', combine(mor)))
+        lines.append(''.join(unknown(x) for x in group))
+        #lines.append('<br>'.join(unknown(x) for x in group))
+        #lines.append(div('columns2', divs('sms', text(sms))))
+        return ''.join(lines)
+    def styled(self):
+        return self.style() + self.html
+    def get_url(self, word):
+        return 'https://editorportal.oslomet.no/api/v1/findwords?searchWord={0}&lang=bokm%C3%A5l-russisk&page=1&selectLang=bokm%C3%A5l-russisk'.format(word)
+    def style(self):
+        return css('lexin-style.css')
 
 class Suggestions:
     # https://ordbok.uib.no/perl/lage_ordliste_liten_nr2000.cgi?spr=bokmaal&query=gam
@@ -758,101 +842,6 @@ def combine(group):
         lines.append(notilda(equals(text(g))))
     return lines
 
-
-class LexinOsloMetArticle:
-    # curl -k
-    # 'https://editorportal.oslomet.no/api/v1/findwords?searchWord=gift&lang=bokm%C3%A5l-russisk&page=1&selectLang=bokm%C3%A5l-russisk'
-    # -H 'Origin: https://lexin.oslomet.no'
-    # {
-    #   "id": 1523,
-    #   "sub_id": 2,
-    #   "type": "E-lem",
-    #   "text": "gift"
-    # },
-    # "resArray": {
-    #      "0": {
-    #          "id": 1168
-    #      },
-    def __init__(self, client, word):
-        self.word = word
-        origin = 'https://lexin.oslomet.no'
-        soup = loads(client.get(self.get_url(word), origin=origin))
-        self.html = self.transform(soup)
-    def order(self, soup):
-        items = soup['resArray']
-        if isinstance(items, dict):
-            order1 = sorted(items.items(), key=lambda x: int(x[0]))
-            order2 = [x[1]['id'] for x in order1]
-            return order2
-        elif isinstance(items, list):
-            order1 = [x['id'] for x in items]
-            return order1
-        raise RuntimeError('unexpected type: %s' % items)
-    def transform(self, soup):
-        #items = [x['text'] for x in soup['result'][0]]
-        order = self.order(soup)
-        items = soup['result'][0]
-        group_map = {k: list(g) for k, g in groupby(items, lambda x: x['id'])}
-        groups = [group_map[b] for b in order if b in group_map]
-        blocks = []
-        for group in groups:
-            blocks.append(self.paint(group))
-        #return '<br>\n<br>\n'.join(blocks)
-        return '<br>\n'.join(blocks)
-    def paint(self, group):
-        lems, group = pluck('.*-lem$', group)
-        #lems = ', '.join(text(lems))
-        kats, group = pluck('.*-kat$', group)
-        defs, group = pluck('.*-def$', group)
-        eks, group = pluck('.*-eks$', group)
-        sms, group = pluck('.*-sms', group)
-        idi, group = pluck('.*-idi', group)
-        _, group = pluck('.*-div$', group) # something with bilde(127, ...)
-        _, group = pluck('.*-kom$', group)
-        mor, group = pluck('.*-mor$', group)
-        _, group = pluck('.*-utt$', group)
-        _, group = pluck('.*-alt', group)
-
-        # N, E
-        # B
-        # Ru
-        lines = []
-        lines.append(span('lem', notilda(comma(text(lems)))) + ' ' + span('kat', notilda(comma(text(kats)))))
-        lines.append(divs('def', combine(defs)))
-        lines.append(divs('eks', combine(eks)))
-        #lines.append(divs('sms', text(sms)))
-        lines.append(divs('sms', combine(sms)))
-        lines.append(divs('idi', combine(idi)))
-        lines.append(divs('mor', combine(mor)))
-        lines.append(''.join(unknown(x) for x in group))
-        #lines.append('<br>'.join(unknown(x) for x in group))
-        #lines.append(div('columns2', divs('sms', text(sms))))
-        return ''.join(lines)
-    def styled(self):
-        return self.style() + self.html
-    def get_url(self, word):
-        return 'https://editorportal.oslomet.no/api/v1/findwords?searchWord={0}&lang=bokm%C3%A5l-russisk&page=1&selectLang=bokm%C3%A5l-russisk'.format(word)
-    def style(self):
-        return css('lexin-style.css')
-
-
-class AsyncFetch(QObject):
-    ready = pyqtSignal(object)
-    def __init__(self, client):
-        super(AsyncFetch, self).__init__()
-        self.client = client
-        self.queue = Queue()
-        for _ in range(10):
-            Thread(target=self._serve, daemon=True).start()
-    def add(self, task):
-        self.queue.put(task)
-    def _serve(self):
-        while True:
-            task = self.queue.get()
-            result = task(self.client)
-            self.ready.emit(result)
-
-
 class QComboBoxKey(QComboBox):
     def __init__(self, parent, on_key_press):
         super(QComboBoxKey, self).__init__(parent)
@@ -861,11 +850,9 @@ class QComboBoxKey(QComboBox):
         if not self.on_key_press(e):
             super(QComboBoxKey, self).keyPressEvent(e)
 
-
 class WebEnginePage(QWebEnginePage):
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
         logging.info("js console: %s %s %s %s", level, message, lineNumber, sourceID)
-
 
 class Browsers:
     def __init__(self, parent, layout, num):
@@ -921,10 +908,7 @@ class MainWindow(QWidget):
     def __init__(self, app):
         super().__init__()
         self.myActivate.connect(self.activate)
-
         self.app = app
-        # self.async_fetch = AsyncFetch(CachedHttpClient(StaticHttpClient(), 'cache'))
-        # self.async_fetch.ready.connect(self.on_fetch_ready)
 
         mainLayout = QVBoxLayout(self)
         mainLayout.setSpacing(0)
@@ -1047,26 +1031,6 @@ class MainWindow(QWidget):
             return
         if self.same_text(old_text):
             self.set_text(old_text)
-
-    @pyqtSlot(object)
-    def on_fetch_ready(self, result: object):
-        if isinstance(result, Article):
-            if self.same_text(result.word) and result.parts:
-                pass
-                #self.set_text(result.html)
-                #self.set_text(iframe(result.word))
-        elif isinstance(result, Suggestions):
-            if self.same_text(result.word) and result.top:
-                print(result)
-                #self.suggest(result.top)
-        else:
-            logging.warn('unknown fetch result: %s', result)
-
-    # def fetch(self, word):
-    #     self.set_url(ui_mix_url(word))
-        #self.async_fetch.add(lambda client: Article(client, word))
-        #self.set_text(iframe(word))
-        #self.async_fetch.add(lambda client: Suggestions(client, word))
 
     def onTrayActivated(self, reason):
         if reason == QSystemTrayIcon.Trigger:
