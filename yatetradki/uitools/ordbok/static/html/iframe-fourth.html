@@ -5,8 +5,14 @@
         <link href="/static/css/iframe.css" rel="stylesheet" type="text/css">
     </head>
     <body>
-        <div class="fullw fullh">
-            <iframe src="http://localhost:5660/ordbok/inflect/${word}" frameBorder="0" title="inflection"></iframe>
+        <div class="fullh">
+            <div class="left">
+                <!-- <iframe src="http://localhost:5660/wiktionary/no/${word}" frameBorder="0" title="wiktionary"></iframe> -->
+                <iframe src="http://localhost:5660/glosbe/enno/${word}" frameBorder="0" title="glosbe-enno"></iframe>
+            </div>
+            <div class="right">
+                <iframe src="http://localhost:5660/cambridge/enno/${word}" frameBorder="0" title="cambridge"></iframe>
+            </div>
         </div>
     </body>
 </html>

@@ -263,7 +263,7 @@ class PlaywrightClient(DynamicClient):
             return content
 
 class PlaywrightClientAsync(DynamicClient):
-    async def get_async(self, url, selector=None):
+    async def get_async(self, url, selector=None, action=None):
         disable_logging()
         async with async_playwright() as p:
             browser = await p.chromium.launch()
@@ -271,6 +271,8 @@ class PlaywrightClientAsync(DynamicClient):
             await page.goto(url)
             if selector is not None:
                 await page.wait_for_selector(selector, timeout=self.TIMEOUT)
+            if action is not None:
+                await page.evaluate(action)
             content = await page.evaluate('document.body.innerHTML')
             logging.info('async playwright "%d"', len(content))
             await browser.close()
@@ -279,8 +281,8 @@ class PlaywrightClientAsync(DynamicClient):
 class DynamicHttpClient:
     def get(self, url, selector=None):
         return PlaywrightClient().get(url, selector)
-    async def get_async(self, url, selector=None):
-        return await PlaywrightClientAsync().get_async(url, selector)
+    async def get_async(self, url, selector=None, action=None):
+        return await PlaywrightClientAsync().get_async(url, selector, action)
 
 def cache_get(basedir, keypath):
     path = join(basedir, *keypath)
@@ -398,6 +400,12 @@ def extract(source, soup, *args):
 def remove_one(soup, selector):
     target = soup.select_one(selector)
     if target: target.decompose()
+    return soup
+
+def remove_all(soup, selector):
+    target = soup.select(selector)
+    for tag in target:
+        tag.decompose()
     return soup
 
 def parse(body):
@@ -633,7 +641,7 @@ class NaobWord(WordGetter):
         elif container.select_one('div.list-item'):
             self.html = extract('NoabWord', main, 'div', {'class': 'container'})
         else:
-            raise NoContent('Naob: word="{0}"'.format(self.word))
+            raise NoContent('NaobWord: word="{0}"'.format(self.word))
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -641,9 +649,42 @@ class NaobWord(WordGetter):
     def get_url(self, word):
         return 'https://naob.no/ordbok/{0}'.format(word)
 
-class OrdbokeneArticle(WordGetter):
-    """TODO: switch to https://ordbokene.no/"""
-    pass
+class OrdbokeneWord(WordGetter):
+    # https://ordbokene.no/bm/search?q=mor&scope=ei
+    def get(self):
+        raise NotImplemented
+    async def get_async(self):
+        action = "for (let x of document.querySelectorAll('button.show-inflection')) x.click()"
+        selector = 'div.hits, div.no_results'
+        soup = parse(await self.client.get_async(self.get_url(self.word), selector=selector, action=action))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
+        no_results = soup.select_one('div.no_results')
+        if no_results:
+            raise NoContent('OrdbokeneWord: word="{0}"\n\n{1}'.format(self.word, no_results.prettify()))
+        soup = remove_all(soup, 'div.dict-label-top')
+        soup = remove_all(soup, 'div.article_footer')
+        soup = remove_all(soup, 'span.inflection-wrapper')
+        main = extract('OrdbokeneWord', soup, 'div', {'class': 'hits'})
+        self.html = main
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return css('ordbokene-word.css')
+    def get_url(self, word):
+        return 'https://ordbokene.no/bm/search?q={0}&scope=ei'.format(word)
+
+class OrdbokeneInflect(OrdbokeneWord):
+    def parse(self, soup):
+        no_results = soup.select_one('div.no_results')
+        if no_results:
+            raise NoContent('OrdbokeneWord: word="{0}"\n\n{1}'.format(self.word, no_results.prettify()))
+        soup = remove_all(soup, 'button')
+        parts = []
+        for tag in soup.select('span.inflection-wrapper'):
+            parts.append(tag.prettify())
+        self.html = '\n'.join(parts)
 
 class Inflection(WordGetter):
     # https://ordbok.uib.no/perl/bob_hente_paradigme.cgi?lid=41772
@@ -689,7 +730,7 @@ class PartOfSpeech:
     def __repr__(self):
         return f'PartOfSpeech(name="{self.name}", lid={self.lid}, inflection={self.inflection})'
 
-class OrdbokArticle(WordGetter):
+class OrdbokInflect(WordGetter):
     # https://ordbok.uib.no/perl/ordbok.cgi?OPP=bra&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal
     # <span class="oppslagsord b" id="22720">gi</span>
     # <span class="oppsgramordklasse" onclick="vise_fullformer(&quot;8225&quot;,'bob')">adj.</span>
@@ -724,7 +765,7 @@ class OrdbokArticle(WordGetter):
     def get_url(self, word: str) -> str:
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal'.format(word)
     def __repr__(self):
-        return f'OrdbokArticle(word={self.word}, parts={self.parts})'
+        return f'OrdbokInflect(word={self.word}, parts={self.parts})'
 
 class OrdbokWord(WordGetter):
     def get(self):
@@ -1266,6 +1307,8 @@ class AIOHTTPUIServer:
         router.add_get('/lexin/word/{word}', wrap(self.route_lexin_word))
         router.add_get('/ordbok/inflect/{word}', wrap(self.route_ordbok_inflect))
         router.add_get('/ordbok/word/{word}', wrap(self.route_ordbok_word))
+        router.add_get('/ordbokene/word/{word}', wrap(self.route_ordbokene_word))
+        router.add_get('/ordbokene/inflect/{word}', wrap(self.route_ordbokene_inflect))
         router.add_get('/naob/word/{word}', wrap(self.route_naob_word))
         router.add_get('/glosbe/noru/{word}', wrap(self.route_glosbe_noru))
         router.add_get('/glosbe/noen/{word}', wrap(self.route_glosbe_noen))
@@ -1317,10 +1360,16 @@ class AIOHTTPUIServer:
         return await GlosbeEnNoWord(self.static_client, word).get_async()
     @cached_async
     async def route_ordbok_inflect(self, word):
-        return await OrdbokArticle(self.static_client, word).get_async()
+        return await OrdbokInflect(self.static_client, word).get_async()
     @cached_async
     async def route_ordbok_word(self, word):
         return await OrdbokWord(self.static_client, word).get_async()
+    @cached_async
+    async def route_ordbokene_word(self, word):
+        return await OrdbokeneWord(self.dynamic_client, word).get_async()
+    @cached_async
+    async def route_ordbokene_inflect(self, word):
+        return await OrdbokeneInflect(self.dynamic_client, word).get_async()
     @cached_async
     async def route_naob_word(self, word):
         #return await DslWord(word).get_async()
@@ -1505,7 +1554,7 @@ class FlaskUIServer:
         return GlosbeEnNoWord(self.static_client, word).get()
     @cached
     def route_ordbok_inflect(self, word):
-        return OrdbokArticle(self.static_client, word).get()
+        return OrdbokInflect(self.static_client, word).get()
     @cached
     def route_ordbok_word(self, word):
         return OrdbokWord(self.static_client, word).get()
