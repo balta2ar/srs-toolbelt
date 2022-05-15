@@ -613,6 +613,38 @@ class LexinOsloMetArticle(WordGetter):
 #     def __repr__(self):
 #         return f'Suggestions(word={self.word}, count={len(self.items)}, top={self.top})'
 
+class NaobWord(WordGetter):
+    def get(self):
+        soup = parse(self.client.get(self.get_url(self.word), selector='main > div.container'))
+        self.parse(soup)
+        return self.styled()
+    async def get_async(self):
+        soup = parse(await self.client.get_async(self.get_url(self.word), selector='main > div.container'))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
+        article = soup.select_one('div.article')
+        container = soup.select_one('main > div.container')
+        main = container.parent
+        main = remove_one(main, '.vipps-box')
+        main = remove_one(main, '.prompt')
+        if article:
+            self.html = extract('NaobWord', main, 'div', {'class': 'article'})
+        elif container.select_one('div.list-item'):
+            self.html = extract('NoabWord', main, 'div', {'class': 'container'})
+        else:
+            raise NoContent('Naob: word="{0}"'.format(self.word))
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return css('naob-style.css')
+    def get_url(self, word):
+        return 'https://naob.no/ordbok/{0}'.format(word)
+
+class OrdbokeneArticle(WordGetter):
+    """TODO: switch to https://ordbokene.no/"""
+    pass
+
 class Inflection(WordGetter):
     # https://ordbok.uib.no/perl/bob_hente_paradigme.cgi?lid=41772
     #  <div id="41772"><table class="paradigmetabell" cellspacing="0" style="margin: 25px;"><tr><th class="nobgnola"><span class="grunnord">liv</span></th><th class="nola" colspan="2">Entall</th><th class="nola" colspan="2">Flertall</th></tr><tr><th class="nobg">&nbsp;&nbsp;</th><th>Ubestemt form</th><th>Bestemt form</th><th>Ubestemt form</th><th>Bestemt form</th></tr><tr id="41772_1"><td class="ledetekst">n1</td><td class="vanlig">et liv</td><td class="vanlig">livet</td><td class="vanlig">liv</td><td class="vanlig">liva</td></tr><tr id="41772_2"><td class="ledetekst">n1</td><td class="vanlig">et liv</td><td class="vanlig">livet</td><td class="vanlig">liv</td><td class="vanlig">livene</td></tr></table></div>
@@ -656,38 +688,6 @@ class PartOfSpeech:
             await self.inflection.get_async()
     def __repr__(self):
         return f'PartOfSpeech(name="{self.name}", lid={self.lid}, inflection={self.inflection})'
-
-class NaobWord(WordGetter):
-    def get(self):
-        soup = parse(self.client.get(self.get_url(self.word), selector='main > div.container'))
-        self.parse(soup)
-        return self.styled()
-    async def get_async(self):
-        soup = parse(await self.client.get_async(self.get_url(self.word), selector='main > div.container'))
-        self.parse(soup)
-        return self.styled()
-    def parse(self, soup):
-        article = soup.select_one('div.article')
-        container = soup.select_one('main > div.container')
-        main = container.parent
-        main = remove_one(main, '.vipps-box')
-        main = remove_one(main, '.prompt')
-        if article:
-            self.html = extract('NaobWord', main, 'div', {'class': 'article'})
-        elif container.select_one('div.list-item'):
-            self.html = extract('NoabWord', main, 'div', {'class': 'container'})
-        else:
-            raise NoContent('Naob: word="{0}"'.format(self.word))
-    def styled(self):
-        return self.style() + self.html
-    def style(self):
-        return css('naob-style.css')
-    def get_url(self, word):
-        return 'https://naob.no/ordbok/{0}'.format(word)
-
-class OrdbokArticle(WordGetter):
-    """TODO: switch to https://ordbokene.no/"""
-    pass
 
 class OrdbokArticle(WordGetter):
     # https://ordbok.uib.no/perl/ordbok.cgi?OPP=bra&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal
@@ -740,7 +740,7 @@ class OrdbokWord(WordGetter):
     def styled(self):
         return self.style() + self.html
     def style(self):
-        return css('ord-concatenated.css')
+        return css('ordbok-word.css')
     def get_url(self, word):
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=begge'.format(word)
 

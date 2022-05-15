@@ -19,3 +19,5 @@ td {
     padding: 1px 1px 1px 1px;
     text-align: center;
 }
+
+body, div, span, a, ul, li { line-height: 1.1 !important; }
