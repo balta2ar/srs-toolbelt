@@ -295,19 +295,32 @@ def cache_set(basedir, keypath, value):
     makedirs(dirname(path), exist_ok=True)
     spit(bz2.open, path, value)
 
+def by_method_and_arg(f, *args, **kwargs):
+    key = f.__name__.split('_')
+    key.extend(args[1:])
+    key.extend(kwargs.values())
+    return key
+
 def cached(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        keypath = f.__name__.split('_')
-        #keypath.append(args[0])
-        keypath.extend(args[1:])
-        keypath.extend(kwargs.values())
+        keypath = by_method_and_arg(f, *args, **kwargs)
         logging.info('cache keypath "%s", args %s %s', keypath, args, kwargs)
-        # keypath.extend(kwargs.values())
-        # keypath = tuple(keypath)
         value = cache_get(CACHE_BY_METHOD, keypath)
         if value is None:
             value = f(*args, **kwargs)
+            cache_set(CACHE_BY_METHOD, keypath, value)
+        return value
+    return wrapper
+
+def cached_async(f):
+    @wraps(f)
+    async def wrapper(*args, **kwargs):
+        keypath = by_method_and_arg(f, *args, **kwargs)
+        logging.info('async cache keypath "%s", args %s %s', keypath, args, kwargs)
+        value = cache_get(CACHE_BY_METHOD, keypath)
+        if value is None:
+            value = await f(*args, **kwargs)
             cache_set(CACHE_BY_METHOD, keypath, value)
         return value
     return wrapper
@@ -642,6 +655,38 @@ class PartOfSpeech:
     def __repr__(self):
         return f'PartOfSpeech(name="{self.name}", lid={self.lid}, inflection={self.inflection})'
 
+class NaobWord(WordGetter):
+    def get(self):
+        soup = parse(self.client.get(self.get_url(self.word), selector='main > div.container'))
+        self.parse(soup)
+        return self.styled()
+    async def get_async(self):
+        soup = parse(await self.client.get_async(self.get_url(self.word), selector='main > div.container'))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
+        article = soup.select_one('div.article')
+        container = soup.select_one('main > div.container')
+        main = container.parent
+        main = remove_one(main, '.vipps-box')
+        main = remove_one(main, '.prompt')
+        if article:
+            self.html = extract(main, 'div', {'class': 'article'})
+        elif container.select_one('div.list-item'):
+            self.html = extract(main, 'div', {'class': 'container'})
+        else:
+            raise NoContent('NoContent: Naob: word="{0}"'.format(self.word))
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return css('naob-style.css')
+    def get_url(self, word):
+        return 'https://naob.no/ordbok/{0}'.format(word)
+
+class OrdbokArticle(WordGetter):
+    """TODO: switch to https://ordbokene.no/"""
+    pass
+
 class OrdbokArticle(WordGetter):
     # https://ordbok.uib.no/perl/ordbok.cgi?OPP=bra&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal
     # <span class="oppslagsord b" id="22720">gi</span>
@@ -678,34 +723,6 @@ class OrdbokArticle(WordGetter):
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal'.format(word)
     def __repr__(self):
         return f'OrdbokArticle(word={self.word}, parts={self.parts})'
-
-class NaobWord(WordGetter):
-    def get(self):
-        soup = parse(self.client.get(self.get_url(self.word), selector='main > div.container'))
-        self.parse(soup)
-        return self.styled()
-    async def get_async(self):
-        soup = parse(await self.client.get_async(self.get_url(self.word), selector='main > div.container'))
-        self.parse(soup)
-        return self.styled()
-    def parse(self, soup):
-        article = soup.select_one('div.article')
-        container = soup.select_one('main > div.container')
-        main = container.parent
-        main = remove_one(main, '.vipps-box')
-        main = remove_one(main, '.prompt')
-        if article:
-            self.html = extract(main, 'div', {'class': 'article'})
-        elif container.select_one('div.list-item'):
-            self.html = extract(main, 'div', {'class': 'container'})
-        else:
-            raise NoContent('NoContent: Naob: word="{0}"'.format(self.word))
-    def styled(self):
-        return self.style() + self.html
-    def style(self):
-        return css('naob-style.css')
-    def get_url(self, word):
-        return 'https://naob.no/ordbok/{0}'.format(word)
 
 class OrdbokWord(WordGetter):
     def get(self):
@@ -1284,31 +1301,43 @@ class AIOHTTPUIServer:
         return iframe_r(word)
     async def route_ui_h(self, word):
         return iframe_h(word)
+    @cached_async
     async def route_lexin_word(self, word):
         return await LexinOsloMetArticle(self.static_client, word).get_async()
+    @cached_async
     async def route_glosbe_noru(self, word):
         return await GlosbeNoRuWord(self.static_client, word).get_async()
+    @cached_async
     async def route_glosbe_noen(self, word):
         return await GlosbeNoEnWord(self.static_client, word).get_async()
+    @cached_async
     async def route_glosbe_enno(self, word):
         return await GlosbeEnNoWord(self.static_client, word).get_async()
+    @cached_async
     async def route_ordbok_inflect(self, word):
         return await OrdbokArticle(self.static_client, word).get_async()
+    @cached_async
     async def route_ordbok_word(self, word):
         return await OrdbokWord(self.static_client, word).get_async()
+    @cached_async
     async def route_naob_word(self, word):
         #return await DslWord(word).get_async()
         # TODO: fix pyppeteer
         #return 'pyppeteer is crashing, disabled for now'
         return await NaobWord(self.dynamic_client, word).get_async()
+    @cached_async
     async def route_wiktionary_no(self, word):
         return await WiktionaryNo(self.static_client, word).get_async()
+    @cached_async
     async def route_cambridge_enno(self, word):
         return await CambridgeEnNo(self.static_client, word).get_async()
+    @cached_async
     async def route_dsl_word(self, word):
         return await DslWord(None, word).get_async()
+    @cached_async
     async def route_gtrans_noen(self, word):
         return await GoogleTranslateNoEn(self.static_client, word).get_async()
+    @cached_async
     async def route_gtrans_enno(self, word):
         return await GoogleTranslateEnNo(self.static_client, word).get_async()
     async def route_aulismedia_norsk(self, word):
