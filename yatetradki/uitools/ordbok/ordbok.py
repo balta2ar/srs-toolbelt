@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 
 import sys
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 from queue import Queue
 from threading import Thread
 from urllib.request import urlopen
 
-from aiohttp import web
+from aiohttp import web, ClientSession
+from aiohttp_jinja2 import setup as aiohttp_jinja2_setup
+from aiohttp_jinja2 import render_template as aiohttp_jinja2_render_template
+from jinja2 import FileSystemLoader
 from flask import jsonify
 from flask import request
 from urllib3 import disable_warnings
 
+def is_interactive():
+    import __main__ as main
+    return not hasattr(main, '__file__')
 
 def http_post(url, data):
     with urlopen(url, data) as r:
@@ -73,20 +79,21 @@ UI_PORT = 5660
 WATCHDOG_HOST = 'localhost'
 WATCHDOG_PORT = 5650
 dog = WatchDog(WATCHDOG_HOST, WATCHDOG_PORT)
-if not dog.start():
+if (not is_interactive()) and (not dog.start()):
     dog.show()
     sys.exit()
 
 import logging
 import re
 import bz2
-from os import makedirs
+from os import makedirs, environ
 from os.path import dirname, exists, normpath, join, expanduser, expandvars
 from urllib.parse import urlparse
-from json import loads
+from json import loads, dumps
 from string import Template
 from itertools import groupby
-import asyncio
+from pathlib import Path
+from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError
 # # https://bugs.python.org/issue34679#msg347525
 # policy = asyncio.get_event_loop_policy()
 # policy._loop_factory = asyncio.SelectorEventLoop
@@ -104,6 +111,8 @@ from pyppeteer import launch as launch_pyppeteer
 from pyppeteer.errors import TimeoutError as PyppeteerTimeoutError
 from playwright.sync_api import sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import async_playwright
+from playwright.async_api import TimeoutError as PlaywrightTimeoutErrorAsync
 
 from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QWidget, QCompleter,
@@ -125,14 +134,19 @@ WINDOW_WIDTH = 1300
 WINDOW_HEIGHT = 800
 UPDATE_DELAY = 1000
 ACTIVE_MODE_DELAY = 1000 # milliseconds
-ICON_FILENAME = dirname(__file__) + '/ordbok.png'
-CACHE_DIR = join(dirname(__file__), 'cache')
-CACHE_BY_METHOD = join(CACHE_DIR, 'by_method')
-CACHE_BY_URL = join(CACHE_DIR, 'by_url')
+DIR = Path(dirname(__file__))
+ICON_FILENAME = str(DIR / 'ordbok.png')
+TEMPLATE_DIR = DIR / 'static' / 'html'
+STATIC_DIR = DIR / 'static'
+CACHE_DIR = Path(environ.get('CACHE_DIR', DIR / 'cache'))
+CACHE_BY_METHOD = CACHE_DIR / 'by_method'
+CACHE_BY_URL = CACHE_DIR / 'by_url'
 ADD_TO_FONT_SIZE = 6
 NETWORK_TIMEOUT = 5000 # milliseconds
 RECENT_GRAB_DELAY = (UPDATE_DELAY / 1000.0) + 0.1 # seconds
 USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36'
+
+#POOL = ProcessPoolExecutor()
 
 
 def disable_logging():
@@ -146,62 +160,102 @@ def disable_logging():
             logger.propagate = False
             #logging.info('Disabled logger "%s"', name)
 
+async def http_get_async(url, timeout=None):
+    retries = 3
+    async with ClientSession() as session:
+        for i in range(retries):
+            async with session.get(url, timeout=timeout) as resp:
+                try:
+                    return await resp.text()
+                except AsyncioTimeoutError as e:
+                    logging.warning('timeout (%s) getting "%s": "%s"', timeout, url, e)
+                    if i == retries-1:
+                        raise
+
 class StaticHttpClient:
+    USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0'
+    TIMEOUT = NETWORK_TIMEOUT/1000.0
+    RETRIES = 3
+    def headers(self, origin=None):
+        headers = {'User-Agent': self.USER_AGENT}
+        if origin: headers['Origin'] = origin
+        return headers
     def get(self, url, origin=None):
         logging.info('http get "%s"', url)
-        headers = {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:59.0) Gecko/20100101 Firefox/59.0'}
-        if origin:
-            headers['Origin'] = origin
         session = Session()
-        retries = Retry(total=3, backoff_factor=1, status_forcelist=[])
+        retries = Retry(total=self.RETRIES, backoff_factor=1, status_forcelist=[])
         session.mount('http://', HTTPAdapter(max_retries=retries))
         session.mount('https://', HTTPAdapter(max_retries=retries))
-        result = session.get(url, verify=False, headers=headers, allow_redirects=True, timeout=NETWORK_TIMEOUT/1000.0)
+        result = session.get(url, verify=False, headers=self.headers(origin), allow_redirects=True, timeout=self.TIMEOUT)
         result.raise_for_status()
         return result.text
+    async def get_async(self, url, origin=None):
+        retries = self.RETRIES
+        logging.info('http get async "%s"', url)
+        async with ClientSession() as session:
+            for i in range(retries):
+                async with session.get(url, timeout=self.TIMEOUT, headers=self.headers(origin), ssl=False, allow_redirects=True) as resp:
+                    try:
+                        return await resp.text()
+                    except AsyncioTimeoutError as e:
+                        logging.warning('timeout (%s) getting "%s": "%s"', self.TIMEOUT, url, e)
+                        if i == retries-1:
+                            raise
 
-
-class DynamicHttpClient:
+class DynamicClient:
     TIMEOUT = NETWORK_TIMEOUT
-    def __init__(self, timeout=None):
-        self.timeout = timeout or self.TIMEOUT
+
+class PyppeteerClient(DynamicClient):
     def get(self, url, selector=None):
-        return self.get_playwright(url, selector)
-        #return self.get_pyppeteer(url, selector)
-    def get_playwright(self, url, selector=None):
+        return self.get_pyppeteer(url, selector)
+    async def fetch_pyppeteer(self, url, result, selector=None):
+        browser = await launch_pyppeteer(handleSIGINT=False, handleSIGTERM=False, handleSIGHUP=False)
+        page = await browser.newPage()
+        await page.goto(url)
+        if selector is not None:
+            await page.waitForSelector(selector, timeout=self.TIMEOUT)
+        content = await page.evaluate('document.body.innerHTML', force_expr=True)
+        result[0] = content
+        await browser.close()
+    def get_pyppeteer(self, url, selector=None):
+        disable_logging()
+        result = [no_content()]
+        new_event_loop().run_until_complete(self.fetch_pyppeteer(url, result, selector))
+        return result[0]
+
+class PlaywrightClient(DynamicClient):
+    def get(self, url, selector=None):
         disable_logging()
         with sync_playwright() as p:
             browser = p.chromium.launch()
             page = browser.new_page()
             page.goto(url)
             if selector is not None:
-                page.wait_for_selector(selector, timeout=self.timeout)
+                page.wait_for_selector(selector, timeout=self.TIMEOUT)
             content = page.evaluate('document.body.innerHTML')
             logging.info('playwright "%d"', len(content))
             browser.close()
             return content
-    def get_pyppeteer(self, url, selector=None):
+
+class PlaywrightClientAsync(DynamicClient):
+    async def get_async(self, url, selector=None):
         disable_logging()
-        result = [no_content()]
-        async def fetch():
-            browser = await launch_pyppeteer(handleSIGINT=False, handleSIGTERM=False, handleSIGHUP=False)
-            page = await browser.newPage()
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page()
             await page.goto(url)
             if selector is not None:
-                await page.waitForSelector(selector, timeout=self.timeout)
-                # try:
-                #     await page.waitForSelector(selector, timeout=self.timeout)
-                # except TimeoutError as e:
-                #     logging.info('url timeout (timeout=%s, url=%s): %s', self.timeout, url, e)
-                #     return
-            #div = await page.querySelector(selector)
-            #content = await page.evaluate('(el) => el.innerHTML', div)
-            content = await page.evaluate('document.body.innerHTML', force_expr=True)
-            result[0] = content
+                await page.wait_for_selector(selector, timeout=self.TIMEOUT)
+            content = await page.evaluate('document.body.innerHTML')
+            logging.info('playwright "%d"', len(content))
             await browser.close()
+            return content
 
-        asyncio.new_event_loop().run_until_complete(fetch())
-        return result[0]
+class DynamicHttpClient:
+    def get(self, url, selector=None):
+        return PlaywrightClient().get(url, selector)
+    async def get_async(self, url, selector=None):
+        return await PlaywrightClientAsync().get_async(url, selector)
 
 def cache_get(basedir, keypath):
     path = join(basedir, *keypath)
@@ -237,7 +291,6 @@ class CachedHttpClient:
     def __init__(self, client, cachedir):
         self.client = client
         self.cachedir = cachedir
-
     def get(self, url, **kwargs):
         path = self.get_path(self.get_key(url))
         content = slurp(bz2.open, path)
@@ -246,10 +299,16 @@ class CachedHttpClient:
             content = self.client.get(url, **kwargs)
             spit(bz2.open, path, content)
         return content
-
+    async def get_async(self, url, **kwargs):
+        path = self.get_path(self.get_key(url))
+        content = slurp(bz2.open, path)
+        if content is None:
+            logging.info('cache miss: "%s"', url)
+            content = await self.client.get_async(url, **kwargs)
+            spit(bz2.open, path, content)
+        return content
     def get_path(self, key):
         return join(self.cachedir, key)
-
     def get_key(self, url):
         J = lambda x: re.sub(r'\W+', '', x)
         S = lambda x: re.sub(r'^\w\s\d-', '/', x)
@@ -384,16 +443,16 @@ def css(filename):
     return '<style>{0}</style>'.format(slurp(open, here_css(filename)))
 
 def here(name):
-    return join(dirname(__file__), name)
+    return join(DIR, name)
 
 def here_js(name):
-    return join(dirname(__file__), 'static/js', name)
+    return join(DIR, 'static/js', name)
 
 def here_css(name):
-    return join(dirname(__file__), 'static/css', name)
+    return join(DIR, 'static/css', name)
 
 def here_html(name):
-    return join(dirname(__file__), 'static/html', name)
+    return join(DIR, 'static/html', name)
 
 def pretty(html):
     return parse(html).prettify()
@@ -1045,13 +1104,19 @@ class MainWindow(QWidget):
         else:
             logging.info('key event: %s, %s', e.key(), e.modifiers())
 
-
 def timed_http_get(url):
+    logging.info('timed html: %s', url)
     t0 = time.time()
     http_get(url)
     t1 = time.time()
     return t1 - t0
 
+async def timed_http_get_async(url):
+    logging.info('timed html: %s', url)
+    t0 = time.time()
+    await http_get_async(url)
+    t1 = time.time()
+    return t1 - t0
 
 class AIOHttpServer:
     def __init__(self, static_client, dynamic_client, host, port):
@@ -1059,7 +1124,11 @@ class AIOHttpServer:
         self.dynamic_client = dynamic_client
         self.host = host
         self.port = port
-        self.app = web.Application()
+        self.app = web.Application(middlewares=[self.error_middleware, self.stats_middleware])
+        aiohttp_jinja2_setup(self.app, loader=FileSystemLoader(TEMPLATE_DIR))
+        self.setup_routes(self.app)
+        self.runner = web.AppRunner(self.app)
+        self.stats = TimingStats()
         # TODO: use app runner: https://docs.aiohttp.org/en/stable/web_advanced.html#application-runners
     def url(self, path):
         return 'http://{}:{}{}'.format(self.host, self.port, path)
@@ -1067,8 +1136,172 @@ class AIOHttpServer:
         Thread(target=self.serve, daemon=True).start()
     def serve(self):
         logging.info('Starting AIOHttpServer on %s:%s', self.host, self.port)
-        # asyncio.new_event_loop()
-        web.run_app(self.app, host=self.host, port=self.port)
+        loop = new_event_loop()
+        set_event_loop(loop)
+        loop.run_until_complete(self.runner.setup())
+        site = web.TCPSite(self.runner, self.host, self.port)
+        loop.run_until_complete(site.start())
+        loop.run_forever()
+        #web.run_app(self.app, host=self.host, port=self.port)
+    @web.middleware
+    async def stats_middleware(self, request, handler):
+        t0 = time.time()
+        response = await handler(request)
+        total = time.time() - t0
+        self.stats.set(request.rel_url.path, total)
+        return response
+    @web.middleware
+    async def error_middleware(self, request, handler):
+        try:
+            response = await handler(request)
+            return response
+        except (
+            HTTPError,
+            ReadTimeout,
+            ConnectionError,
+            PyppeteerTimeoutError,
+            PlaywrightTimeoutError,
+            PlaywrightTimeoutErrorAsync,
+            AsyncioTimeoutError,
+            NoContent,
+        ) as e:
+            return web.Response(text='{0}: {1}'.format(type(e).__name__, e))
+    def setup_routes(self, app):
+        def wrap(fn):
+            def handler(request):
+                word = request.match_info.get('word')
+                result = fn(word)
+                if isinstance(result, str):
+                    return web.Response(text=result, content_type='text/html')
+                return web.json_response(result)
+            return handler
+        router = app.router
+        router.add_get('/static/css/iframe.css', self.route_iframe_css)
+        router.add_get('/ui/mix/{word}', wrap(self.route_ui_mix))
+        router.add_get('/ui/nor/{word}', wrap(self.route_ui_nor))
+        router.add_get('/ui/third/{word}', wrap(self.route_ui_third))
+        router.add_get('/ui/fourth/{word}', wrap(self.route_ui_fourth))
+        router.add_get('/ui/q/{word}', wrap(self.route_ui_q))
+        router.add_get('/ui/w/{word}', wrap(self.route_ui_w))
+        router.add_get('/ui/e/{word}', wrap(self.route_ui_e))
+        router.add_get('/ui/r/{word}', wrap(self.route_ui_r))
+        router.add_get('/ui/h/{word}', wrap(self.route_ui_h))
+        router.add_get('/lexin/word/{word}', wrap(self.route_lexin_word))
+        router.add_get('/ordbok/inflect/{word}', wrap(self.route_ordbok_inflect))
+        router.add_get('/ordbok/word/{word}', wrap(self.route_ordbok_word))
+        router.add_get('/naob/word/{word}', wrap(self.route_naob_word))
+        router.add_get('/glosbe/noru/{word}', wrap(self.route_glosbe_noru))
+        router.add_get('/glosbe/noen/{word}', wrap(self.route_glosbe_noen))
+        router.add_get('/glosbe/enno/{word}', wrap(self.route_glosbe_enno))
+        router.add_get('/wiktionary/no/{word}', wrap(self.route_wiktionary_no))
+        router.add_get('/cambridge/enno/{word}', wrap(self.route_cambridge_enno))
+        router.add_get('/dsl/word/{word}', wrap(self.route_dsl_word))
+        router.add_get('/gtrans/noen/{word}', wrap(self.route_gtrans_noen))
+        router.add_get('/gtrans/enno/{word}', wrap(self.route_gtrans_enno))
+        router.add_get('/aulismedia/norsk/{word}', wrap(self.route_aulismedia_norsk))
+        router.add_get('/aulismedia/prev/{word}', wrap(self.route_aulismedia_prev))
+        router.add_get('/aulismedia/next/{word}', wrap(self.route_aulismedia_next))
+        router.add_get('/aulismedia/search_norsk/{word}', wrap(self.route_aulismedia_search_norsk))
+        router.add_get('/all/word/{word}', self.route_all_word)
+        router.add_get('/stats', self.route_stats)
+        router.add_get('/', self.route_index)
+        app.add_routes([web.static('/static', STATIC_DIR)])
+    def route_iframe_css(self, _request):
+        return web.Response(text=open(here_css('iframe.css')).read(), content_type='text/css')
+    def route_ui_mix(self, word):
+        return iframe_mix(word)
+    def route_ui_nor(self, word):
+        return iframe_nor(word)
+    def route_ui_third(self, word):
+        return iframe_third(word)
+    def route_ui_fourth(self, word):
+        return iframe_fourth(word)
+    def route_ui_q(self, word):
+        return iframe_q(word)
+    def route_ui_w(self, word):
+        return iframe_w(word)
+    def route_ui_e(self, word):
+        return iframe_e(word)
+    def route_ui_r(self, word):
+        return iframe_r(word)
+    def route_ui_h(self, word):
+        return iframe_h(word)
+    def route_lexin_word(self, word):
+        return LexinOsloMetArticle(self.static_client, word).styled()
+    def route_glosbe_noru(self, word):
+        return GlosbeNoRuWord(self.static_client, word).styled()
+    def route_glosbe_noen(self, word):
+        return GlosbeNoEnWord(self.static_client, word).styled()
+    def route_glosbe_enno(self, word):
+        return GlosbeEnNoWord(self.static_client, word).styled()
+    def route_ordbok_inflect(self, word):
+        return Article(self.static_client, word).styled()
+    def route_ordbok_word(self, word):
+        return OrdbokWord(self.static_client, word).styled()
+    def route_naob_word(self, word):
+        #return DslWord(word).styled()
+        # TODO: fix pyppeteer
+        #return 'pyppeteer is crashing, disabled for now'
+        return NaobWord(self.dynamic_client, word).styled()
+    def route_wiktionary_no(self, word):
+        return WiktionaryNo(self.static_client, word).styled()
+    def route_cambridge_enno(self, word):
+        return CambridgeEnNo(self.static_client, word).styled()
+    def route_dsl_word(self, word):
+        return DslWord(word).styled()
+    def route_gtrans_noen(self, word):
+        return GoogleTranslateNoEn(self.static_client, word).styled()
+    def route_gtrans_enno(self, word):
+        return GoogleTranslateEnNo(self.static_client, word).styled()
+    def route_aulismedia_norsk(self, word):
+        return AulismediaWord(self.static_client, word).styled()
+    def route_aulismedia_prev(self, word):
+        return AulismediaWord.flip(word, -1)
+    def route_aulismedia_next(self, word):
+        return AulismediaWord.flip(word, 1)
+    def route_aulismedia_search_norsk(self, word):
+        return index_search(INDEX_PATH, word.lower())
+    # def route_aulismedia_static(self, word):
+    #     return AulismediaWord.static(word)
+    async def route_all_word(self, request):
+        word = request.match_info.get('word')
+        parallel = request.rel_url.query.get('parallel', '')
+        urls = [
+            self.url('/lexin/word/{}'.format(word)),
+            self.url('/ordbok/inflect/{}'.format(word)),
+            self.url('/ordbok/word/{}'.format(word)),
+            self.url('/naob/word/{}'.format(word)),
+            self.url('/glosbe/noru/{}'.format(word)),
+            self.url('/glosbe/noen/{}'.format(word)),
+            self.url('/glosbe/enno/{}'.format(word)),
+            self.url('/wiktionary/no/{}'.format(word)),
+            self.url('/cambridge/enno/{}'.format(word)),
+            self.url('/dsl/word/{}'.format(word)),
+            self.url('/gtrans/noen/{}'.format(word)),
+            self.url('/gtrans/enno/{}'.format(word)),
+            self.url('/aulismedia/norsk/{}'.format(word)),
+        ]
+        logging.info('all: word=%s, parallel=%s, #urls=%d', word, parallel, len(urls))
+        header = f'parallel={bool(parallel)}\n'
+        if parallel:
+            # with ThreadPoolExecutor(max_workers=len(urls)) as pool:
+            #     times = list(pool.map(timed_http_get, urls))
+            times = await gather(*[timed_http_get_async(url) for url in urls])
+        else:
+            times = [await timed_http_get_async(url) for url in urls]
+        return web.Response(text=header + ' '.join(['{:.2f}'.format(x) for x in times]) + '\n')
+    def route_stats(self, _request):
+        return web.json_response(self.stats.get_all(), dumps=lambda x: dumps(x, indent=2))
+    def route_index(self, request):
+        links = []
+        for r in self.app.router.resources():
+            info = r.get_info()
+            args = []
+            pattern = info.get('formatter', info.get('path', None))
+            if pattern:
+                links.append((pattern, pattern))
+        context = {'links': links}
+        return aiohttp_jinja2_render_template("index.html", request, context=context)
 
 
 def run_wsgi(app, host, port, workers):
@@ -1106,7 +1339,7 @@ class TimingStats:
         result.sort(key=lambda x: x['took'])
         return result
 
-from flask import Flask, Response, render_template, url_for, redirect, request, g as ctx
+from flask import Flask, Response, render_template as flask_render_template, url_for, redirect, request, g as ctx
 class FlaskUIServer:
     def __init__(self, static_client, dynamic_client, host, port):
         self.static_client = static_client
@@ -1114,7 +1347,7 @@ class FlaskUIServer:
         self.host = host
         self.port = port
         self.stats = TimingStats()
-        self.app = Flask(__name__, template_folder=join(dirname(__file__), 'static/html'))
+        self.app = Flask(__name__, template_folder=TEMPLATE_DIR)
     def url(self, path):
         return 'http://{}:{}{}'.format(self.host, self.port, path)
     def serve_background(self):
@@ -1271,7 +1504,7 @@ class FlaskUIServer:
             args = {v: v for v in rule.arguments or {}}
             url = url_for(rule.endpoint, **args)
             links.append((url, rule.endpoint))
-        return render_template("index.html", links=links)
+        return flask_render_template("index.html", links=links)
 
 
 def main():
@@ -1281,7 +1514,7 @@ def main():
     static_client = CachedHttpClient(StaticHttpClient(), CACHE_BY_URL)
     dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_BY_URL)
     ui_server = FlaskUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
-    # ui_server = AIOHttpServer(static_client, dynamic_client, UI_HOST, UI_PORT)
+    #ui_server = AIOHttpServer(static_client, dynamic_client, UI_HOST, UI_PORT)
     ui_server.serve_background()
 
     qtApp = QApplication(sys.argv)
