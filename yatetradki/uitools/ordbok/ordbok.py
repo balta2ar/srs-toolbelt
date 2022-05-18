@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
 import sys
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
-from queue import Queue
 from threading import Thread
 from urllib.request import urlopen, Request
 
@@ -12,8 +10,6 @@ from aiohttp import web, ClientSession
 from aiohttp_jinja2 import setup as aiohttp_jinja2_setup
 from aiohttp_jinja2 import render_template as aiohttp_jinja2_render_template
 from jinja2 import FileSystemLoader
-from flask import jsonify
-from flask import request
 from urllib3 import disable_warnings
 
 USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36'
@@ -104,7 +100,6 @@ from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as Asyn
 # policy._loop_factory = asyncio.SelectorEventLoop
 
 import time
-from multiprocessing import cpu_count
 from functools import wraps
 import socket
 
@@ -1454,174 +1449,6 @@ class TimingStats:
         result.sort(key=lambda x: x['took'])
         return result
 
-from flask import Flask, Response, render_template as flask_render_template, url_for, redirect, request, g as ctx
-class FlaskUIServer:
-    def __init__(self, static_client, dynamic_client, host, port):
-        self.static_client = static_client
-        self.dynamic_client = dynamic_client
-        self.host = host
-        self.port = port
-        self.stats = TimingStats()
-        self.app = Flask(__name__, template_folder=TEMPLATE_DIR)
-    def url(self, path):
-        return 'http://{}:{}{}'.format(self.host, self.port, path)
-    def serve_background(self):
-        Thread(target=self.serve, daemon=True).start()
-    def serve(self):
-        logging.info('Starting FlaskUIServer on %s:%s', self.host, self.port)
-        self.app.register_error_handler(HTTPError, self.error_handler)
-        self.app.register_error_handler(ReadTimeout, self.error_handler)
-        self.app.register_error_handler(ConnectionError, self.error_handler)
-        self.app.register_error_handler(PyppeteerTimeoutError, self.error_handler)
-        self.app.register_error_handler(PlaywrightTimeoutError, self.error_handler)
-        self.app.register_error_handler(NoContent, self.error_handler)
-        self.app.route('/static/css/iframe.css', methods=['GET'])(self.route_iframe_css)
-        self.app.route('/ui/mix/<word>', methods=['GET'])(self.route_ui_mix)
-        self.app.route('/ui/nor/<word>', methods=['GET'])(self.route_ui_nor)
-        self.app.route('/ui/third/<word>', methods=['GET'])(self.route_ui_third)
-        self.app.route('/ui/fourth/<word>', methods=['GET'])(self.route_ui_fourth)
-        self.app.route('/ui/q/<word>', methods=['GET'])(self.route_ui_q)
-        self.app.route('/ui/w/<word>', methods=['GET'])(self.route_ui_w)
-        self.app.route('/ui/e/<word>', methods=['GET'])(self.route_ui_e)
-        self.app.route('/ui/r/<word>', methods=['GET'])(self.route_ui_r)
-        self.app.route('/ui/h/<word>', methods=['GET'])(self.route_ui_h)
-        self.app.route('/lexin/word/<word>', methods=['GET'])(self.route_lexin_word)
-        self.app.route('/ordbok/inflect/<word>', methods=['GET'])(self.route_ordbok_inflect)
-        self.app.route('/ordbok/word/<word>', methods=['GET'])(self.route_ordbok_word)
-        self.app.route('/naob/word/<word>', methods=['GET'])(self.route_naob_word)
-        self.app.route('/glosbe/noru/<word>', methods=['GET'])(self.route_glosbe_noru)
-        self.app.route('/glosbe/noen/<word>', methods=['GET'])(self.route_glosbe_noen)
-        self.app.route('/glosbe/enno/<word>', methods=['GET'])(self.route_glosbe_enno)
-        self.app.route('/wiktionary/no/<word>', methods=['GET'])(self.route_wiktionary_no)
-        self.app.route('/cambridge/enno/<word>', methods=['GET'])(self.route_cambridge_enno)
-        self.app.route('/dsl/word/<word>', methods=['GET'])(self.route_dsl_word)
-        self.app.route('/gtrans/noen/<word>', methods=['GET'])(self.route_gtrans_noen)
-        self.app.route('/gtrans/enno/<word>', methods=['GET'])(self.route_gtrans_enno)
-        self.app.route('/aulismedia/norsk/<word>', methods=['GET'])(self.route_aulismedia_norsk)
-        self.app.route('/aulismedia/prev/<word>', methods=['GET'])(self.route_aulismedia_prev)
-        self.app.route('/aulismedia/next/<word>', methods=['GET'])(self.route_aulismedia_next)
-        self.app.route('/aulismedia/search_norsk/<word>', methods=['GET'])(self.route_aulismedia_search_norsk)
-        self.app.route('/all/word/<word>', methods=['GET'])(self.route_all_word)
-        self.app.route('/stats', methods=['GET'])(self.route_stats)
-        self.app.route('/', methods=['GET'])(self.route_index)
-        self.app.before_request(self.before_handler)
-        self.app.after_request(self.after_handler)
-        self.app.run(host=self.host, port=self.port, debug=True, use_reloader=False, threaded=True)
-        # self.app.debug = False
-        # self.app.use_reloader = False
-        # self.app.threaded = False
-        #run_wsgi(self.app, self.host, self.port, workers=1)
-    def before_handler(self):
-        ctx.t0 = time.time()
-    def after_handler(self, response):
-        total = time.time() - ctx.t0
-        #logging.info('took %0.3f %s %s %s %s', total, response.status_code, request.method, request.path, dict(request.args))
-        self.stats.set(request.path, total)
-        return response
-    def error_handler(self, e):
-        return '{0}: {1}'.format(type(e).__name__, e)
-    def route_iframe_css(self):
-        return Response(open(here_css('iframe.css')).read(), mimetype='text/css')
-    def route_ui_mix(self, word):
-        return iframe_mix(word)
-    def route_ui_nor(self, word):
-        return iframe_nor(word)
-    def route_ui_third(self, word):
-        return iframe_third(word)
-    def route_ui_fourth(self, word):
-        return iframe_fourth(word)
-    def route_ui_q(self, word):
-        return iframe_q(word)
-    def route_ui_w(self, word):
-        return iframe_w(word)
-    def route_ui_e(self, word):
-        return iframe_e(word)
-    def route_ui_r(self, word):
-        return iframe_r(word)
-    def route_ui_h(self, word):
-        return iframe_h(word)
-    @cached
-    def route_lexin_word(self, word):
-        return LexinOsloMetArticle(self.static_client, word).get()
-    @cached
-    def route_glosbe_noru(self, word):
-        return GlosbeNoRuWord(self.static_client, word).get()
-    @cached
-    def route_glosbe_noen(self, word):
-        return GlosbeNoEnWord(self.static_client, word).get()
-    @cached
-    def route_glosbe_enno(self, word):
-        return GlosbeEnNoWord(self.static_client, word).get()
-    @cached
-    def route_ordbok_inflect(self, word):
-        return OrdbokInflect(self.static_client, word).get()
-    @cached
-    def route_ordbok_word(self, word):
-        return OrdbokWord(self.static_client, word).get()
-    @cached
-    def route_naob_word(self, word):
-        #return DslWord(word).get()
-        # TODO: fix pyppeteer
-        #return 'pyppeteer is crashing, disabled for now'
-        return NaobWord(self.dynamic_client, word).get()
-    @cached
-    def route_wiktionary_no(self, word):
-        return WiktionaryNo(self.static_client, word).get()
-    @cached
-    def route_cambridge_enno(self, word):
-        return CambridgeEnNo(self.static_client, word).get()
-    @cached
-    def route_dsl_word(self, word):
-        return DslWord(None, word).get()
-    def route_gtrans_noen(self, word):
-        return GoogleTranslateNoEn(self.static_client, word).get()
-    def route_gtrans_enno(self, word):
-        return GoogleTranslateEnNo(self.static_client, word).get()
-    def route_aulismedia_norsk(self, word):
-        return AulismediaWord(self.static_client, word).get()
-    def route_aulismedia_prev(self, word):
-        return redirect(AulismediaWord.flip(word, -1), code=302)
-    def route_aulismedia_next(self, word):
-        return redirect(AulismediaWord.flip(word, 1), code=302)
-    def route_aulismedia_search_norsk(self, word):
-        return jsonify(index_search(INDEX_PATH, word.lower()))
-    # def route_aulismedia_static(self, word):
-    #     return AulismediaWord.static(word)
-    def route_all_word(self, word):
-        parallel = request.args.get('parallel', '')
-        urls = [
-            self.url('/lexin/word/{}'.format(word)),
-            self.url('/ordbok/inflect/{}'.format(word)),
-            self.url('/ordbok/word/{}'.format(word)),
-            self.url('/naob/word/{}'.format(word)),
-            self.url('/glosbe/noru/{}'.format(word)),
-            self.url('/glosbe/noen/{}'.format(word)),
-            self.url('/glosbe/enno/{}'.format(word)),
-            self.url('/wiktionary/no/{}'.format(word)),
-            self.url('/cambridge/enno/{}'.format(word)),
-            self.url('/dsl/word/{}'.format(word)),
-            self.url('/gtrans/noen/{}'.format(word)),
-            self.url('/gtrans/enno/{}'.format(word)),
-            self.url('/aulismedia/norsk/{}'.format(word)),
-        ]
-        header = f'parallel={bool(parallel)}\n'
-        if parallel:
-            with ThreadPoolExecutor(max_workers=len(urls)) as pool:
-                times = list(pool.map(timed_http_get, urls))
-        else:
-            times = [timed_http_get(url) for url in urls]
-        return header + ' '.join(['{:.2f}'.format(x) for x in times]) + '\n'
-    def route_stats(self):
-        return jsonify(self.stats.get_all())
-    def route_index(self):
-        links = []
-        for rule in self.app.url_map.iter_rules():
-            args = {v: v for v in rule.arguments or {}}
-            url = url_for(rule.endpoint, **args)
-            links.append((url, rule.endpoint))
-        return flask_render_template("index.html", links=links)
-
-
 def main():
     logging.info(CACHE_BY_URL)
     logging.info(CACHE_BY_METHOD)
@@ -1629,7 +1456,6 @@ def main():
     force_ipv4()
     static_client = CachedHttpClient(StaticHttpClient(), CACHE_BY_URL)
     dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_BY_URL)
-    #ui_server = FlaskUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
     ui_server = AIOHTTPUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
     ui_server.serve_background()
 
