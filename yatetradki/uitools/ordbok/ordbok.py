@@ -85,8 +85,10 @@ if (not is_interactive()) and (not dog.start()):
     sys.exit()
 
 import logging
+import logging.handlers
 import re
 import bz2
+from tempfile import gettempdir
 from os import makedirs, environ
 from os.path import dirname, exists, normpath, join, expanduser, expandvars
 from urllib.parse import urlparse
@@ -94,7 +96,7 @@ from json import loads, dumps
 from string import Template
 from itertools import groupby
 from pathlib import Path
-from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError
+from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError, run_coroutine_threadsafe
 # # https://bugs.python.org/issue34679#msg347525
 # policy = asyncio.get_event_loop_policy()
 # policy._loop_factory = asyncio.SelectorEventLoop
@@ -125,6 +127,7 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 from yatetradki.reader.dsl import lookup as dsl_lookup
 from yatetradki.uitools.index.search import search as index_search, INDEX_PATH
+from yatetradki.tools.telegram import WordLogger
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -146,6 +149,7 @@ ADD_TO_FONT_SIZE = 6
 NETWORK_TIMEOUT = 5000 # milliseconds
 NETWORK_RETRIES = 3
 RECENT_GRAB_DELAY = (UPDATE_DELAY / 1000.0) + 0.1 # seconds
+LOG_FILENAME = 'ordbok.log'
 
 #POOL = ProcessPoolExecutor()
 
@@ -172,6 +176,28 @@ def disable_logging():
             logger.setLevel(logging.ERROR)
             logger.propagate = False
             #logging.info('Disabled logger "%s"', name)
+
+
+def in_temp_dir(filename) -> str:
+    temp_dir = gettempdir()
+    return join(temp_dir, filename)
+
+def init_logger(filename: str):
+    FORMAT = '%(asctime)-15s %(process)-5d %(levelname)-8s %(filename)s:%(lineno)d:%(funcName)s %(message)s'
+    MAX_LOG_SIZE = 50 * 1024 * 1024
+    LOG_BACKUP_COUNT = 1
+
+    log = logging.getLogger()
+    log.setLevel(logging.DEBUG)
+    handler = logging.handlers.RotatingFileHandler(
+        filename=filename,
+        maxBytes=MAX_LOG_SIZE,
+        backupCount=LOG_BACKUP_COUNT,
+    )
+    handler.setFormatter(logging.Formatter(FORMAT))
+    log.addHandler(handler)
+    log.info('Logger has been created')
+    return log
 
 async def http_get_async(url, timeout=None):
     USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0'
@@ -1047,7 +1073,9 @@ class Browsers:
 
 class MainWindow(QWidget):
     ZOOM = 1.7
+    MAX_WORDS_IN_CLIPBOARD = 5
     myActivate = pyqtSignal()
+    myTranslate = pyqtSignal(str)
     def __init__(self, app):
         super().__init__()
         self.myActivate.connect(self.activate)
@@ -1107,9 +1135,12 @@ class MainWindow(QWidget):
             self.grab(QApplication.clipboard().text(QClipboard.Selection))
         QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
 
+    def short(self, content):
+        return content and (len(content.split()) <= self.MAX_WORDS_IN_CLIPBOARD)
+
     def grab(self, content):
         self.last_manual_change = time.time()
-        if content and (len(content.split()) <= 5) and not self.same_text(content):
+        if self.short(content) and not self.same_text(content):
             self.set_text(content)
             return True
         return False
@@ -1151,6 +1182,7 @@ class MainWindow(QWidget):
 
     def set_text(self, text):
         logging.info('Setting text: %s', text)
+        self.myTranslate.emit(text)
         self.comboBox.setCurrentText(text)
         urls = [ui_mix_url(text),
                 ui_nor_url(text),
@@ -1449,10 +1481,46 @@ class TimingStats:
         result.sort(key=lambda x: x['took'])
         return result
 
+def load_env(filename):
+    filename = expanduser(expandvars(filename))
+    if not exists(filename):
+        logging.warning('Missing env file "%s"', filename)
+        return
+    with open(filename, 'r') as f:
+        for line in [x.strip() for x in f.readlines()]:
+            if line.startswith('#'): continue
+            key, value = line.strip().split('=', 1)
+            environ[key] = value
+
+def track_history(source_signal):
+    load_env('~/.telegram')
+    phone = environ.get('TELEGRAM_PHONE')
+    api_id = environ.get('TELEGRAM_API_ID')
+    api_hash = environ.get('TELEGRAM_API_HASH')
+    channel_id = environ.get('TELEGRAM_ORDBOK_ID')
+    if not api_id or not api_hash or not channel_id or not phone:
+        logging.info('Missing Telegram env variables')
+        return
+    logging.info('Starting Telegram logger')
+    channel_id = int(channel_id)
+    wl = WordLogger(phone, api_id, api_hash, channel_id)
+    loop = new_event_loop()
+    @pyqtSlot(str)
+    def on_translate(word):
+        logging.info('Telegram: add word to history: %s', word)
+        run_coroutine_threadsafe(wl.add(word), loop)
+    def start():
+        set_event_loop(loop)
+        loop.run_until_complete(wl.start())
+        loop.run_forever()
+    source_signal.connect(on_translate)
+    Thread(target=start, daemon=True).start()
+
 def main():
     logging.info(CACHE_BY_URL)
     logging.info(CACHE_BY_METHOD)
     disable_logging()
+    init_logger(in_temp_dir(LOG_FILENAME))
     force_ipv4()
     static_client = CachedHttpClient(StaticHttpClient(), CACHE_BY_URL)
     dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_BY_URL)
@@ -1478,6 +1546,7 @@ def main():
     tray.show()
 
     dog.observe(lambda: window.myActivate.emit())
+    track_history(window.myTranslate)
 
     result = qtApp.exec()
 
