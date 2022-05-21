@@ -22,13 +22,6 @@ def http_post(url, data):
     with urlopen(url, data) as resp:
         return resp.read()
 
-def http_get(url):
-    req = Request(url)
-    req.add_header('User-Agent', USER_AGENT)
-    req.add_header('Accept', '*/*')
-    with urlopen(req) as resp:
-        return resp.read()
-
 class WatchDog:
     class Server(HTTPServer):
         class RequestHandler(BaseHTTPRequestHandler):
@@ -221,18 +214,6 @@ class StaticHttpClient:
         headers = {'User-Agent': self.USER_AGENT}
         if origin: headers['Origin'] = origin
         return headers
-    def get(self, url, origin=None):
-        t0 = time.time()
-        logging.info('http get "%s"', url)
-        session = Session()
-        retries = Retry(total=self.RETRIES, backoff_factor=1, status_forcelist=[])
-        session.mount('http://', HTTPAdapter(max_retries=retries))
-        session.mount('https://', HTTPAdapter(max_retries=retries))
-        result = session.get(url, verify=False, headers=self.headers(origin), allow_redirects=True, timeout=self.TIMEOUT)
-        took = time.time() - t0
-        logging.info('http get took=%0.2f "%s"', took, url)
-        result.raise_for_status()
-        return result.text
     async def get_async(self, url, origin=None):
         retries = self.RETRIES
         logging.info('http get async "%s"', url)
@@ -251,38 +232,6 @@ class StaticHttpClient:
 class DynamicClient:
     TIMEOUT = NETWORK_TIMEOUT
 
-class PyppeteerClient(DynamicClient):
-    def get(self, url, selector=None):
-        return self.get_pyppeteer(url, selector)
-    async def fetch_pyppeteer(self, url, result, selector=None):
-        browser = await launch_pyppeteer(handleSIGINT=False, handleSIGTERM=False, handleSIGHUP=False)
-        page = await browser.newPage()
-        await page.goto(url)
-        if selector is not None:
-            await page.waitForSelector(selector, timeout=self.TIMEOUT)
-        content = await page.evaluate('document.body.innerHTML', force_expr=True)
-        result[0] = content
-        await browser.close()
-    def get_pyppeteer(self, url, selector=None):
-        disable_logging()
-        result = [no_content()]
-        new_event_loop().run_until_complete(self.fetch_pyppeteer(url, result, selector))
-        return result[0]
-
-class PlaywrightClient(DynamicClient):
-    def get(self, url, selector=None):
-        disable_logging()
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page()
-            page.goto(url)
-            if selector is not None:
-                page.wait_for_selector(selector, timeout=self.TIMEOUT)
-            content = page.evaluate('document.body.innerHTML')
-            logging.info('playwright "%d"', len(content))
-            browser.close()
-            return content
-
 class PlaywrightClientAsync(DynamicClient):
     async def get_async(self, url, selector=None, action=None):
         disable_logging()
@@ -300,8 +249,6 @@ class PlaywrightClientAsync(DynamicClient):
             return content
 
 class DynamicHttpClient:
-    def get(self, url, selector=None):
-        return PlaywrightClient().get(url, selector)
     async def get_async(self, url, selector=None, action=None):
         return await PlaywrightClientAsync().get_async(url, selector, action)
 
@@ -324,18 +271,6 @@ def by_method_and_arg(f, *args, **kwargs):
     key.extend(kwargs.values())
     return key
 
-def cached(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        keypath = by_method_and_arg(f, *args, **kwargs)
-        logging.info('cache keypath "%s", args %s %s', keypath, args, kwargs)
-        value = cache_get(CACHE_BY_METHOD, keypath)
-        if value is None:
-            value = f(*args, **kwargs)
-            cache_set(CACHE_BY_METHOD, keypath, value)
-        return value
-    return wrapper
-
 def cached_async(f):
     @wraps(f)
     async def wrapper(*args, **kwargs):
@@ -352,14 +287,6 @@ class CachedHttpClient:
     def __init__(self, client, cachedir):
         self.client = client
         self.cachedir = cachedir
-    def get(self, url, **kwargs):
-        path = self.get_path(self.get_key(url))
-        content = slurp(bz2.open, path)
-        if content is None:
-            logging.info('cache miss: "%s"', url)
-            content = self.client.get(url, **kwargs)
-            spit(bz2.open, path, content)
-        return content
     async def get_async(self, url, **kwargs):
         path = self.get_path(self.get_key(url))
         content = slurp(bz2.open, path)
@@ -416,7 +343,6 @@ def extract(source, soup, *args):
     result = soup.find(*args)
     if result: return result.prettify()
     raise NoContent('{0}: {1}'.format(source, args))
-    #return result.prettify() if result else no_content()
 
 def remove_one(soup, selector):
     target = soup.select_one(selector)
@@ -544,10 +470,6 @@ class LexinOsloMetArticle(WordGetter):
     #          "id": 1168
     #      },
     ORIGIN = 'https://lexin.oslomet.no'
-    def get(self):
-        soup = loads(self.client.get(self.get_url(self.word), origin=self.ORIGIN))
-        self.html = self.transform(soup)
-        return self.styled()
     async def get_async(self):
         soup = loads(await self.client.get_async(self.get_url(self.word), origin=self.ORIGIN))
         self.html = self.transform(soup)
@@ -643,10 +565,6 @@ class LexinOsloMetArticle(WordGetter):
 #         return f'Suggestions(word={self.word}, count={len(self.items)}, top={self.top})'
 
 class NaobWord(WordGetter):
-    def get(self):
-        soup = parse(self.client.get(self.get_url(self.word), selector='main > div.container'))
-        self.parse(soup)
-        return self.styled()
     async def get_async(self):
         soup = parse(await self.client.get_async(self.get_url(self.word), selector='main > div.container'))
         self.parse(soup)
@@ -672,8 +590,6 @@ class NaobWord(WordGetter):
 
 class OrdbokeneWord(WordGetter):
     # https://ordbokene.no/bm/search?q=mor&scope=ei
-    def get(self):
-        raise NotImplemented
     async def get_async(self):
         action = "for (let x of document.querySelectorAll('button.show-inflection')) x.click()"
         selector = 'div.hits, div.no_results'
@@ -710,8 +626,6 @@ class OrdbokeneInflect(OrdbokeneWord):
 class Inflection(WordGetter):
     # https://ordbok.uib.no/perl/bob_hente_paradigme.cgi?lid=41772
     #  <div id="41772"><table class="paradigmetabell" cellspacing="0" style="margin: 25px;"><tr><th class="nobgnola"><span class="grunnord">liv</span></th><th class="nola" colspan="2">Entall</th><th class="nola" colspan="2">Flertall</th></tr><tr><th class="nobg">&nbsp;&nbsp;</th><th>Ubestemt form</th><th>Bestemt form</th><th>Ubestemt form</th><th>Bestemt form</th></tr><tr id="41772_1"><td class="ledetekst">n1</td><td class="vanlig">et liv</td><td class="vanlig">livet</td><td class="vanlig">liv</td><td class="vanlig">liva</td></tr><tr id="41772_2"><td class="ledetekst">n1</td><td class="vanlig">et liv</td><td class="vanlig">livet</td><td class="vanlig">liv</td><td class="vanlig">livene</td></tr></table></div>
-    def get(self):
-        self.html = self.cleanup(self.client.get(self.get_url(self.word)))
     async def get_async(self):
         self.html = self.cleanup(await self.client.get_async(self.get_url(self.word)))
     def cleanup(self, text):
@@ -726,8 +640,6 @@ class PartOfSpeech:
     def __init__(self, client, soup):
         self.client = client
         self.soup = soup
-    def get(self):
-        self.parse(self.soup)
     async def get_async(self):
         await self.parse_async(self.soup)
     def parse(self, soup):
@@ -755,17 +667,6 @@ class OrdbokInflect(WordGetter):
     # https://ordbok.uib.no/perl/ordbok.cgi?OPP=bra&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=bokmaal
     # <span class="oppslagsord b" id="22720">gi</span>
     # <span class="oppsgramordklasse" onclick="vise_fullformer(&quot;8225&quot;,'bob')">adj.</span>
-    def get(self):
-        soup = parse(self.client.get(self.get_url(self.word)))
-        args = ('span', {"class": "oppsgramordklasse"})
-        parts = soup.find_all(*args)
-        if not parts:
-            raise NoContent('OrdbokInflect: word="{0}", args={1}'.format(self.word, args))
-        parts = [PartOfSpeech(self.client, p) for p in parts]
-        [p.get() for p in parts]
-        self.parts = [p for p in parts if p.inflection]
-        self.parse()
-        return self.styled()
     async def get_async(self):
         soup = parse(await self.client.get_async(self.get_url(self.word)))
         args = ('span', {"class": "oppsgramordklasse"})
@@ -789,10 +690,6 @@ class OrdbokInflect(WordGetter):
         return f'OrdbokInflect(word={self.word}, parts={self.parts})'
 
 class OrdbokWord(WordGetter):
-    def get(self):
-        soup = parse(self.client.get(self.get_url(self.word)))
-        self.parse(soup)
-        return self.styled()
     async def get_async(self):
         soup = parse(await self.client.get_async(self.get_url(self.word)))
         self.parse(soup)
@@ -807,10 +704,6 @@ class OrdbokWord(WordGetter):
         return 'https://ordbok.uib.no/perl/ordbok.cgi?OPP={0}&ant_bokmaal=5&ant_nynorsk=5&bokmaal=+&ordbok=begge'.format(word)
 
 class GlosbeWord(WordGetter):
-    def get(self):
-        soup = parse(self.client.get(self.get_url(self.word)))
-        self.parse(soup)
-        return self.styled()
     async def get_async(self):
         soup = parse(await self.client.get_async(self.get_url(self.word)))
         self.parse(soup)
@@ -841,10 +734,6 @@ class GlosbeEnNoWord(GlosbeWord):
         return 'https://nb.glosbe.com/en/nb/{0}'.format(word)
 
 class WiktionaryNo(WordGetter):
-    def get(self):
-        soup = parse(self.client.get(self.get_url(self.word)))
-        self.parse(soup)
-        return self.styled()
     async def get_async(self):
         soup = parse(await self.client.get_async(self.get_url(self.word)))
         self.parse(soup)
@@ -859,10 +748,6 @@ class WiktionaryNo(WordGetter):
         return 'https://no.wiktionary.org/wiki/{0}'.format(word)
 
 class CambridgeEnNo(WordGetter):
-    def get(self):
-        soup = parse(self.client.get(self.get_url(self.word)))
-        self.parse(soup)
-        return self.styled()
     async def get_async(self):
         soup = parse(await self.client.get_async(self.get_url(self.word)))
         self.parse(soup)
@@ -878,9 +763,6 @@ class CambridgeEnNo(WordGetter):
 
 class DslWord(WordGetter):
     FILENAME = '~/.ordbok.dsl.txt'
-    def get(self):
-        self.parse()
-        return self.styled()
     async def get_async(self):
         self.parse()
         return self.styled()
@@ -906,10 +788,6 @@ class DslWord(WordGetter):
 class GoogleTranslate(WordGetter):
     FROM = 'NA'
     TO = 'NA'
-    def get(self):
-        soup = parse(self.client.get(self.get_url(self.word, self.FROM, self.TO)))
-        self.parse(soup)
-        return self.styled()
     async def get_async(self):
         soup = parse(await self.client.get_async(self.get_url(self.word, self.FROM, self.TO)))
         self.parse(soup)
@@ -933,10 +811,6 @@ class GoogleTranslateEnNo(GoogleTranslate):
 
 class AulismediaWord(WordGetter):
     # {"lastpage": 1470,"firstpage": 1,"page": 14,"direction": "nor","term": "al"}
-    def get(self):
-        soup = loads(self.client.get(self.get_url(self.word)))
-        self.parse(soup)
-        return self.styled()
     async def get_async(self):
         soup = loads(await self.client.get_async(self.get_url(self.word)))
         self.parse(soup)
@@ -1069,7 +943,6 @@ class Browsers:
             return False
         self.show(index)
         return True
-
 
 class MainWindow(QWidget):
     ZOOM = 1.7
@@ -1243,13 +1116,6 @@ class MainWindow(QWidget):
         else:
             logging.info('key event: %s, %s', e.key(), e.modifiers())
 
-def timed_http_get(url):
-    logging.info('timed html: %s', url)
-    t0 = time.time()
-    http_get(url)
-    t1 = time.time()
-    return t1 - t0
-
 async def timed_http_get_async(url):
     logging.info('timed html: %s', url)
     t0 = time.time()
@@ -1272,9 +1138,9 @@ class AIOHTTPUIServer:
         self.app = web.Application(middlewares=[self.error_middleware, self.stats_middleware])
         aiohttp_jinja2_setup(self.app, loader=FileSystemLoader(TEMPLATE_DIR))
         self.setup_routes(self.app)
+        # https://docs.aiohttp.org/en/stable/web_advanced.html#application-runners
         self.runner = web.AppRunner(self.app)
         self.stats = TimingStats()
-        # TODO: use app runner: https://docs.aiohttp.org/en/stable/web_advanced.html#application-runners
     def url(self, path):
         return 'http://{}:{}{}'.format(self.host, self.port, path)
     def serve_background(self):
@@ -1287,7 +1153,6 @@ class AIOHTTPUIServer:
         site = web.TCPSite(self.runner, self.host, self.port)
         loop.run_until_complete(site.start())
         loop.run_forever()
-        #web.run_app(self.app, host=self.host, port=self.port)
     @web.middleware
     async def stats_middleware(self, request, handler):
         t0 = time.time()
@@ -1399,9 +1264,6 @@ class AIOHTTPUIServer:
         return await OrdbokeneInflect(self.dynamic_client, word).get_async()
     @cached_async
     async def route_naob_word(self, word):
-        #return await DslWord(word).get_async()
-        # TODO: fix pyppeteer
-        #return 'pyppeteer is crashing, disabled for now'
         return await NaobWord(self.dynamic_client, word).get_async()
     @cached_async
     async def route_wiktionary_no(self, word):
@@ -1449,8 +1311,6 @@ class AIOHTTPUIServer:
         logging.info('all: word=%s, parallel=%s, #urls=%d', word, parallel, len(urls))
         header = f'parallel={bool(parallel)}\n'
         if parallel:
-            # with ThreadPoolExecutor(max_workers=len(urls)) as pool:
-            #     times = list(pool.map(timed_http_get, urls))
             times = await gather(*[timed_http_get_async(url) for url in urls])
         else:
             times = [await timed_http_get_async(url) for url in urls]
