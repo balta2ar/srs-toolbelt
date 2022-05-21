@@ -818,7 +818,9 @@ class AulismediaWord(WordGetter):
         return self.styled()
     def parse(self, soup):
         page = '{}{:04d}.jpg'.format(soup['direction'], soup['page'])
-        self.html = Template(open(here_html('aulismedia-norsk.html')).read()).substitute(word=page)
+        self.html = self.render(page)
+    def render(self, page):
+        return Template(open(here_html('aulismedia-norsk.html')).read()).substitute(word=page)
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -826,11 +828,13 @@ class AulismediaWord(WordGetter):
     def get_url(self, word):
         return ui_aulismedia_search_norsk(word)
         # return 'http://norsk.dicts.aulismedia.com/processnorsk.php?search={0}'.format(word)
-    @staticmethod
-    def flip(word, increment):
-        index = int(''.join(filter(lambda x: x.isdigit(), word))) + increment
-        url = ui_aulismedia_norsk('{:04d}.jpg'.format(index))
-        return url
+    def flip(self, increment):
+        direction = self.word[:3] # nor, rus
+        index = int(''.join(filter(lambda x: x.isdigit(), self.word))) + increment
+        #url = ui_aulismedia_norsk('{:04d}.jpg'.format(index))
+        page = '{}{:04d}.jpg'.format(direction, index)
+        self.html = self.render(page)
+        return self.styled()
 
 def pluck(regexp, group):
     yes, no = [], []
@@ -1286,9 +1290,9 @@ class AIOHTTPUIServer:
     async def route_aulismedia_norsk(self, word):
         return await AulismediaWord(self.static_client, word).get_async()
     async def route_aulismedia_prev(self, word):
-        return web.HTTPFound(AulismediaWord.flip(word, -1))
+        return AulismediaWord(None, word).flip(-1)
     async def route_aulismedia_next(self, word):
-        return web.HTTPFound(AulismediaWord.flip(word, 1))
+        return AulismediaWord(None, word).flip(1)
     async def route_aulismedia_search_norsk(self, word):
         return index_search(INDEX_PATH, word.lower())
     # def route_aulismedia_static(self, word):
