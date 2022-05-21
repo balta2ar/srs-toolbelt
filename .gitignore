@@ -16,12 +16,13 @@ yatetradki/korean/cache_krdict
 yatetradki/korean/cache_krdict_html
 yatetradki/korean/experiments
 
+yatetradki/uitools/ordbok/static/image/aulismedia
+
 .mypy_cache
 .vscode
 .tags
 .cache
 data3
-index
 __pycache__
 *.pyc
 *.mp3
