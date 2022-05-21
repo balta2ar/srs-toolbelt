@@ -119,7 +119,7 @@ from PyQt5.QtCore import Qt, QTimer, QObject, QUrl
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 from yatetradki.reader.dsl import lookup as dsl_lookup
-from yatetradki.uitools.index.search import search as index_search, NOR_INDEX_PATH
+from yatetradki.uitools.index.search import search as index_search
 from yatetradki.tools.telegram import WordLogger
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
@@ -1294,7 +1294,7 @@ class AIOHTTPUIServer:
     async def route_aulismedia_next(self, word):
         return AulismediaWord(None, word).flip(1)
     async def route_aulismedia_search_norsk(self, word):
-        return index_search(NOR_INDEX_PATH, word.lower())
+        return index_search(word.lower())
     # def route_aulismedia_static(self, word):
     #     return AulismediaWord.static(word)
     async def route_all_word(self, request):
