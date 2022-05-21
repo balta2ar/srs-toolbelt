@@ -357,8 +357,8 @@ def remove_all(soup, selector):
 
 def parse(body):
     t0 = time.time()
-    # result = BeautifulSoup(body, features='html.parser')
-    result = BeautifulSoup(body, features='lxml')
+    result = BeautifulSoup(body, features='html.parser')
+    #result = BeautifulSoup(body, features='lxml')
     t1 = time.time()
     logging.info('parse: %.2f (size=%d)', t1-t0, len(body))
     return result
