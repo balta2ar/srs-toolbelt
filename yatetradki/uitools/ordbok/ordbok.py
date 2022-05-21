@@ -1471,13 +1471,25 @@ class AIOHTTPUIServer:
         return aiohttp_jinja2_render_template("index.html", request, context=context)
 
 class TimingStats:
+    MAX_ITEMS = 30
     def __init__(self):
         self.times = {}
     def set(self, path, value):
         self.times[path] = {'took': value, 'at': time.time()}
-    def get_all(self):
+        self.times = self.trim(self.times)
+    def trim(self, times):
+        list = self.as_list(times)
+        list.sort(key=lambda x: x['at'])
+        list = list[-self.MAX_ITEMS:]
+        return self.as_dict(list)
+    def as_list(self, times):
         result = [{'path': path, 'took': value['took'], 'at': value['at']}
-                  for path, value in self.times.items()]
+                  for path, value in times.items()]
+        return result
+    def as_dict(self, times_list):
+        return {x['path']: {'took': x['took'], 'at': x['at']} for x in times_list}
+    def get_all(self):
+        result = self.as_list(self.times)
         result.sort(key=lambda x: x['took'])
         return result
 
