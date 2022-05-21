@@ -760,7 +760,7 @@ class OrdbokInflect(WordGetter):
         args = ('span', {"class": "oppsgramordklasse"})
         parts = soup.find_all(*args)
         if not parts:
-            raise NoContent('Ordbok: word="{0}", args={1}'.format(self.word, args))
+            raise NoContent('OrdbokInflect: word="{0}", args={1}'.format(self.word, args))
         parts = [PartOfSpeech(self.client, p) for p in parts]
         [p.get() for p in parts]
         self.parts = [p for p in parts if p.inflection]
@@ -771,7 +771,7 @@ class OrdbokInflect(WordGetter):
         args = ('span', {"class": "oppsgramordklasse"})
         parts = soup.find_all(*args)
         if not parts:
-            raise NoContent('Ordbok: word="{0}", args={1}'.format(self.word, args))
+            raise NoContent('OrdbokInflect: word="{0}", args={1}'.format(self.word, args))
         parts = [PartOfSpeech(self.client, p) for p in parts]
         [await p.get_async() for p in parts]
         self.parts = [p for p in parts if p.inflection]
@@ -1505,6 +1505,10 @@ def track_history(source_signal):
     channel_id = int(channel_id)
     wl = WordLogger(phone, api_id, api_hash, channel_id)
     loop = new_event_loop()
+    async def auth():
+        logging.info('Telegram: checking is_user_authorized')
+        logging.info('Telegram: is_user_authorized: %s', await wl.client.is_user_authorized())
+        logging.info('Telegram: checking is_user_authorized done')
     @pyqtSlot(str)
     def on_translate(word):
         logging.info('Telegram: add word to history: %s', word)
@@ -1512,7 +1516,12 @@ def track_history(source_signal):
     def start():
         set_event_loop(loop)
         loop.run_until_complete(wl.start())
+        loop.run_until_complete(auth())
+        #run_coroutine_threadsafe(wl.start(), loop)
+        #run_coroutine_threadsafe(auth(), loop)
         loop.run_forever()
+    #set_event_loop(loop)
+    #start()
     source_signal.connect(on_translate)
     Thread(target=start, daemon=True).start()
 

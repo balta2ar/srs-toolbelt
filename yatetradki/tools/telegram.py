@@ -33,7 +33,7 @@ class aupto:
         self.i += 1
         if self.i > self.limit:
             raise StopAsyncIteration
-        return self.i - 1, await anext(self.it)
+        return self.i - 1, await self.it.__anext__() # python3.9 compatibility
 
 def is_today(dt):
     #fmt = '%Y%m%d-%H%M'
@@ -87,6 +87,42 @@ async def log_word(text):
     api_id = must_env('TELEGRAM_API_ID')
     api_hash = must_env('TELEGRAM_API_HASH')
     channel_id = int(must_env('TELEGRAM_ORDBOK_ID'))
-    word_logger = WordLogger(api_id, api_hash, channel_id)
+    phone = int(must_env('TELEGRAM_PHONE'))
+    word_logger = WordLogger(phone, api_id, api_hash, channel_id)
     await word_logger.start()
     await word_logger.add(text)
+
+from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError, run_coroutine_threadsafe
+from threading import Thread
+
+def test_log(text):
+    api_id = must_env('TELEGRAM_API_ID')
+    api_hash = must_env('TELEGRAM_API_HASH')
+    channel_id = int(must_env('TELEGRAM_ORDBOK_ID'))
+    phone = int(must_env('TELEGRAM_PHONE'))
+    wl = WordLogger(phone, api_id, api_hash, channel_id)
+    loop = new_event_loop()
+    async def auth():
+        logging.info('Telegram: checking is_user_authorized')
+        logging.info('Telegram: is_user_authorized: %s', await wl.client.is_user_authorized())
+        logging.info('Telegram: checking is_user_authorized done')
+    #@pyqtSlot(str)
+    def on_translate(word):
+        logging.info('Telegram: add word to history: %s', word)
+        run_coroutine_threadsafe(wl.add(word), loop)
+    def start():
+        print('Telegram: Starting thread')
+        set_event_loop(loop)
+        print('Telegram: loop set')
+        run_coroutine_threadsafe(wl.start(), loop)
+        run_coroutine_threadsafe(auth(), loop)
+        #loop.run_until_complete(wl.start())
+        print('Telegram: running forever')
+        loop.run_forever()
+    #set_event_loop(loop)
+    #start()
+    #source_signal.connect(on_translate)
+    print('Telegram: creating thread')
+    t = Thread(target=start, daemon=True)
+    t.start()
+    t.join()
