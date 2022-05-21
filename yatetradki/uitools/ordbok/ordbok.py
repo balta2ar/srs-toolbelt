@@ -1184,6 +1184,8 @@ class AIOHTTPUIServer:
                 result = await fn(word)
                 if isinstance(result, str):
                     return text_html(result)
+                if isinstance(result, web.HTTPException):
+                    return result
                 return web.json_response(result)
             return handler
         router = app.router
