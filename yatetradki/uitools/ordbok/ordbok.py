@@ -169,6 +169,7 @@ def disable_logging():
             logger.setLevel(logging.ERROR)
             logger.propagate = False
             #logging.info('Disabled logger "%s"', name)
+    logging.getLogger('telethon').setLevel(logging.CRITICAL)
 
 
 def in_temp_dir(filename) -> str:
