@@ -45,7 +45,7 @@ def is_today(dt):
     return a == b
 
 def add_word(text, word):
-    words = [x.strip() for x in text.split()]
+    words = [x.strip() for x in text.splitlines()]
     if word in words: return text, False
     return '\n'.join(words + [word]), True
 
