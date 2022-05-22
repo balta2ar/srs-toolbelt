@@ -13,13 +13,13 @@ img {
     position: absolute;
 }
 .left {
-    width: 50px;
+    width: 20px;
     background-color: transparent;
-    font-size: 30px;
+    font-size: 14px;
 }
 .right {
-    width: 50px;
+    width: 20px;
     background-color: transparent;
-    font-size: 30px;
+    font-size: 14px;
     float: right;
 }
