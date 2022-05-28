@@ -103,16 +103,21 @@ def format_n_columns(lines, maxlen, n):
 
 def show_recent(col, query, field):
     try:
-        ids = col.find_cards(query)
+        order = {x.key: x for x in col.all_browser_columns()}
+        order = order['noteCrt'] # noteMod
+        ids = col.find_cards(query, order=order)
     except Exception as e:
         print('Search error: %s (col=%s, query=%s, field=%s)', e, col, query, field)
         return []
     words = []
+    #sorted(ids, key=lambda x: col.get_card(x).mod)
     for id in ids:
         card = col.get_card(id)
         note = col.get_note(card.nid)
         words.append(note[field])
-    return sorted(set(words))
+    return words
+    #return set(words)
+    #return sorted(set(words))
     # return '\n'.join(words)
 
 
