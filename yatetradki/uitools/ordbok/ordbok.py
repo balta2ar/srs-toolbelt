@@ -1017,6 +1017,7 @@ class MainWindow(QWidget):
         return content and (len(content.split()) <= self.MAX_WORDS_IN_CLIPBOARD)
 
     def grab(self, content):
+        content = content.strip()
         self.last_manual_change = time.time()
         if self.short(content) and not self.same_text(content):
             self.set_text(content)
