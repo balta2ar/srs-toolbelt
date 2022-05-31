@@ -2,6 +2,7 @@
 This script displays cards there were answered "Hard" today.
 To be used in conky as a reminder for hard words.
 """
+import re
 import os
 import sys
 import argparse
@@ -102,6 +103,7 @@ def format_n_columns(lines, maxlen, n):
 
 
 def show_recent(col, query, field):
+    placeholders = re.findall(r"{(\w+)}", field)
     try:
         order = {x.key: x for x in col.all_browser_columns()}
         order = order['noteCrt'] # noteMod
@@ -111,10 +113,14 @@ def show_recent(col, query, field):
         return []
     words = []
     #sorted(ids, key=lambda x: col.get_card(x).mod)
+    special = ('n', 't')
     for id in ids:
         card = col.get_card(id)
         note = col.get_note(card.nid)
-        words.append(note[field])
+        values = {p:note[p] for p in placeholders if p not in special}
+        values['n'] = '\n'
+        values['t'] = '\t'
+        words.append(field.format(**values))
     return words
     #return set(words)
     #return sorted(set(words))
@@ -154,15 +160,15 @@ def densify(words, maxlen):
 def show_recent_from_collection(queries, header_width):
     col = Collection(COLLECTION)
     #padding = ' ' * 10
-    from rich import print
+    from rich import print as pprint
     for query, field in queries:  # QUERIES_AND_FIELDS:
         #header = '>>> %s (%s)%s' % (query, field, padding)
-        header = '>>> %s (%s)' % (query, field)
-        header = header.ljust(header_width, COLUMN_SEPARATOR)
+        #header = '>>> %s (%s)' % (query, field)
+        #header = header.ljust(header_width, COLUMN_SEPARATOR)
         words = show_recent(col, query, field)
         words = [w.replace('<b>', '[bold green]').replace('</b>', '[/bold green]') for w in words]
         words = [w.replace('<strong>', '[bold green]').replace('</strong>', '[/bold green]') for w in words]
-        print('\n'.join(words))
+        pprint('\n'.join(words))
         #print_formatted_text(HTML('\n'.join(words)))
         # if words:
         #     maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
@@ -178,7 +184,7 @@ def show_recent_from_collection(queries, header_width):
 def read_queries(filename):
     with open(filename) as file_:
         for line in file_:
-            parts = line.strip().split('\t')
+            parts = line.strip().split('\t', maxsplit=1)
             yield parts
 
 
