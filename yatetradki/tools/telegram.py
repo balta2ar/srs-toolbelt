@@ -7,6 +7,9 @@ import requests
 
 from yatetradki.utils import must_env
 
+from telethon import TelegramClient
+from telethon import utils
+
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 
@@ -49,30 +52,34 @@ def add_word(text, word):
     if word in words: return text, False
     return '\n'.join(words + [word]), True
 
-async def get_latest(client, chat):
-    limit = 1
+async def get_latest(client, chat, limit=1):
     async for i, m in aupto(client.iter_messages(chat), limit):
         return m
     return None
 
+async def init_client(phone, api_id, api_hash, channel_id):
+    client = TelegramClient('srs-toolbelt', api_id, api_hash)
+    real_id, peer_type = utils.resolve_id(channel_id)
+    await client.start(phone=phone, code_callback=get_code)
+    return client
+
+def get_code():
+    logging.info('Telegram: need code, put it into /tmp/code, waiting 30s')
+    sleep(30.0)
+    logging.info('Telegram: reading code from /tmp/code now')
+    return open('/tmp/code').read().strip()
+
 class WordLogger:
     MAX_SIZE = 4096
     def __init__(self, phone, api_id, api_hash, channel_id):
-        from telethon import TelegramClient
-        from telethon import utils
         self.phone = phone
         self.api_id = api_id
         self.api_hash = api_hash
         self.channel_id = channel_id
         self.client = TelegramClient('ordbok', api_id, api_hash)
         real_id, peer_type = utils.resolve_id(channel_id)
-    def get_code(self):
-        logging.info('Telegram: need code, put it into /tmp/code, waiting 30s')
-        sleep(30.0)
-        logging.info('Telegram: reading code from /tmp/code now')
-        return open('/tmp/code').read().strip()
     async def start(self):
-        await self.client.start(phone=self.phone, code_callback=self.get_code)
+        await self.client.start(phone=self.phone, code_callback=get_code)
     async def add(self, word):
         chat = await self.client.get_entity(self.channel_id)
         latest = await get_latest(self.client, chat)
