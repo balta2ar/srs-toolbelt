@@ -8,7 +8,11 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from glob import glob
 from hashlib import sha1
+from os import environ
 from os import makedirs
+from os.path import exists
+from os.path import expanduser
+from os.path import expandvars
 from os.path import isfile
 from os.path import join
 from shlex import quote
@@ -196,6 +200,18 @@ class HttpServer:
             return web.Response(status=400, text=str(e))
 
 
+def load_env(filename):
+    filename = expanduser(expandvars(filename))
+    if not exists(filename):
+        logging.warning('Missing env file "%s"', filename)
+        return
+    with open(filename, 'r') as f:
+        for line in [x.strip() for x in f.readlines()]:
+            if line.startswith('#'): continue
+            key, value = line.strip().split('=', 1)
+            environ[key] = value
+
+
 def test(url=None):
     url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO99060122'
     disable_logging()
@@ -208,6 +224,7 @@ def test(url=None):
 
 def main():
     logging.info('hachoir version: %s', hachoir.__version__)
+    load_env('~/.telegram')
     disable_logging()
     loop = new_event_loop()
     host, port = HOST, PORT
