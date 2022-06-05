@@ -1,7 +1,8 @@
 #!/bin/bash
 
+FILE=$1
 (
     echo "javascript: "
-    cat ./nrkup.js
+    cat ./$FILE
 ) | tr '\r\n' '  '
 echo

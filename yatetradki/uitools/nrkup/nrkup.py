@@ -16,6 +16,7 @@ from os.path import expanduser
 from os.path import expandvars
 from os.path import isfile
 from os.path import join
+from re import search
 from shlex import quote
 
 import hachoir
@@ -90,6 +91,14 @@ async def ffmpeg_extract_audio(video, audio):
     await async_run(['ffmpeg', '-i', video, '-q:a', '0', '-map', 'a', audio])
 
 
+def cleanup(text):
+    lines = [x.strip() for x in text.splitlines()]
+    lines = [x for x in lines if '-->' not in x]
+    lines = [x for x in lines if search(r'^\d+$', x) is None]
+    lines = [x for x in lines if search(r'^$', x) is None]
+    return '\n'.join(lines)
+
+
 class Episode:
     def __init__(self, title, url, date):
         self.title = title
@@ -97,7 +106,11 @@ class Episode:
         self.date = date
         self.short = self.date.strftime('%Y%m%d-%H%M')
 
-    async def get_mp3(self):
+    def srt(self):
+        with open(find_first(self.base + '/**/*.srt')) as f:
+            return f.read()
+
+    async def mp3(self):
         if isfile(self.audio):
             return self.audio
         video = find_first(self.base + '/**/*.m4v')
@@ -186,8 +199,14 @@ async def fetch(url):
         if episode.name in await tele.recent():
             await ui_notify('NRKUP', 'Already available: ' + episode.name)
             return
-        await tele.send(await episode.get_mp3())
+        await tele.send(await episode.mp3())
         await ui_notify('NRKUP', 'Uploaded: ' + episode.name)
+
+
+async def subtitles(url):
+    episode = await Episode.make(url)
+    logging.info('Found episode: %s', episode)
+    return cleanup(episode.srt())
 
 
 class HttpServer:
@@ -200,6 +219,7 @@ class HttpServer:
         logging.info('Starting HTTP server on %s:%s', self.host, self.port)
         app = web.Application(middlewares=[cors_middleware(allow_all=True)])
         app.router.add_route('POST', '/download', self.download)
+        app.router.add_route('GET', '/subtitles', self.subtitles)
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, self.host, self.port)
@@ -214,6 +234,15 @@ class HttpServer:
             return web.Response(text='OK ' + url)
         except Exception as e:
             return web.Response(status=400, text=str(e))
+
+    async def subtitles(self, request):
+        url = request.query.get('url')
+        if not url: return web.Response(status=400, text='Missing url')
+        try:
+            return web.Response(text=await subtitles(url))
+        except Exception as e:
+            message = 'Cannot get subtitles for ' + url + ': ' + str(e)
+            return web.Response(status=500, text=message)
 
 
 def load_env(filename):
