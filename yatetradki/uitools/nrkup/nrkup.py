@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
 import logging
+from asyncio import TimeoutError as AsyncioTimeoutError
 from asyncio import create_subprocess_shell
 from asyncio import new_event_loop
 from asyncio import run_coroutine_threadsafe
@@ -16,9 +17,9 @@ from os.path import expandvars
 from os.path import isfile
 from os.path import join
 from shlex import quote
-from urllib.request import urlopen
 
 import hachoir
+from aiohttp import ClientSession
 from aiohttp import web
 from aiohttp_middlewares import cors_middleware
 from bs4 import BeautifulSoup
@@ -40,9 +41,20 @@ def disable_logging():
     logging.getLogger('telethon').setLevel(logging.CRITICAL)
 
 
-def http_get(url):
-    with urlopen(url) as r:
-        return r.read()
+async def async_http_get(url, timeout=10.0):
+    logging.info('GET %s', url)
+    USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0'
+    headers = {'User-Agent': USER_AGENT}
+    retries = 3
+    async with ClientSession() as session:
+        for i in range(retries):
+            try:
+                async with session.get(url, timeout=timeout, headers=headers) as resp:
+                    return await resp.text()
+            except AsyncioTimeoutError as e:
+                logging.warning('timeout (%s) getting "%s": "%s"', timeout, url, e)
+                if i == retries - 1:
+                    raise
 
 
 async def async_run(args):
@@ -110,13 +122,16 @@ class Episode:
         return f'nord-{self.short}.mp3'
 
     @staticmethod
-    def make(url):
-        soup = BeautifulSoup(http_get(url), 'html.parser')
+    async def make(url):
+        soup = BeautifulSoup(await async_http_get(url), 'html.parser')
         title = soup.find('title').text
         date = soup.find('meta', property='video:release_date').get('content')
         # 2022-06-01T22:55:00+02:00
         date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S%z')
         return Episode(title, url, date)
+
+    def __repr__(self):
+        return f'<Episode title="{self.title}" url="{self.url}" date="{self.date}">'
 
 
 class TeleFile:
@@ -165,7 +180,8 @@ class TeleFile:
 
 
 async def fetch(url):
-    episode = Episode.make(url)
+    episode = await Episode.make(url)
+    logging.info('Found episode: %s', episode)
     async with TeleFile.open() as tele:
         if episode.name in await tele.recent():
             await ui_notify('NRKUP', 'Already available: ' + episode.name)
