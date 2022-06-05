@@ -1,0 +1,1 @@
+aiohttp_middlewares==1.2.1
