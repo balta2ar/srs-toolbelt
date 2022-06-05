@@ -14,6 +14,7 @@ from os.path import join
 from shlex import quote
 from urllib.request import urlopen
 
+import hachoir
 from aiohttp import web
 from aiohttp_middlewares import cors_middleware
 from bs4 import BeautifulSoup
@@ -136,7 +137,9 @@ class TeleFile:
         return out
 
     async def send(self, filename):
-        await self.client.send_file(self.chat, filename)
+        logging.info('Sending %s', filename)
+        await ui_notify('NRKUP', 'Sending: ' + filename)
+        await self.client.send_file(self.chat, filename, supports_streaming=True)
 
     async def close(self):
         await self.client.disconnect()
@@ -204,6 +207,7 @@ def test(url=None):
 
 
 def main():
+    logging.info('hachoir version: %s', hachoir.__version__)
     disable_logging()
     loop = new_event_loop()
     host, port = HOST, PORT

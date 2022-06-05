@@ -1,1 +1,2 @@
 aiohttp_middlewares==1.2.1
+hachoir==3.1.3
