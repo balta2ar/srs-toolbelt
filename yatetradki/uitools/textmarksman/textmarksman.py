@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw
 import pyperclip
 
 from yatetradki.uitools.sayit.sayit import sayit
+from yatetradki.uitools.textmarksman.unproject.unproject_text import unproject
 #from yatetradki.uitools.textmarksman.deskew_wrapper import deskew
 
 EXIT_OK = 0
@@ -65,22 +66,22 @@ def ocr(filename: str, lang: str) -> str:
     modes = [RIL.BLOCK, RIL.PARA, RIL.TEXTLINE, RIL.WORD, RIL.SYMBOL]
     with PyTessBaseAPI(lang=lang, psm=PSM.SINGLE_COLUMN) as api:
         api.SetImageFile(filename)
-        for mode in modes:
-            mode_dir = ensure_dir('out{}'.format(mode))
-            with Image.open(filename) as orig:
-                draw = ImageDraw.Draw(orig)
-                boxes = api.GetComponentImages(mode, True)
-                print('boxes', len(boxes))
-                print('boxes', boxes)
-                for i, (im, box, _, _) in enumerate(boxes):
-                    # im is a PIL image object
-                    # box is a dict with x, y, w and h keys
-                    #api.SetRectangle(box['x'], box['y'], box['w'], box['h'])
-                    print(i, im, box)
-                    x, y, w, h = box['x'], box['y'], box['w'], box['h']
-                    draw.rectangle((x, y, x+w, y+h), outline='red')
-                    im.save('{}/{:05d}.png'.format(mode_dir, i))
-                orig.save('out{}.png'.format(mode))
+        # for mode in modes:
+            #mode_dir = ensure_dir('out{}'.format(mode))
+            # with Image.open(filename) as orig:
+            #     draw = ImageDraw.Draw(orig)
+            #     boxes = api.GetComponentImages(mode, True)
+                # print('boxes', len(boxes))
+                # print('boxes', boxes)
+                # for i, (im, box, _, _) in enumerate(boxes):
+                #     # im is a PIL image object
+                #     # box is a dict with x, y, w and h keys
+                #     #api.SetRectangle(box['x'], box['y'], box['w'], box['h'])
+                #     print(i, im, box)
+                #     x, y, w, h = box['x'], box['y'], box['w'], box['h']
+                #     draw.rectangle((x, y, x+w, y+h), outline='red')
+                #     #im.save('{}/{:05d}.png'.format(mode_dir, i))
+                # orig.save('out{}.png'.format(mode))
 
         return api.GetUTF8Text()
 
@@ -111,6 +112,7 @@ def notify(title, message):
 def parse_args():
     parser = argparse.ArgumentParser(description='OCR text from screen')
     parser.add_argument('-s', '--sayit', default=False, action='store_true', help='Pronounce text after OCR')
+    parser.add_argument('-u', '--unproject', default=False, action='store_true', help='Unproject text and try to make it horizontal first, before OCR')
     parser.add_argument('-i', '--input', default=None, help='Input file name, instead of taking a screenshot')
     return parser.parse_args()
 
@@ -122,6 +124,10 @@ def main():
     if filename:
         #deskew(filename, filename)
         #text = ocr(filename, 'nor+rus')
+        if args.unproject:
+            dest = '/tmp/unproject.jpg'
+            unproject(filename, dest)
+            filename = dest
         text = ocr(filename, 'nor')
         text = unwrap(text)
         copy(text)
