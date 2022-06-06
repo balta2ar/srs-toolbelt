@@ -158,7 +158,7 @@ class TeleFile:
         self.client = await init_client(self.phone, self.api_id, self.api_hash, self.channel_id)
         self.chat = await self.client.get_entity(self.channel_id)
 
-    async def recent(self, limit=50):
+    async def recent(self, limit=100):
         out = []
         async for i, m in aupto(self.client.iter_messages(self.chat), limit):
             try:
