@@ -206,7 +206,7 @@ async def fetch(url):
 async def subtitles(url):
     episode = await Episode.make(url)
     logging.info('Found episode: %s', episode)
-    return cleanup(episode.srt())
+    return cleanup(episode.name + '\n' + episode.srt())
 
 
 class HttpServer:
