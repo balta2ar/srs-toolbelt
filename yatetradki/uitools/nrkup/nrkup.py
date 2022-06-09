@@ -293,11 +293,12 @@ def test(url=None):
     loop.run_forever()
 
 
+def assert_bin(*names):
+    for name in names:
+        assert which(name)
+
 def main():
-    assert which('notify-send')
-    assert which('ffmpeg')
-    assert which('nrkdownload')
-    assert which('sox')
+    assert_bin('notify-send', 'ffmpeg', 'nrkdownload', 'sox')
     logging.info('hachoir version: %s', hachoir.__version__)
     load_env('~/.telegram')
     disable_logging()
