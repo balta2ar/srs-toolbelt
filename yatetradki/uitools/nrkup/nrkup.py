@@ -36,6 +36,10 @@ HOST = 'localhost'
 PORT = 7000
 
 
+def expand(path):
+    return expanduser(expandvars(path))
+
+
 def disable_logging():
     disable_warnings()
     logging.getLogger('asyncio').setLevel(logging.WARNING)
@@ -82,7 +86,7 @@ def find_first(pattern):
 async def nrk_download(url, where) -> str:
     makedirs(where, exist_ok=True)
     logging.info('Downloading %s to %s', url, where)
-    await async_run(['nrkdownload', '-d', where, url])
+    await async_run([expand('~/.local/bin/nrkdownload'), '-d', where, url])
     return find_first(where + '/**/*.m4v')
 
 
