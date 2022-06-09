@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import asyncio
-import logging
 from asyncio import TimeoutError as AsyncioTimeoutError
 from asyncio import create_subprocess_shell
 from asyncio import new_event_loop
@@ -9,22 +8,24 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from glob import glob
 from hashlib import sha1
+import logging
 from os import environ
 from os import makedirs
 from os.path import exists
 from os.path import expanduser
 from os.path import expandvars
-from os.path import isfile
 from os.path import join
 from re import search
 from shlex import quote
+import shutil
 
-import hachoir
 from aiohttp import ClientSession
 from aiohttp import web
 from aiohttp_middlewares import cors_middleware
 from bs4 import BeautifulSoup
+import hachoir
 from urllib3 import disable_warnings
+
 from yatetradki.tools.telegram import aupto
 from yatetradki.tools.telegram import init_client
 from yatetradki.utils import must_env
@@ -38,6 +39,15 @@ PORT = 7000
 
 def expand(path):
     return expanduser(expandvars(path))
+
+
+def which(program):
+    paths = [None, '/usr/local/bin', '/usr/bin', '/bin', '~/bin', '~/.local/bin']
+    for path in paths:
+        path = expanduser(expandvars(path)) if path else None
+        path = shutil.which(program, path=path)
+        if path:
+            return path
 
 
 def disable_logging():
@@ -75,7 +85,7 @@ async def async_run(args):
 
 
 async def ui_notify(title, message):
-    await async_run(['notify-send', title, message])
+    await async_run([which('notify-send'), title, message])
 
 
 def find_first(pattern):
@@ -86,13 +96,19 @@ def find_first(pattern):
 async def nrk_download(url, where) -> str:
     makedirs(where, exist_ok=True)
     logging.info('Downloading %s to %s', url, where)
-    await async_run([expand('~/.local/bin/nrkdownload'), '-d', where, url])
+    await async_run([expand(which('nrkdownload')), '-d', where, url])
     return find_first(where + '/**/*.m4v')
 
 
 async def ffmpeg_extract_audio(video, audio):
     logging.info('converting %s to %s', video, audio)
-    await async_run(['ffmpeg', '-i', video, '-q:a', '0', '-map', 'a', audio])
+    await async_run([which('ffmpeg'), '-i', video, '-q:a', '0', '-map', 'a', audio])
+
+
+async def sox_compress_dynamic_range(input, output):
+    logging.info('compressing dynamic range %s, %s', input, output)
+    await async_run([which('sox'), input, output, 'compand', '0.3,1', '6:-70,-60,-20', '-5', '-90', '0.2'])
+    #await async_run(['sox', input, output, 'compand', '0.02,0.20', '5:-60,-40,-10', '-5', '-90', '0.1'])
 
 
 def cleanup(text):
@@ -115,14 +131,20 @@ class Episode:
             return f.read()
 
     async def mp3(self):
-        if isfile(self.audio):
+        if exists(self.audio):
             return self.audio
         video = find_first(self.base + '/**/*.m4v')
         if not video:
-            await ui_notify('NRKUP', 'Downloading video: ' + self.title)
+            await ui_notify('NRKUP', 'nwkdownload: Downloading video: ' + self.title)
             video = await nrk_download(self.url, self.base)
-        await ui_notify('NRKUP', 'Extracting audio: ' + self.title)
-        await ffmpeg_extract_audio(video, self.audio)
+        orig_audio = join(self.base, 'orig-' + self.name)
+        if not exists(orig_audio):
+            await ui_notify('NRKUP', 'ffmpeg: Extracting audio: ' + self.title)
+            await ffmpeg_extract_audio(video, orig_audio)
+        if not exists(self.audio):
+            await ui_notify('NRKUP', 'sox: compressing dynamic range: ' + self.title)
+            await sox_compress_dynamic_range(orig_audio, self.audio)
+
         return self.audio
 
     @property
@@ -272,6 +294,10 @@ def test(url=None):
 
 
 def main():
+    assert which('notify-send')
+    assert which('ffmpeg')
+    assert which('nrkdownload')
+    assert which('sox')
     logging.info('hachoir version: %s', hachoir.__version__)
     load_env('~/.telegram')
     disable_logging()
