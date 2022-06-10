@@ -48,7 +48,7 @@ def is_today(dt):
     return a == b
 
 def add_word(text, word):
-    words = [x.strip() for x in text.splitlines()]
+    words = [x.strip().lower() for x in text.splitlines()]
     if word in words: return text, False
     return '\n'.join(words + [word]), True
 
@@ -81,6 +81,7 @@ class WordLogger:
     async def start(self):
         await self.client.start(phone=self.phone, code_callback=get_code)
     async def add(self, word):
+        word = word.strip().lower()
         chat = await self.client.get_entity(self.channel_id)
         latest = await get_latest(self.client, chat)
         if latest is None or not is_today(latest.date):
@@ -103,6 +104,7 @@ from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as Asyn
 from threading import Thread
 
 def test_log(text):
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
     api_id = must_env('TELEGRAM_API_ID')
     api_hash = must_env('TELEGRAM_API_HASH')
     channel_id = int(must_env('TELEGRAM_ORDBOK_ID'))
@@ -123,7 +125,14 @@ def test_log(text):
         print('Telegram: loop set')
         run_coroutine_threadsafe(wl.start(), loop)
         run_coroutine_threadsafe(auth(), loop)
-        #loop.run_until_complete(wl.start())
+        run_coroutine_threadsafe(wl.add(text), loop)
+        # try:
+        #     loop.run_until_complete(wl.start())
+        #     loop.run_until_complete(auth())
+        #     loop.run_until_complete(wl.add(text))
+        # except Exception as e:
+        #     print('Telegram: exception: %s', e)
+        #loop.run_until_complete(auth())
         print('Telegram: running forever')
         loop.run_forever()
     #set_event_loop(loop)

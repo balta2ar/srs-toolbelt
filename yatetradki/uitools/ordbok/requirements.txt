@@ -10,3 +10,6 @@ cchardet==2.1.7
 lxml==4.8.0
 aiohttp-jinja2==1.5
 Jinja2==3.0.3
+
+Telethon==1.24.0
+PyICU==2.9
