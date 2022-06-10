@@ -87,6 +87,7 @@ def add_audio(args):
     found_notes = col.find_notes(query)
     #if (not found_notes) or (not args.update):
     if (not found_notes):
+        print('No notes found, adding new notes')
         return ERROR_OK_NO_CHANGES
 
     added = []
