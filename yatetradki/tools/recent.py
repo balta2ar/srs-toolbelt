@@ -7,6 +7,9 @@ import os
 import sys
 import argparse
 
+from rich.console import Console
+from rich.table import Table
+from rich.style import Style
 #sys.path.insert(0, '/usr/share/anki')
 
 import anki
@@ -156,11 +159,18 @@ def densify(words, maxlen):
     # print('\n'.join(new_words))
     return new_words
 
+def odd(x):
+    return x % 2 == 1
+
+def grey(x):
+    return '[on grey30]{}[/]'.format(x)
 
 def show_recent_from_collection(queries, header_width):
     col = Collection(COLLECTION)
     #padding = ' ' * 10
-    from rich import print as pprint
+    #from rich import print as pprint
+    console = Console()
+    bg = Style(bgcolor="rgb(70,70,70)")
     for query, field in queries:  # QUERIES_AND_FIELDS:
         #header = '>>> %s (%s)%s' % (query, field, padding)
         #header = '>>> %s (%s)' % (query, field)
@@ -168,7 +178,14 @@ def show_recent_from_collection(queries, header_width):
         words = show_recent(col, query, field)
         words = [w.replace('<b>', '[bold green]').replace('</b>', '[/bold green]') for w in words]
         words = [w.replace('<strong>', '[bold green]').replace('</strong>', '[/bold green]') for w in words]
-        pprint('\n'.join(words))
+        table = Table(box=None, row_styles=['none', bg])
+        table.add_column('')
+        [table.add_row(w) for w in words]
+        console.print(table)
+        #words = [grey(w) if odd(i) else w for i, w in enumerate(words)]
+        #line = '\n'.join(words)
+        #pprint(line)
+
         #print_formatted_text(HTML('\n'.join(words)))
         # if words:
         #     maxlen = max(len(max(words, key=len)), MIN_COLUMN_WIDTH)
