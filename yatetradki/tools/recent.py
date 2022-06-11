@@ -178,7 +178,7 @@ def show_recent_from_collection(queries, header_width):
         words = show_recent(col, query, field)
         words = [w.replace('<b>', '[bold green]').replace('</b>', '[/bold green]') for w in words]
         words = [w.replace('<strong>', '[bold green]').replace('</strong>', '[/bold green]') for w in words]
-        table = Table(box=None, row_styles=['none', bg])
+        table = Table(box=None, padding=(0,), row_styles=['none', bg])
         table.add_column('')
         [table.add_row(w) for w in words]
         console.print(table)
