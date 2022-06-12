@@ -12,8 +12,6 @@ from PIL import Image, ImageDraw
 # import pytesseract
 import pyperclip
 
-from yatetradki.uitools.sayit.sayit import sayit
-from yatetradki.uitools.textmarksman.unproject.unproject_text import unproject
 #from yatetradki.uitools.textmarksman.deskew_wrapper import deskew
 
 EXIT_OK = 0
@@ -126,6 +124,7 @@ def main():
         #text = ocr(filename, 'nor+rus')
         if args.unproject:
             dest = '/tmp/unproject.jpg'
+            from yatetradki.uitools.textmarksman.unproject.unproject_text import unproject
             unproject(filename, dest)
             filename = dest
         text = ocr(filename, 'nor')
@@ -134,6 +133,7 @@ def main():
         notify('OCR', text)
         print(text)
         if args.sayit:
+            from yatetradki.uitools.sayit.sayit import sayit
             sayit(text)
         return EXIT_OK
     return EXIT_CANCEL
