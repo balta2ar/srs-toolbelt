@@ -111,6 +111,11 @@ async def sox_compress_dynamic_range(input, output):
     #await async_run(['sox', input, output, 'compand', '0.02,0.20', '5:-60,-40,-10', '-5', '-90', '0.1'])
 
 
+async def sox_remove_silence(input, output):
+    logging.info('removing silence %s, %s', input, output)
+    await async_run([which('sox'), input, output, '-l', '1', '0.1', '1%', '-1', '1.0', '1%'])
+
+
 def cleanup(text):
     lines = [x.strip() for x in text.splitlines()]
     lines = [x for x in lines if '-->' not in x]
@@ -141,9 +146,13 @@ class Episode:
         if not exists(orig_audio):
             await ui_notify('NRKUP', 'ffmpeg: Extracting audio: ' + self.title)
             await ffmpeg_extract_audio(video, orig_audio)
+        nosilence_audio = join(self.base, 'nosilence-' + self.name)
+        if not exists(nosilence_audio):
+            await ui_notify('NRKUP', 'sox: removing silence: ' + self.title)
+            await sox_compress_dynamic_range(orig_audio, nosilence_audio)
         if not exists(self.audio):
             await ui_notify('NRKUP', 'sox: compressing dynamic range: ' + self.title)
-            await sox_compress_dynamic_range(orig_audio, self.audio)
+            await sox_compress_dynamic_range(nosilence_audio, self.audio)
 
         return self.audio
 
