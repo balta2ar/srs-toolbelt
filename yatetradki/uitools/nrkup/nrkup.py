@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
+import logging
+import shutil
 from asyncio import TimeoutError as AsyncioTimeoutError
 from asyncio import create_subprocess_shell
 from asyncio import new_event_loop
@@ -8,7 +10,6 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from glob import glob
 from hashlib import sha1
-import logging
 from os import environ
 from os import makedirs
 from os.path import exists
@@ -17,15 +18,13 @@ from os.path import expandvars
 from os.path import join
 from re import search
 from shlex import quote
-import shutil
 
+import hachoir
 from aiohttp import ClientSession
 from aiohttp import web
 from aiohttp_middlewares import cors_middleware
 from bs4 import BeautifulSoup
-import hachoir
 from urllib3 import disable_warnings
-
 from yatetradki.tools.telegram import aupto
 from yatetradki.tools.telegram import init_client
 from yatetradki.utils import must_env
@@ -136,8 +135,8 @@ class Episode:
             return f.read()
 
     async def mp3(self):
-        if exists(self.audio):
-            return self.audio
+        # if exists(self.audio):
+        #     return self.audio
         video = find_first(self.base + '/**/*.m4v')
         if not video:
             await ui_notify('NRKUP', 'nwkdownload: Downloading video: ' + self.title)
@@ -231,6 +230,7 @@ async def fetch(url):
     episode = await Episode.make(url)
     logging.info('Found episode: %s', episode)
     async with TeleFile.open() as tele:
+        await episode.mp3() # make sure file is present in fs
         if episode.name in await tele.recent():
             await ui_notify('NRKUP', 'Already available: ' + episode.name)
             return
