@@ -82,13 +82,14 @@ import logging.handlers
 import re
 import bz2
 from tempfile import gettempdir
-from os import makedirs, environ
-from os.path import dirname, exists, normpath, join, expanduser, expandvars
+from os import makedirs, environ, walk
+from os.path import dirname, exists, normpath, join, expanduser, expandvars, getsize
 from urllib.parse import urlparse
 from json import loads, dumps
 from string import Template
 from itertools import groupby
 from pathlib import Path
+from shutil import rmtree
 from contextvars import ContextVar
 from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError, run_coroutine_threadsafe
 # # https://bugs.python.org/issue34679#msg347525
@@ -262,6 +263,20 @@ class DynamicHttpClient:
     async def get_async(self, url, selector=None, action=None):
         return await PlaywrightClientAsync().get_async(url, selector, action)
 
+def get_file_dir_stats(base):
+    num_files = 0
+    num_dirs = 0
+    total_bytes = 0
+    for base, dirs, files in walk(base):
+        num_files += len(dirs)
+        num_dirs += len(dirs)
+        for file in files:
+            total_bytes += getsize(join(base, file))
+    return {
+        'num_files': num_files,
+        'num_dirs': num_dirs,
+        'total_bytes': total_bytes,
+    }
 
 class Cacher:
     def __init__(self, basedir):
@@ -277,6 +292,13 @@ class Cacher:
         path = join(self.basedir, keypath)
         makedirs(dirname(path), exist_ok=True)
         spit(bz2.open, path, value)
+    def invalidate(self, keypath):
+        path = dirname(join(self.basedir, keypath))
+        if not exists(path): return {'result': 'notfound', 'path': path}
+        logging.info('invalidating cache "%s"', path)
+        stats = get_file_dir_stats(path)
+        rmtree(path)
+        return {'result': 'ok', 'path': path, 'stats': stats}
 
 def by_method_and_arg(f, *args, **kwargs):
     key = f.__name__.split('_')
@@ -1236,6 +1258,7 @@ class AIOHTTPUIServer:
         router.add_get('/aulismedia/prev/{word}', wrap(self.route_aulismedia_prev))
         router.add_get('/aulismedia/next/{word}', wrap(self.route_aulismedia_next))
         router.add_get('/aulismedia/search_norsk/{word}', wrap(self.route_aulismedia_search_norsk))
+        router.add_get('/cache/invalidate/{word}', wrap(self.route_cache_invalidate))
         router.add_get('/all/word/{word}', self.route_all_word)
         router.add_get('/stats', self.route_stats)
         router.add_get('/', self.route_index)
@@ -1312,6 +1335,8 @@ class AIOHTTPUIServer:
         return index_search(word.lower())
     # def route_aulismedia_static(self, word):
     #     return AulismediaWord.static(word)
+    async def route_cache_invalidate(self, request):
+        return Cacher(with_word(CACHE_DIR)).invalidate('dummy')
     async def route_all_word(self, request):
         word = request.match_info.get('word')
         parallel = request.rel_url.query.get('parallel', '')
