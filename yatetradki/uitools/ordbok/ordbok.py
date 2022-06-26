@@ -83,13 +83,12 @@ import re
 import bz2
 from tempfile import gettempdir
 from os import makedirs, environ, walk
-from os.path import dirname, exists, normpath, join, expanduser, expandvars, getsize, abspath
+from os.path import dirname, exists, normpath, join, expanduser, expandvars, getsize
 from urllib.parse import urlparse
 from json import loads, dumps
 from string import Template
 from itertools import groupby
 from pathlib import Path
-from shutil import rmtree
 from contextvars import ContextVar
 from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError, run_coroutine_threadsafe
 # # https://bugs.python.org/issue34679#msg347525
@@ -100,14 +99,8 @@ import time
 from functools import wraps
 import socket
 
-from requests import Session
 from requests.exceptions import HTTPError, ReadTimeout, ConnectionError
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
-from pyppeteer import launch as launch_pyppeteer
-from pyppeteer.errors import TimeoutError as PyppeteerTimeoutError
-from playwright.sync_api import sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 from playwright.async_api import TimeoutError as PlaywrightTimeoutErrorAsync
@@ -117,7 +110,7 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QSystemTrayIcon, QMenu, QAction)
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
 from PyQt5.QtGui import QIcon, QFont, QClipboard
-from PyQt5.QtCore import Qt, QTimer, QObject, QUrl
+from PyQt5.QtCore import Qt, QTimer, QUrl
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 from yatetradki.reader.dsl import lookup as dsl_lookup
@@ -1227,7 +1220,6 @@ class AIOHTTPUIServer:
             HTTPError,
             ReadTimeout,
             ConnectionError,
-            PyppeteerTimeoutError,
             PlaywrightTimeoutError,
             PlaywrightTimeoutErrorAsync,
             AsyncioTimeoutError,
