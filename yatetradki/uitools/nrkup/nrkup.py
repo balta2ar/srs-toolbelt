@@ -32,12 +32,12 @@ from yatetradki.utils import must_env
 FORMAT = '%(asctime)-15s %(levelname)s (%(name)s) %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
-HOST = 'localhost'
-PORT = 7000
-
-
 def expand(path):
     return expanduser(expandvars(path))
+
+HOST = 'localhost'
+PORT = 7000
+BASE = expand('~/payload/video/nrk/nordland')
 
 
 def which(program):
@@ -158,7 +158,7 @@ class Episode:
     @property
     def base(self):
         hash = sha1(self.url.encode('utf8')).hexdigest()[:8]
-        return f'/tmp/nrkup/{self.short}-{hash}'
+        return f'{BASE}/{self.short}-{hash}'
 
     @property
     def audio(self):
@@ -241,7 +241,8 @@ async def fetch(url):
 async def subtitles(url):
     episode = await Episode.make(url)
     logging.info('Found episode: %s', episode)
-    return cleanup(episode.name + '\n' + episode.srt())
+    body = episode.name + '\n' + url + '\n' + episode.srt()
+    return cleanup(body)
 
 
 class HttpServer:
