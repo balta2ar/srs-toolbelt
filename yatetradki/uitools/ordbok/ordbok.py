@@ -83,7 +83,7 @@ import re
 import bz2
 from tempfile import gettempdir
 from os import makedirs, environ, walk
-from os.path import dirname, exists, normpath, join, expanduser, expandvars, getsize
+from os.path import dirname, exists, normpath, join, expanduser, expandvars, getsize, abspath
 from urllib.parse import urlparse
 from json import loads, dumps
 from string import Template
@@ -203,6 +203,14 @@ def with_word(text):
     word = current_word.get()
     return '{}/{}/{}'.format(text, SUFFIX_BY_WORD, word) if word else text
 
+def http_get_sync(url):
+    req = Request(url)
+    req.add_header('User-Agent', USER_AGENT)
+    req.add_header('Accept', '*/*')
+    logging.info('sync HTTP GET %s', url)
+    with urlopen(req) as resp:
+        return resp.read()
+
 async def http_get_async(url, timeout=None):
     USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0'
     headers = {'User-Agent': USER_AGENT}
@@ -293,10 +301,15 @@ class Cacher:
         makedirs(dirname(path), exist_ok=True)
         spit(bz2.open, path, value)
     def invalidate(self, keypath):
-        path = dirname(join(self.basedir, keypath))
-        if not exists(path): return {'result': 'notfound', 'path': path}
+        path = abspath(dirname(join(self.basedir, keypath)))
+        if not path.startswith(str(CACHE_DIR)):
+            logging.info('rejected invalidation request "%s"', path)
+            return {'result': 'invalid path', 'path': path}
+        if not exists(path): return {'result': 'not found', 'path': path}
         logging.info('invalidating cache "%s"', path)
         stats = get_file_dir_stats(path)
+        # TODO: that's dangerous, I should've added invalidate=1 arg to all
+        # queries instead, could be safer
         rmtree(path)
         return {'result': 'ok', 'path': path, 'stats': stats}
 
@@ -434,6 +447,12 @@ def iframe_r(word):
 def iframe_h(word):
     t = Template(open(here_html('iframe-h.html')).read())
     return t.substitute(word=word)
+
+def send_cache_invalidate(word):
+    return loads(http_get_sync(url_cache_invalidate(word)))
+
+def url_cache_invalidate(word):
+    return 'http://{0}:{1}/cache/invalidate/{2}'.format(UI_HOST, UI_PORT, word)
 
 def ui_mix_url(word):
     return 'http://{0}:{1}/ui/mix/{2}'.format(UI_HOST, UI_PORT, word)
@@ -1151,6 +1170,12 @@ class MainWindow(QWidget):
             self.comboBox.setFocus()
         elif (e.key() == Qt.Key_W) and (e.modifiers() == Qt.ControlModifier):
             self.toggle_active_mode()
+        elif (e.key() == Qt.Key_Return) and (e.modifiers() == Qt.ControlModifier):
+            if self.text():
+                logging.info('sending cache invalidation request')
+                logging.info('invalide result: %s', send_cache_invalidate(self.text()))
+            self.last_manual_change = time.time()
+            self.set_text(self.text())
         elif e.key() == Qt.Key_Return:
             self.last_manual_change = time.time()
             self.set_text(self.text())
