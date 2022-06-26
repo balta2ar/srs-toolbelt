@@ -149,6 +149,7 @@ RECENT_GRAB_DELAY = (UPDATE_DELAY / 1000.0) + 0.1 # seconds
 LOG_FILENAME = 'ordbok.log'
 
 current_word: ContextVar[str] = ContextVar('current_word', default='')
+invalidate_word: ContextVar[bool] = ContextVar('invalidate_word', default=False)
 
 #POOL = ProcessPoolExecutor()
 
@@ -200,8 +201,13 @@ def init_logger(filename: str):
     return log
 
 def with_word(text):
-    word = current_word.get()
-    return '{}/{}/{}'.format(text, SUFFIX_BY_WORD, word) if word else text
+    # I used to store cache in cache/by_word/{word} directory to make it
+    # easier to invalidate cache by removing files recursively, but I changed
+    # to adding invalidate=1 argument, because rmtree is dangerous.
+    # I left this here in case I want to get back to splitting cache by word.
+    return text
+    #word = current_word.get()
+    #return '{}/{}/{}'.format(text, SUFFIX_BY_WORD, word) if word else text
 
 def http_get_sync(url):
     req = Request(url)
@@ -289,7 +295,10 @@ def get_file_dir_stats(base):
 class Cacher:
     def __init__(self, basedir):
         self.basedir = basedir
-    def get(self, keypath):
+    def get(self, keypath, invalidate=False):
+        if invalidate:
+            logging.info('cache miss (invalidate=%s) "%s"', invalidate, keypath)
+            return None
         path = join(self.basedir, keypath)
         if not exists(path):
             logging.info('cache miss "%s"', keypath)
@@ -300,18 +309,6 @@ class Cacher:
         path = join(self.basedir, keypath)
         makedirs(dirname(path), exist_ok=True)
         spit(bz2.open, path, value)
-    def invalidate(self, keypath):
-        path = abspath(dirname(join(self.basedir, keypath)))
-        if not path.startswith(str(CACHE_DIR)):
-            logging.info('rejected invalidation request "%s"', path)
-            return {'result': 'invalid path', 'path': path}
-        if not exists(path): return {'result': 'not found', 'path': path}
-        logging.info('invalidating cache "%s"', path)
-        stats = get_file_dir_stats(path)
-        # TODO: that's dangerous, I should've added invalidate=1 arg to all
-        # queries instead, could be safer
-        rmtree(path)
-        return {'result': 'ok', 'path': path, 'stats': stats}
 
 def by_method_and_arg(f, *args, **kwargs):
     key = f.__name__.split('_')
@@ -326,7 +323,7 @@ def cached_async(f):
         base = join(with_word(CACHE_DIR), SUFFIX_BY_METHOD)
         cacher = Cacher(base)
         logging.info('async cache keypath "%s", args %s %s', keypath, args, kwargs)
-        value = cacher.get(keypath)
+        value = cacher.get(keypath, invalidate_word.get())
         if value is None:
             value = await f(*args, **kwargs)
             cacher.set(keypath, value)
@@ -341,7 +338,7 @@ class CachedHttpClient:
         keypath = self.get_key(url)
         base = join(with_word(self.cachedir), SUFFIX_BY_URL)
         cacher = Cacher(base)
-        value = cacher.get(keypath)
+        value = cacher.get(keypath, invalidate_word.get())
         if value is None:
             value = await self.client.get_async(url, **kwargs)
             cacher.set(keypath, value)
@@ -447,12 +444,6 @@ def iframe_r(word):
 def iframe_h(word):
     t = Template(open(here_html('iframe-h.html')).read())
     return t.substitute(word=word)
-
-def send_cache_invalidate(word):
-    return loads(http_get_sync(url_cache_invalidate(word)))
-
-def url_cache_invalidate(word):
-    return 'http://{0}:{1}/cache/invalidate/{2}'.format(UI_HOST, UI_PORT, word)
 
 def ui_mix_url(word):
     return 'http://{0}:{1}/ui/mix/{2}'.format(UI_HOST, UI_PORT, word)
@@ -1113,19 +1104,20 @@ class MainWindow(QWidget):
         self.comboBox.setCompleter(completer)
         completer.complete()
 
-    def set_text(self, text):
+    def set_text(self, text, invalidate=False):
         logging.info('Setting text: %s', text)
         self.myTranslate.emit(text)
         self.comboBox.setCurrentText(text)
-        urls = [ui_mix_url(text),
-                ui_nor_url(text),
-                ui_third_url(text),
-                ui_fourth_url(text),
-                ui_q_url(text),
-                ui_w_url(text),
-                ui_e_url(text),
-                ui_r_url(text),
-                ui_h_url(text),
+        req = text+'?invalidate=1' if invalidate else text
+        urls = [ui_mix_url(req),
+                ui_nor_url(req),
+                ui_third_url(req),
+                ui_fourth_url(req),
+                ui_q_url(req),
+                ui_w_url(req),
+                ui_e_url(req),
+                ui_r_url(req),
+                ui_h_url(req),
                ]
         self.browsers.load(urls)
 
@@ -1171,12 +1163,12 @@ class MainWindow(QWidget):
         elif (e.key() == Qt.Key_W) and (e.modifiers() == Qt.ControlModifier):
             self.toggle_active_mode()
         elif (e.key() == Qt.Key_Return) and (e.modifiers() == Qt.ControlModifier):
-            if self.text():
-                logging.info('sending cache invalidation request')
-                logging.info('invalide result: %s', send_cache_invalidate(self.text()))
+            if not self.text(): return
+            logging.info('querying with invalidate=True')
             self.last_manual_change = time.time()
-            self.set_text(self.text())
+            self.set_text(self.text(), invalidate=True)
         elif e.key() == Qt.Key_Return:
+            if not self.text(): return
             self.last_manual_change = time.time()
             self.set_text(self.text())
         else:
@@ -1243,10 +1235,18 @@ class AIOHTTPUIServer:
         ) as e:
             return text_html('{0}: {1}'.format(type(e).__name__, e))
     def setup_routes(self, app):
+        def set_context(request):
+            word = request.match_info.get('word')
+            current_word.set(word)
+            invalidate = request.rel_url.query.get('invalidate', '')
+            invalidate_word.set(bool(invalidate))
+            ui = str(request.rel_url).startswith('/ui/')
+            # forward invalidate argument from UI to translation endpoints
+            if ui and invalidate: word = word+'?invalidate='+invalidate
+            return word
         def wrap(fn):
             async def handler(request):
-                word = request.match_info.get('word')
-                current_word.set(word)
+                word = set_context(request)
                 result = await fn(word)
                 if isinstance(result, str):
                     return text_html(result)
@@ -1283,7 +1283,6 @@ class AIOHTTPUIServer:
         router.add_get('/aulismedia/prev/{word}', wrap(self.route_aulismedia_prev))
         router.add_get('/aulismedia/next/{word}', wrap(self.route_aulismedia_next))
         router.add_get('/aulismedia/search_norsk/{word}', wrap(self.route_aulismedia_search_norsk))
-        router.add_get('/cache/invalidate/{word}', wrap(self.route_cache_invalidate))
         router.add_get('/all/word/{word}', self.route_all_word)
         router.add_get('/stats', self.route_stats)
         router.add_get('/', self.route_index)
@@ -1360,8 +1359,6 @@ class AIOHTTPUIServer:
         return index_search(word.lower())
     # def route_aulismedia_static(self, word):
     #     return AulismediaWord.static(word)
-    async def route_cache_invalidate(self, request):
-        return Cacher(with_word(CACHE_DIR)).invalidate('dummy')
     async def route_all_word(self, request):
         word = request.match_info.get('word')
         parallel = request.rel_url.query.get('parallel', '')
