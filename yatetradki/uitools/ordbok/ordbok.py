@@ -89,6 +89,7 @@ from json import loads, dumps
 from string import Template
 from itertools import groupby
 from pathlib import Path
+from contextvars import ContextVar
 from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError, run_coroutine_threadsafe
 # # https://bugs.python.org/issue34679#msg347525
 # policy = asyncio.get_event_loop_policy()
@@ -137,13 +138,16 @@ TEMPLATE_DIR = DIR / 'static' / 'html'
 STATIC_DIR = DIR / 'static'
 CACHE_DIR = Path(environ.get('CACHE_DIR', DIR / 'cache'))
 CACHE_BY_WORD = CACHE_DIR / 'by_word'
-CACHE_BY_METHOD = CACHE_DIR / 'by_method'
-CACHE_BY_URL = CACHE_DIR / 'by_url'
+SUFFIX_BY_METHOD = 'by_method'
+SUFFIX_BY_URL = 'by_url'
+SUFFIX_BY_WORD = 'by_word'
 ADD_TO_FONT_SIZE = 6
 NETWORK_TIMEOUT = 5000 # milliseconds
 NETWORK_RETRIES = 3
 RECENT_GRAB_DELAY = (UPDATE_DELAY / 1000.0) + 0.1 # seconds
 LOG_FILENAME = 'ordbok.log'
+
+current_word: ContextVar[str] = ContextVar('current_word', default='')
 
 #POOL = ProcessPoolExecutor()
 
@@ -193,6 +197,10 @@ def init_logger(filename: str):
     log.addHandler(handler)
     log.info('Logger has been created')
     return log
+
+def with_word(text):
+    word = current_word.get()
+    return '{}/{}/{}'.format(text, SUFFIX_BY_WORD, word) if word else text
 
 async def http_get_async(url, timeout=None):
     USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0'
@@ -254,18 +262,21 @@ class DynamicHttpClient:
     async def get_async(self, url, selector=None, action=None):
         return await PlaywrightClientAsync().get_async(url, selector, action)
 
-def cache_get(basedir, keypath):
-    path = join(basedir, keypath)
-    if not exists(path):
-        logging.info('cache miss "%s"', keypath)
-        return None
-    logging.info('cache hit "%s"', keypath)
-    return slurp(bz2.open, path)
 
-def cache_set(basedir, keypath, value):
-    path = join(basedir, keypath)
-    makedirs(dirname(path), exist_ok=True)
-    spit(bz2.open, path, value)
+class Cacher:
+    def __init__(self, basedir):
+        self.basedir = basedir
+    def get(self, keypath):
+        path = join(self.basedir, keypath)
+        if not exists(path):
+            logging.info('cache miss "%s"', keypath)
+            return None
+        logging.info('cache hit "%s"', keypath)
+        return slurp(bz2.open, path)
+    def set(self, keypath, value):
+        path = join(self.basedir, keypath)
+        makedirs(dirname(path), exist_ok=True)
+        spit(bz2.open, path, value)
 
 def by_method_and_arg(f, *args, **kwargs):
     key = f.__name__.split('_')
@@ -277,11 +288,13 @@ def cached_async(f):
     @wraps(f)
     async def wrapper(*args, **kwargs):
         keypath = join(*by_method_and_arg(f, *args, **kwargs))
+        base = join(with_word(CACHE_DIR), SUFFIX_BY_METHOD)
+        cacher = Cacher(base)
         logging.info('async cache keypath "%s", args %s %s', keypath, args, kwargs)
-        value = cache_get(CACHE_BY_METHOD, keypath)
+        value = cacher.get(keypath)
         if value is None:
             value = await f(*args, **kwargs)
-            cache_set(CACHE_BY_METHOD, keypath, value)
+            cacher.set(keypath, value)
         return value
     return wrapper
 
@@ -291,10 +304,12 @@ class CachedHttpClient:
         self.cachedir = cachedir
     async def get_async(self, url, **kwargs):
         keypath = self.get_key(url)
-        value = cache_get(self.cachedir, keypath)
+        base = join(with_word(self.cachedir), SUFFIX_BY_URL)
+        cacher = Cacher(base)
+        value = cacher.get(keypath)
         if value is None:
             value = await self.client.get_async(url, **kwargs)
-            cache_set(self.cachedir, keypath, value)
+            cacher.set(keypath, value)
         return value
     def get_key(self, url):
         J = lambda x: re.sub(r'\W+', '', x)
@@ -1184,6 +1199,7 @@ class AIOHTTPUIServer:
         def wrap(fn):
             async def handler(request):
                 word = request.match_info.get('word')
+                current_word.set(word)
                 result = await fn(word)
                 if isinstance(result, str):
                     return text_html(result)
@@ -1404,15 +1420,12 @@ def track_history(source_signal):
     Thread(target=start, daemon=True).start()
 
 def main():
-    logging.info(CACHE_BY_WORD)
-    #logging.info(CACHE_BY_METHOD)
+    logging.info('cache location: "%s"', CACHE_DIR)
     disable_logging()
     init_logger(in_temp_dir(LOG_FILENAME))
     force_ipv4()
-    #static_client = CachedHttpClient(StaticHttpClient(), CACHE_BY_WORD)
-    #dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_BY_WORD)
-    static_client = CachedHttpClient(StaticHttpClient(), CACHE_BY_URL)
-    dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_BY_URL)
+    static_client = CachedHttpClient(StaticHttpClient(), CACHE_DIR)
+    dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_DIR)
     ui_server = AIOHTTPUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
     ui_server.serve_background()
 
