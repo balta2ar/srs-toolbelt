@@ -136,6 +136,7 @@ ICON_FILENAME = str(DIR / 'ordbok.png')
 TEMPLATE_DIR = DIR / 'static' / 'html'
 STATIC_DIR = DIR / 'static'
 CACHE_DIR = Path(environ.get('CACHE_DIR', DIR / 'cache'))
+CACHE_BY_WORD = CACHE_DIR / 'by_word'
 CACHE_BY_METHOD = CACHE_DIR / 'by_method'
 CACHE_BY_URL = CACHE_DIR / 'by_url'
 ADD_TO_FONT_SIZE = 6
@@ -254,7 +255,7 @@ class DynamicHttpClient:
         return await PlaywrightClientAsync().get_async(url, selector, action)
 
 def cache_get(basedir, keypath):
-    path = join(basedir, *keypath)
+    path = join(basedir, keypath)
     if not exists(path):
         logging.info('cache miss "%s"', keypath)
         return None
@@ -262,7 +263,7 @@ def cache_get(basedir, keypath):
     return slurp(bz2.open, path)
 
 def cache_set(basedir, keypath, value):
-    path = join(basedir, *keypath)
+    path = join(basedir, keypath)
     makedirs(dirname(path), exist_ok=True)
     spit(bz2.open, path, value)
 
@@ -275,7 +276,7 @@ def by_method_and_arg(f, *args, **kwargs):
 def cached_async(f):
     @wraps(f)
     async def wrapper(*args, **kwargs):
-        keypath = by_method_and_arg(f, *args, **kwargs)
+        keypath = join(*by_method_and_arg(f, *args, **kwargs))
         logging.info('async cache keypath "%s", args %s %s', keypath, args, kwargs)
         value = cache_get(CACHE_BY_METHOD, keypath)
         if value is None:
@@ -289,15 +290,12 @@ class CachedHttpClient:
         self.client = client
         self.cachedir = cachedir
     async def get_async(self, url, **kwargs):
-        path = self.get_path(self.get_key(url))
-        content = slurp(bz2.open, path)
-        if content is None:
-            logging.info('cache miss: "%s"', url)
-            content = await self.client.get_async(url, **kwargs)
-            spit(bz2.open, path, content)
-        return content
-    def get_path(self, key):
-        return join(self.cachedir, key)
+        keypath = self.get_key(url)
+        value = cache_get(self.cachedir, keypath)
+        if value is None:
+            value = await self.client.get_async(url, **kwargs)
+            cache_set(self.cachedir, keypath, value)
+        return value
     def get_key(self, url):
         J = lambda x: re.sub(r'\W+', '', x)
         S = lambda x: re.sub(r'^\w\s\d-', '/', x)
@@ -1406,11 +1404,13 @@ def track_history(source_signal):
     Thread(target=start, daemon=True).start()
 
 def main():
-    logging.info(CACHE_BY_URL)
-    logging.info(CACHE_BY_METHOD)
+    logging.info(CACHE_BY_WORD)
+    #logging.info(CACHE_BY_METHOD)
     disable_logging()
     init_logger(in_temp_dir(LOG_FILENAME))
     force_ipv4()
+    #static_client = CachedHttpClient(StaticHttpClient(), CACHE_BY_WORD)
+    #dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_BY_WORD)
     static_client = CachedHttpClient(StaticHttpClient(), CACHE_BY_URL)
     dynamic_client = CachedHttpClient(DynamicHttpClient(), CACHE_BY_URL)
     ui_server = AIOHTTPUIServer(static_client, dynamic_client, UI_HOST, UI_PORT)
