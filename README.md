@@ -244,7 +244,7 @@ TODO.
 ![page2](https://i.imgur.com/Q82LjRK.png)
 ![page3](https://i.imgur.com/woKdYHJ.png)
 
-This script [ordbok_uib_no.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/uitools/ordbok_uib_no.py) collects the output from multiple sources in a condensed nice format so that you get quick access to dictionary articles as you type. Results are cached, so servers are not stressed. Currently supported sources:
+This script [ordbok.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/uitools/ordbok.py) collects the output from multiple sources in a condensed nice format so that you get quick access to dictionary articles as you type. Results are cached, so servers are not stressed. Currently supported sources:
 
 Page 1:
 * Inflections from https://ordbok.uib.no/
