@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
+import json
 import logging
 import shutil
 from asyncio import TimeoutError as AsyncioTimeoutError
@@ -9,22 +10,29 @@ from asyncio import run_coroutine_threadsafe
 from contextlib import asynccontextmanager
 from datetime import datetime
 from glob import glob
-from hashlib import sha1
+from tempfile import NamedTemporaryFile
+from itertools import groupby
+from bisect import bisect_right
 from os import environ
 from os import makedirs
 from os.path import exists
 from os.path import expanduser
 from os.path import expandvars
+from os.path import getsize
+from os.path import isfile
 from os.path import join
-from re import search
+import re
 from shlex import quote
 
 import hachoir
+import pysubs2
 from aiohttp import ClientSession
 from aiohttp import web
 from aiohttp_middlewares import cors_middleware
 from bs4 import BeautifulSoup
+from diskcache import Cache
 from urllib3 import disable_warnings
+
 from yatetradki.tools.telegram import aupto
 from yatetradki.tools.telegram import init_client
 from yatetradki.utils import must_env
@@ -37,7 +45,8 @@ def expand(path):
 
 HOST = 'localhost'
 PORT = 7000
-BASE = expand('~/payload/video/nrk/nordland')
+BASE = expand('~/payload/video/nrkup/nordland')
+CACHE_DIR = expand('~/.cache/nrkup')
 
 
 def which(program):
@@ -49,6 +58,12 @@ def which(program):
             return path
 
 
+def spit(where, what, js=False):
+    with open(where, 'w') as f:
+        if js: what = json.dumps(what, indent=2)
+        f.write(what)
+
+
 def disable_logging():
     disable_warnings()
     logging.getLogger('asyncio').setLevel(logging.WARNING)
@@ -56,19 +71,23 @@ def disable_logging():
 
 
 async def async_http_get(url, timeout=10.0):
-    logging.info('GET %s', url)
-    USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0'
-    headers = {'User-Agent': USER_AGENT}
-    retries = 3
-    async with ClientSession() as session:
-        for i in range(retries):
-            try:
-                async with session.get(url, timeout=timeout, headers=headers) as resp:
-                    return await resp.text()
-            except AsyncioTimeoutError as e:
-                logging.warning('timeout (%s) getting "%s": "%s"', timeout, url, e)
-                if i == retries - 1:
-                    raise
+    async def request():
+        logging.info('GET %s', url)
+        USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0'
+        headers = {'User-Agent': USER_AGENT}
+        retries = 3
+        async with ClientSession() as session:
+            for i in range(retries):
+                try:
+                    async with session.get(url, timeout=timeout, headers=headers) as resp:
+                        return await resp.text()
+                except AsyncioTimeoutError as e:
+                    logging.warning('timeout (%s) getting "%s": "%s"', timeout, url, e)
+                    if i == retries - 1:
+                        raise
+    cache = Cache(CACHE_DIR)
+    if 'url' not in cache: cache['url'] = await request()
+    return cache['url']
 
 
 async def async_run(args):
@@ -96,7 +115,9 @@ async def nrk_download(url, where) -> str:
     makedirs(where, exist_ok=True)
     logging.info('Downloading %s to %s', url, where)
     await async_run([expand(which('nrkdownload')), '-d', where, url])
-    return find_first(where + '/**/*.m4v')
+    m4v = find_first(where + '/**/*.m4v')
+    if m4v is None: raise ValueError('No m4v found in %s' % where)
+    return m4v
 
 
 async def ffmpeg_extract_audio(video, audio):
@@ -118,25 +139,123 @@ async def sox_remove_silence(input, output):
 def cleanup(text):
     lines = [x.strip() for x in text.splitlines()]
     lines = [x for x in lines if '-->' not in x]
-    lines = [x for x in lines if search(r'^\d+$', x) is None]
-    lines = [x for x in lines if search(r'^$', x) is None]
+    lines = [x for x in lines if re.search(r'^\d+$', x) is None]
+    lines = [x for x in lines if re.search(r'^$', x) is None]
     return '\n'.join(lines)
+
+
+def cleanup2(text):
+    text = text.replace('\\N', ' ')
+    text = re.sub(r'-\n', '-', text)
+    return text
+
+
+class NrkUrl:
+    def __init__(self, typ, name, ym, dkno):
+        self.typ = typ
+        self.name = name
+        self.ym = ym
+        self.dkno = dkno
+    def __repr__(self):
+        return 'NrkUrl(%s, %s, %s, %s)' % (self.typ, self.name, self.ym, self.dkno)
+    @staticmethod
+    def from_url(url):
+        # https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO98061322/avspiller
+        m = re.search(r'^https?://tv.nrk.no/(?P<type>\w+)/(?P<name>[^/]+)/(?P<ym>\d+)/(?P<dkno>DKNO\d+)(.+)?', url)
+        if not m: raise ValueError('Invalid url: %s' % url)
+        return NrkUrl(m.group('type'), m.group('name'), m.group('ym'), m.group('dkno'))
+
+
+async def fetch_nrk_metadata(dkno):
+    url = 'https://psapi.nrk.no/playback/metadata/program/%s' % dkno
+    return json.loads(await async_http_get(url))
+
+
+def non_empty_file(path):
+    return isfile(path) and getsize(path) > 0
+
+
+class IndexPoint:
+    def __init__(self, start, title):
+        self.start = start
+        self.title = title
+    def __repr__(self):
+        M = int(self.start) // 60
+        S = int(self.start) % 60
+        return '%02d:%02d %s' % (M, S, self.title)
+    @staticmethod
+    def from_json(data):
+        # PT7M6.24S
+        rx = re.compile(r'''
+            ^PT
+            ((?P<hours>\d+)H)?
+            ((?P<minutes>\d+)M)?
+            (?P<seconds>\d+(\.\d+)?)S
+            $''',
+            re.VERBOSE)
+        m = rx.search(data['startPoint'])
+        if m is None: raise ValueError('Invalid IndexPoint: %s' % data)
+        H = int(m.group('hours') or '0')
+        M = int(m.group('minutes') or '0')
+        S = float(m.group('seconds') or '0')
+        return IndexPoint(H*3600+M*60+S, data['title'])
 
 
 class Episode:
     def __init__(self, title, url, date):
         self.title = title
         self.url = url
+        self.nrkurl = NrkUrl.from_url(url)
         self.date = date
         self.short = self.date.strftime('%Y%m%d-%H%M')
 
+    @property
+    def day(self):
+        return self.date.strftime('%Y%m%d')
+
     def srt(self):
-        with open(find_first(self.base + '/**/*.srt')) as f:
+        name = find_first(self.base + '/**/*.srt')
+        if name is None: raise ValueError('No srt file found in %s' % self.base)
+        with open(name) as f:
             return f.read()
+
+    async def pretty_srt(self):
+        ip = await self.index_points()
+        ip.sort(key=lambda x: x.start)
+        times = [pysubs2.make_time(s=x.start) for x in ip]
+        def bucket(x: pysubs2.SSAEvent): return bisect_right(times, x.start)
+        blocks = []
+        with NamedTemporaryFile(suffix='.srt') as f:
+            f.write(self.srt().encode())
+            f.flush()
+            for k, g in groupby(pysubs2.load(f.name), key=bucket):
+                g = sorted(g, key=lambda x: x.start)
+                g = '\n'.join([cleanup2(x.text) for x in g])
+                g = cleanup2(g)
+                blocks.append(str(ip[k-1]) + '\n' + g)
+        blocks = '\n\n'.join(blocks)
+        body = self.day + '\n' + self.url + '\n\n' + blocks
+        return body
+
+    @property
+    def metafile(self):
+        return join(self.base, 'metadata.json')
+
+    async def metadata(self):
+        if not non_empty_file(self.metafile):
+            await ui_notify('NRKUP', 'Fetching metadata: ' + self.nrkurl.dkno)
+            data = await fetch_nrk_metadata(self.nrkurl.dkno)
+            spit(self.metafile, data, js=True)
+        with open(self.metafile) as f: return json.load(f)
+
+    async def index_points(self):
+        data = await self.metadata()
+        return [IndexPoint.from_json(x) for x in data['preplay']['indexPoints']]
 
     async def mp3(self):
         # if exists(self.audio):
         #     return self.audio
+        await self.metadata()
         video = find_first(self.base + '/**/*.m4v')
         if not video:
             await ui_notify('NRKUP', 'nwkdownload: Downloading video: ' + self.title)
@@ -157,8 +276,7 @@ class Episode:
 
     @property
     def base(self):
-        hash = sha1(self.url.encode('utf8')).hexdigest()[:8]
-        return f'{BASE}/{self.short}-{hash}'
+        return f'{BASE}/{self.short}-{self.nrkurl.dkno}'
 
     @property
     def audio(self):
@@ -194,7 +312,7 @@ class TeleFile:
 
     async def recent(self, limit=100):
         out = []
-        async for i, m in aupto(self.client.iter_messages(self.chat), limit):
+        async for _, m in aupto(self.client.iter_messages(self.chat), limit):
             try:
                 out.append(m.file.name)
             except AttributeError:
@@ -241,8 +359,7 @@ async def fetch(url):
 async def subtitles(url):
     episode = await Episode.make(url)
     logging.info('Found episode: %s', episode)
-    body = episode.name + '\n' + url + '\n' + episode.srt()
-    return cleanup(body)
+    return await episode.pretty_srt()
 
 
 class HttpServer:
@@ -301,6 +418,13 @@ def test(url=None):
     # loop.run_until_complete(fetch(url))
     loop.run_until_complete(HttpServer(host, port, loop).run())
     loop.run_forever()
+
+
+def testsub(url=None):
+    url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO98061322/avspiller'
+    disable_logging()
+    loop = new_event_loop()
+    loop.run_until_complete(subtitles(url))
 
 
 def assert_bin(*names):
