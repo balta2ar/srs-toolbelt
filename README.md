@@ -16,6 +16,7 @@ srs-toolbelt (former yandex-slovari-tetradki)
   - [6. Convert Google Keep note with Korean words into Memrise course with pronunciation](#6-convert-google-keep-note-with-korean-words-into-memrise-course-with-pronunciation)
   - [7. Do forced alignment for korean sentences from my Korean textbook and convert them to Memrise course (flash cards).](#7-do-forced-alignment-for-korean-sentences-from-my-korean-textbook-and-convert-them-to-memrise-course-flash-cards)
   - [8. Multi-sourced UI for several norwegian dictionaries](#8-multi-sourced-ui-for-several-norwegian-dictionaries)
+  - [9. NRK news fetcher](#9-nrk-news-fetcher)
   - [My decks](#my-decks)
     - [Anki](#anki)
     - [Memrise](#memrise)
@@ -261,6 +262,37 @@ Page 3:
 * Definitions from https://dictionary.cambridge.org/dictionary/english-norwegian/
 
 **Shortcuts**: switch between pages with `Alt-!`, `Alt-@`, `Alt-#` (weird shortcuts are convenient in my layout).
+
+## 9. NRK news fetcher
+
+I tend to use news from [Nordland](https://tv.nrk.no/serie/distriktsnyheter-nordland/) as my study materials, which I listen to, try to understand, translate, and memorize new words. To help with that, [nrkup.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/uitools/nrkup/nrkup.py) service helps a lot. It can:
+
+* Donwload and save video of episodes using [nrkdownload](https://github.com/marhoy/nrk-download)
+* Extract audio track
+* Remove silence from audio and apply dynamic range compression using [sox](http://sox.sourceforge.net/) for better sound quality
+* Upload that audio to Telegram -- I use Telegram as my audio player
+* Fetch subtitles and generate study text material by grouping text accroding to news sections in the report, e.g. (removed most of the text for compactness):
+
+```
+20220613
+https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO98061322/avspiller
+http://localhost:7000/subtitles?url=https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO98061322/avspiller
+
+1 00:01 NRK Nordland
+Det er uklart når problemene med de nye hurtigbåtene vil være løst.
+
+2 00:28 Det er uklart når problemene med de nye hurtigbåtene vil være løst
+Sjøfartsdirektoratet roser mannskapet som slo alarm om redningsflåten på hurtigbåter.
+
+3 02:47 Kjemper for danselinja
+Danseelever møtte opp på fylkestinget i dag.
+
+4 04:53 Kjemper for danselinja
+Reporter Frank Nygård, reaksjonene er sterke etter at forslaget om nedleggelse kom?
+
+10 13:44 Takk for nå
+Takk for følget.
+```
 
 ## My decks
 
