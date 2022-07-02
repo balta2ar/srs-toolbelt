@@ -7,7 +7,6 @@ import shutil
 from asyncio import TimeoutError as AsyncioTimeoutError
 from asyncio import create_subprocess_shell
 from asyncio import new_event_loop
-from asyncio import run_coroutine_threadsafe
 from bisect import bisect_right
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -15,6 +14,7 @@ from glob import glob
 from itertools import groupby
 from os import environ
 from os import makedirs
+from os.path import dirname
 from os.path import exists
 from os.path import expanduser
 from os.path import expandvars
@@ -58,6 +58,7 @@ def which(program):
 
 
 def spit(where, what, js=False):
+    if not exists(dirname(where)): makedirs(dirname(where), exist_ok=True)
     with open(where, 'w') as f:
         if js: what = json.dumps(what, indent=2)
         f.write(what)
@@ -85,8 +86,8 @@ async def async_http_get(url, timeout=10.0):
                     if i == retries - 1:
                         raise
     cache = Cache(CACHE_DIR)
-    if 'url' not in cache: cache['url'] = await request()
-    return cache['url']
+    if url not in cache: cache[url] = await request()
+    return cache[url]
 
 
 async def async_run(args):
@@ -386,9 +387,10 @@ class HttpServer:
             url = (await request.json()).get('url')
             if not url: return web.Response(status=400, text='Missing url')
             await ui_notify('NRKUP', 'Fetching: ' + url)
-            run_coroutine_threadsafe(fetch(url), self.loop)
+            await fetch(url)
             return web.Response(text='OK ' + url)
         except Exception as e:
+            logging.exception(e)
             return web.Response(status=400, text=str(e))
 
     async def subtitles(self, request):
