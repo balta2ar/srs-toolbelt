@@ -2,17 +2,17 @@
 import asyncio
 import json
 import logging
+import re
 import shutil
 from asyncio import TimeoutError as AsyncioTimeoutError
 from asyncio import create_subprocess_shell
 from asyncio import new_event_loop
 from asyncio import run_coroutine_threadsafe
+from bisect import bisect_right
 from contextlib import asynccontextmanager
 from datetime import datetime
 from glob import glob
-from tempfile import NamedTemporaryFile
 from itertools import groupby
-from bisect import bisect_right
 from os import environ
 from os import makedirs
 from os.path import exists
@@ -21,8 +21,8 @@ from os.path import expandvars
 from os.path import getsize
 from os.path import isfile
 from os.path import join
-import re
 from shlex import quote
+from tempfile import NamedTemporaryFile
 
 import hachoir
 import pysubs2
@@ -32,7 +32,6 @@ from aiohttp_middlewares import cors_middleware
 from bs4 import BeautifulSoup
 from diskcache import Cache
 from urllib3 import disable_warnings
-
 from yatetradki.tools.telegram import aupto
 from yatetradki.tools.telegram import init_client
 from yatetradki.utils import must_env
@@ -232,9 +231,9 @@ class Episode:
                 g = sorted(g, key=lambda x: x.start)
                 g = '\n'.join([cleanup2(x.text) for x in g])
                 g = cleanup2(g)
-                blocks.append(str(ip[k-1]) + '\n' + g)
+                blocks.append(str(k) + ' ' + str(ip[k-1]) + '\n' + g)
         blocks = '\n\n'.join(blocks)
-        body = self.day + '\n' + self.url + '\n\n' + blocks
+        body = self.day + '\n' + self.url + '\n' + subtitles_url(self.url) + '\n\n' + blocks
         return body
 
     @property
@@ -356,6 +355,10 @@ async def fetch(url):
         await ui_notify('NRKUP', 'Uploaded: ' + episode.name)
 
 
+def subtitles_url(url):
+    return f'http://{HOST}:{PORT}/subtitles?url={url}'
+
+
 async def subtitles(url):
     episode = await Episode.make(url)
     logging.info('Found episode: %s', episode)
@@ -424,7 +427,7 @@ def testsub(url=None):
     url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO98061322/avspiller'
     disable_logging()
     loop = new_event_loop()
-    loop.run_until_complete(subtitles(url))
+    print(loop.run_until_complete(subtitles(url)))
 
 
 def assert_bin(*names):
