@@ -87,7 +87,9 @@ async def async_http_get(url, timeout=10.0):
                         raise
     cache = Cache(CACHE_DIR)
     if url not in cache: cache[url] = await request()
-    return cache[url]
+    result = cache[url]
+    cache.close()
+    return result
 
 
 async def async_run(args):
