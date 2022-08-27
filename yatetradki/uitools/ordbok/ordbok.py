@@ -1101,6 +1101,7 @@ class MainWindow(QWidget):
         logging.info('Setting text: %s', text)
         self.myTranslate.emit(text)
         self.comboBox.setCurrentText(text)
+        self.comboBox.insertItem(0, text)
         req = text+'?invalidate=1' if invalidate else text
         urls = [ui_mix_url(req),
                 ui_nor_url(req),
