@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 import asyncio
 import json
 import logging
@@ -23,6 +24,7 @@ from os.path import isfile
 from os.path import join
 from shlex import quote
 from tempfile import NamedTemporaryFile
+from typing import List
 
 import hachoir
 import pysubs2
@@ -55,6 +57,13 @@ def which(program):
         path = shutil.which(program, path=path)
         if path:
             return path
+
+
+def slurp(where, js=False):
+    with open(where) as f:
+        what = f.read()
+        if js: what = json.loads(what)
+        return what
 
 
 def spit(where, what, js=False):
@@ -108,6 +117,10 @@ async def ui_notify(title, message):
     await async_run([which('notify-send'), title, message])
 
 
+async def detect_speakers(audio, output):
+    await async_run([which('detect-speakers'), audio, '-o', output])
+
+
 def find_first(pattern):
     files = glob(pattern, recursive=True)
     return files[0] if len(files) > 0 else None
@@ -148,7 +161,9 @@ def cleanup(text):
 
 def cleanup2(text):
     text = text.replace('\\N', ' ')
+    text = text.replace('- -', '--')
     text = re.sub(r'-\n', '-', text)
+    text = text.strip()
     return text
 
 
@@ -177,10 +192,43 @@ def non_empty_file(path):
     return isfile(path) and getsize(path) > 0
 
 
+class SpeakerSection:
+    def __init__(self, start: float, end: float, speaker: str):
+        self.start: float = start
+        self.end: float = end
+        self.speaker: str = speaker
+    def __repr__(self):
+        return 'SpeakerSection(%s, %s, %s)' % (self.start, self.end, self.speaker)
+    @staticmethod
+    def from_json(data):
+        return SpeakerSection(data['start'], data['end'], data['speaker'])
+    # @staticmethod
+    # def collapse(sections: List[SpeakerSection]) -> List[SpeakerSection]:
+    #     sections = sorted(sections, key=lambda x: x.start)
+    #     result: List[SpeakerSection] = []
+    #     for section in sections:
+    #         if len(result) == 0: section.start = 0.0
+    #         if len(result) == 0 or result[-1].speaker != section.speaker:
+    #             result.append(section)
+    #         else:
+    #             result[-1].end = max(result[-1].end, section.end)
+    #     return result
+
+
+class Speakers:
+    def __init__(self, filename, timeline):
+        self.filename = filename
+        self.timeline = timeline
+    @staticmethod
+    def from_json(data):
+        return Speakers(data['filename'],
+                        [SpeakerSection.from_json(x) for x in data['timeline']])
+
+
 class IndexPoint:
-    def __init__(self, start, title):
-        self.start = start
-        self.title = title
+    def __init__(self, start: float, title: str):
+        self.start: float = start
+        self.title: str = title
     def __repr__(self):
         M = int(self.start) // 60
         S = int(self.start) % 60
@@ -203,6 +251,53 @@ class IndexPoint:
         return IndexPoint(H*3600+M*60+S, data['title'])
 
 
+class Srt:
+    def __init__(self, raw: str, index_points: List[IndexPoint], timeline: List[SpeakerSection]):
+        self.raw = raw
+        self.index_points = sorted(index_points, key=lambda x: x.start)
+        self.topic_times = [pysubs2.make_time(s=x.start) for x in self.index_points]
+        self.timeline = sorted(timeline, key=lambda x: x.start)
+        self.timeline_times = [pysubs2.make_time(s=x.start) for x in self.timeline]
+    def topic(self, x: pysubs2.SSAEvent):
+        return bisect_right(self.topic_times, x.start)
+    def speaker(self, x: pysubs2.SSAEvent):
+        index = bisect_right(self.timeline_times, x.start)
+        y = self.timeline[index]
+        #print('SPEAKER', index, y.speaker, x.start, y.start, x.text)
+        return y.speaker
+    def subs(self) -> List[pysubs2.SSAEvent]:
+        with NamedTemporaryFile(suffix='.srt') as f:
+            f.write(self.raw.encode())
+            f.flush()
+            return pysubs2.load(f.name)
+    def by_topic(self, subs: List[pysubs2.SSAEvent]):
+        for k, g in groupby(subs, key=self.topic):
+            g = sorted(g, key=lambda x: x.start)
+            yield k, g
+    def by_speaker(self, subs: List[pysubs2.SSAEvent]):
+        for k, g in groupby(subs, key=self.speaker):
+            g = sorted(g, key=lambda x: x.start)
+            yield k, g
+    def blocks(self):
+        blocks = []
+        subs = self.subs()
+        for topic_index, g1 in self.by_topic(subs):
+            #print('NEW TOPIC, INDEX =', topic_index)
+            topic = []
+            for speaker_index, g2 in self.by_speaker(g1):
+                g2 = cleanup2(' '.join([cleanup2(x.text) for x in g2]))
+                topic.append(g2)
+                #speaker = self.timeline[speaker_index].speaker
+                #print(speaker_index, speaker, g2)
+                #print(speaker_index, g2)
+            g1 = cleanup2('\n'.join(topic))
+            block = str(topic_index) + ' ' + str(self.index_points[topic_index-1]) + '\n' + g1
+            blocks.append(block)
+            #print('-'*80)
+        blocks = '\n\n'.join(blocks)
+        return blocks
+
+
 class Episode:
     def __init__(self, title, url, date):
         self.title = title
@@ -218,24 +313,26 @@ class Episode:
     def srt(self):
         name = find_first(self.base + '/**/*.srt')
         if name is None: raise ValueError('No srt file found in %s' % self.base)
-        with open(name) as f:
-            return f.read()
+        return slurp(name)
 
     async def pretty_srt(self):
-        ip = await self.index_points()
-        ip.sort(key=lambda x: x.start)
-        times = [pysubs2.make_time(s=x.start) for x in ip]
-        def bucket(x: pysubs2.SSAEvent): return bisect_right(times, x.start)
-        blocks = []
-        with NamedTemporaryFile(suffix='.srt') as f:
-            f.write(self.srt().encode())
-            f.flush()
-            for k, g in groupby(pysubs2.load(f.name), key=bucket):
-                g = sorted(g, key=lambda x: x.start)
-                g = '\n'.join([cleanup2(x.text) for x in g])
-                g = cleanup2(g)
-                blocks.append(str(k) + ' ' + str(ip[k-1]) + '\n' + g)
-        blocks = '\n\n'.join(blocks)
+        index_points = await self.index_points()
+        speakers = await self.speakers()
+        srt = Srt(self.srt(), index_points, speakers.timeline)
+        # topics.sort(key=lambda x: x.start)
+        # times = [pysubs2.make_time(s=x.start) for x in topics]
+        # def topic(x: pysubs2.SSAEvent): return bisect_right(times, x.start)
+        # blocks = []
+        # with NamedTemporaryFile(suffix='.srt') as f:
+        #     f.write(self.srt().encode())
+        #     f.flush()
+        #     for k, g in groupby(pysubs2.load(f.name), key=topic):
+        #         g = sorted(g, key=lambda x: x.start)
+        #         g = '\n'.join([cleanup2(x.text) for x in g])
+        #         g = cleanup2(g)
+        #         blocks.append(str(k) + ' ' + str(topics[k-1]) + '\n' + g)
+        # blocks = '\n\n'.join(blocks)
+        blocks = srt.blocks()
         body = self.day + '\n' + self.url + '\n' + subtitles_url(self.url) + '\n\n' + blocks
         return body
 
@@ -248,9 +345,20 @@ class Episode:
             await ui_notify('NRKUP', 'Fetching metadata: ' + self.nrkurl.dkno)
             data = await fetch_nrk_metadata(self.nrkurl.dkno)
             spit(self.metafile, data, js=True)
-        with open(self.metafile) as f: return json.load(f)
+        return slurp(self.metafile, js=True)
 
-    async def index_points(self):
+    @property
+    def speakersfile(self):
+        return join(self.base, 'speakers.json')
+
+    async def speakers(self):
+        if not non_empty_file(self.speakersfile):
+            await ui_notify('NRKUP', 'Detecting speakers: ' + self.nrkurl.dkno)
+            await detect_speakers(await self.mp3(), self.speakersfile)
+        data = slurp(self.speakersfile, js=True)
+        return Speakers.from_json(data)
+
+    async def index_points(self) -> List[IndexPoint]:
         data = await self.metadata()
         return [IndexPoint.from_json(x) for x in data['preplay']['indexPoints']]
 
@@ -429,17 +537,19 @@ def test(url=None):
 
 def testsub(url=None):
     url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO98061322/avspiller'
+    url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202207/DKNO98072622/avspiller'
     disable_logging()
     loop = new_event_loop()
+    #loop.run_until_complete(subtitles(url))
     print(loop.run_until_complete(subtitles(url)))
 
 
 def assert_bin(*names):
     for name in names:
-        assert which(name)
+        assert which(name), name
 
 def main():
-    assert_bin('notify-send', 'ffmpeg', 'nrkdownload', 'sox')
+    assert_bin('notify-send', 'ffmpeg', 'nrkdownload', 'sox', 'detect-speakers')
     logging.info('hachoir version: %s', hachoir.__version__)
     load_env('~/.telegram')
     disable_logging()
