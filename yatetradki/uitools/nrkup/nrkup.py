@@ -262,6 +262,7 @@ class Srt:
         return bisect_right(self.topic_times, x.start)
     def speaker(self, x: pysubs2.SSAEvent):
         index = bisect_right(self.timeline_times, x.start)
+        index = min(index, len(self.timeline)-1)
         y = self.timeline[index]
         #print('SPEAKER', index, y.speaker, x.start, y.start, x.text)
         return y.speaker
@@ -509,6 +510,7 @@ class HttpServer:
         try:
             return web.Response(text=await subtitles(url))
         except Exception as e:
+            logging.exception(e)
             message = 'Cannot get subtitles for ' + url + ': ' + str(e)
             return web.Response(status=500, text=message)
 
