@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 from threading import Thread
 from urllib.request import urlopen, Request
+from PyQt6 import QtGui
 
 from aiohttp import web, ClientSession
 from aiohttp_jinja2 import setup as aiohttp_jinja2_setup
@@ -105,13 +106,15 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 from playwright.async_api import TimeoutError as PlaywrightTimeoutErrorAsync
 
-from PyQt5.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
+from PyQt6.QtWidgets import (QApplication, QComboBox, QVBoxLayout,
                              QWidget, QCompleter,
-                             QSystemTrayIcon, QMenu, QAction)
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage
-from PyQt5.QtGui import QIcon, QFont, QClipboard
-from PyQt5.QtCore import Qt, QTimer, QUrl
-from PyQt5.QtCore import pyqtSignal, pyqtSlot
+                             QSystemTrayIcon, QMenu)
+from PyQt6.QtGui import QAction
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWebEngineCore import QWebEnginePage
+from PyQt6.QtGui import QIcon, QFont, QClipboard
+from PyQt6.QtCore import Qt, QTimer, QUrl
+from PyQt6.QtCore import pyqtSignal, pyqtSlot
 
 from yatetradki.reader.dsl import lookup as dsl_lookup
 from yatetradki.uitools.index.search import search as index_search
@@ -961,23 +964,23 @@ class Browsers:
         for browser in self.browsers:
             browser.setZoomFactor(factor)
     def scan_shortcut(self, e):
-        if (e.key() == Qt.Key_Exclam) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+        if (e.key() == Qt.Key.Key_Exclam) and (e.modifiers() == Qt.KeyboardModifier.AltModifier): # and (e.type == QEvent.KeyPress):
             return 0
-        if (e.key() == Qt.Key_At) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+        if (e.key() == Qt.Key.Key_At) and (e.modifiers() == Qt.KeyboardModifier.AltModifier): # and (e.type == QEvent.KeyPress):
             return 1
-        if (e.key() == Qt.Key_NumberSign) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+        if (e.key() == Qt.Key.Key_NumberSign) and (e.modifiers() == Qt.KeyboardModifier.AltModifier): # and (e.type == QEvent.KeyPress):
             return 2
-        if (e.key() == Qt.Key_Dollar) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+        if (e.key() == Qt.Key.Key_Dollar) and (e.modifiers() == Qt.KeyboardModifier.AltModifier): # and (e.type == QEvent.KeyPress):
             return 3
-        if (e.key() == Qt.Key_Q) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+        if (e.key() == Qt.Key.Key_Q) and (e.modifiers() == Qt.KeyboardModifier.AltModifier): # and (e.type == QEvent.KeyPress):
             return 4
-        if (e.key() == Qt.Key_W) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+        if (e.key() == Qt.Key.Key_W) and (e.modifiers() == Qt.KeyboardModifier.AltModifier): # and (e.type == QEvent.KeyPress):
             return 5
-        if (e.key() == Qt.Key_F) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+        if (e.key() == Qt.Key.Key_F) and (e.modifiers() == Qt.KeyboardModifier.AltModifier): # and (e.type == QEvent.KeyPress):
             return 6
-        if (e.key() == Qt.Key_P) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+        if (e.key() == Qt.Key.Key_P) and (e.modifiers() == Qt.KeyboardModifier.AltModifier): # and (e.type == QEvent.KeyPress):
             return 7
-        if (e.key() == Qt.Key_H) and (e.modifiers() == Qt.AltModifier): # and (e.type == QEvent.KeyPress):
+        if (e.key() == Qt.Key.Key_H) and (e.modifiers() == Qt.KeyboardModifier.AltModifier): # and (e.type == QEvent.KeyPress):
             return 8
         return None
     def on_key_press(self, e):
@@ -1070,8 +1073,8 @@ class MainWindow(QWidget):
             self.grab(QApplication.clipboard().text())
 
     def unminimize(self):
-        if self.windowState() == Qt.WindowMinimized:
-            self.setWindowState(Qt.WindowNoState)
+        if self.windowState() == Qt.WindowState.WindowMinimized:
+            self.setWindowState(Qt.WindowState.WindowNoState)
 
     def activate(self):
         self.grab_clipboard()
@@ -1085,15 +1088,13 @@ class MainWindow(QWidget):
 
     def center(self):
         qr = self.frameGeometry()
-        desktop = QApplication.desktop()
-        screen = desktop.screenNumber(desktop.cursor().pos())
-        cp = desktop.screenGeometry(screen).center()
-        qr.moveCenter(cp)
+        screen = self.app.screenAt(QtGui.QCursor().pos()).availableGeometry()
+        qr.moveCenter(screen.center())
         self.move(qr.topLeft())
 
     def suggest(self, words):
         completer = QCompleter(words, self)
-        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.comboBox.setCompleter(completer)
         completer.complete()
 
@@ -1147,21 +1148,21 @@ class MainWindow(QWidget):
     def keyPressEvent(self, e):
         if self.browsers.on_key_press(e):
             return
-        if e.key() == Qt.Key_Escape:
+        if e.key() == Qt.Key.Key_Escape:
             self.hide()
-        elif (e.key() == Qt.Key_Q) and (e.modifiers() == Qt.ControlModifier):
+        elif (e.key() == Qt.Key.Key_Q) and (e.modifiers() == Qt.KeyboardModifier.ControlModifier):
             self.close()
-        elif (e.key() == Qt.Key_L) and (e.modifiers() == Qt.ControlModifier):
+        elif (e.key() == Qt.Key.Key_L) and (e.modifiers() == Qt.KeyboardModifier.ControlModifier):
             self.comboBox.lineEdit().selectAll()
             self.comboBox.setFocus()
-        elif (e.key() == Qt.Key_W) and (e.modifiers() == Qt.ControlModifier):
+        elif (e.key() == Qt.Key.Key_W) and (e.modifiers() == Qt.KeyboardModifier.ControlModifier):
             self.toggle_active_mode()
-        elif (e.key() == Qt.Key_Return) and (e.modifiers() == Qt.ControlModifier):
+        elif (e.key() == Qt.Key.Key_Return) and (e.modifiers() == Qt.KeyboardModifier.ControlModifier):
             if not self.text(): return
             logging.info('querying with invalidate=True')
             self.last_manual_change = time.time()
             self.set_text(self.text(), invalidate=True)
-        elif e.key() == Qt.Key_Return:
+        elif e.key() == Qt.Key.Key_Return:
             if not self.text(): return
             self.last_manual_change = time.time()
             self.set_text(self.text())
