@@ -28,10 +28,39 @@ COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/s
 _logger = get_logger('add_audio')
 
 def cleanup_html(text):
-    text = re.sub(r'<br>$', '', text)
-    text = re.sub(r'&nbsp;', ' ', text)
-    text = re.sub(r'  ', ' ', text)
-    text = re.sub(r' ([.,!?])', r'\1', text)
+    def nowhite(text):
+        text = re.sub(r' +', ' ', text)
+        text = re.sub(r'^ +', '', text)
+        text = re.sub(r' +$', '', text)
+        return text
+    def noemptydiv(text): return re.sub(r'<div></div>', '', text)
+    def twobr(text): return re.sub(r'<br><br><br>', '<br><br>', text)
+    def divs(text): return re.sub(r'<div>', '', text)
+    def dive(text): return re.sub(r'</div>', '<br>', text)
+    def full(text):
+        text = nowhite(text)
+        text = re.sub(r'</?\b(?!(?:br|b|strong)\b)[^>]+>', ' ', text)
+        #text = re.sub(r' *(</?br>) *', r'\1', text)
+        text = re.sub(r'</?br>$', r'', text)
+        text = re.sub(r'&nbsp;', ' ', text)
+        text = re.sub(r'  ', ' ', text)
+        text = re.sub(r' ([.,!?])', r'\1', text)
+        text = nowhite(text)
+        return text
+    def keep(text, fns):
+        old = text
+        i, limit = 0, 20
+        while i < limit:
+            i += 1
+            for fn in fns:
+                text = fn(text)
+            if text == old:
+                return text
+            old = text
+    text = keep(text, [noemptydiv, twobr, divs, dive])
+    text = full(text)
+    text = full(text)
+    text = full(text)
     return text
 
 def cleanup_fields(deck, deck_name, model_name, field_names, col, allowed):
@@ -140,6 +169,12 @@ def main():
     args.fields = args.fields.split(',')
 
     sys.exit(add_audio(args))
+
+
+def test_cleanup():
+    def same(actual, expected):
+        assert actual == expected, 'actual "{}" != expected "{}"'.format(actual, expected)
+    same(cleanup_html('   so</br>me<div><div><div></div><div>text<br></div>more</br></div></br>'), 'so</br>me text<br>more')
 
 
 if __name__ == '__main__':
