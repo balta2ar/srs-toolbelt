@@ -72,7 +72,7 @@ def cleanup_fields(deck, deck_name, model_name, field_names, col, allowed):
 
     added = []
     for fnote in found_notes:
-        note = col.getNote(fnote)
+        note = col.get_note(fnote)
         note.note_type()['did'] = deck['id']
         fields = {field: note.fields[field_names.index(field)]
                   for field in field_names}
@@ -80,11 +80,14 @@ def cleanup_fields(deck, deck_name, model_name, field_names, col, allowed):
             field_value = fields[field_name]
             new_value = cleanup_html(field_value)
             if new_value != field_value:
-                _logger.info('Fixed field "%s", new value="%s"', field_name, new_value)
+                _logger.info('Fixed field "%s"', field_name)
+                _logger.info('old="%s"', field_value)
+                _logger.info('new="%s"', new_value)
                 note.fields[field_names.index(field_name)] = new_value
                 added.append(new_value)
                 note.flush()
                 col.save()
+    #sys.exit(1)
     if added:
         mute_networking_logging()
         notify('Fixed html in {0} fields'.format(len(added)))
@@ -121,7 +124,7 @@ def add_audio(args):
 
     added = []
     for fnote in found_notes:
-        note = col.getNote(fnote)
+        note = col.get_note(fnote)
         note.note_type()['did'] = deck['id']
         fields = {field: note.fields[args.fields.index(field)]
                   for field in args.fields}
