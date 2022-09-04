@@ -1051,7 +1051,7 @@ class MainWindow(QWidget):
 
     def on_active_mode(self):
         if self.active_mode and not self.focused():
-            self.grab(QApplication.clipboard().text(QClipboard.Selection))
+            self.grab(QApplication.clipboard().text(QClipboard.Mode.Selection))
         QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
 
     def short(self, content):
@@ -1069,7 +1069,7 @@ class MainWindow(QWidget):
         return (time.time() - self.last_manual_change) < RECENT_GRAB_DELAY
 
     def grab_clipboard(self):
-        self.grab(QApplication.clipboard().text(QClipboard.Selection)) or \
+        self.grab(QApplication.clipboard().text(QClipboard.Mode.Selection)) or \
             self.grab(QApplication.clipboard().text())
 
     def unminimize(self):
