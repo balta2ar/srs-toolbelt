@@ -223,6 +223,7 @@ class Speakers:
     def from_json(data):
         return Speakers(data['filename'],
                         [SpeakerSection.from_json(x) for x in data['timeline']])
+    __repr__ = lambda self: 'Speakers(%s, %s)' % (self.filename, self.timeline)
 
 
 class IndexPoint:
