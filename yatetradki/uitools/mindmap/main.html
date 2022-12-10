@@ -1,0 +1,100 @@
+<html>
+    <meta charset="utf-8"/>
+    <head>
+        <title>Mindmap</title>
+        <script src="main.js"></script>
+        <style>
+a {
+    color: rgb(200,80,0);
+    text-decoration: none;
+}
+abbr {
+    #border-bottom: 1px dashed gray;
+    #text-decoration: underline dotted;
+    text-decoration-color: rgba(200,80,0,0.5);
+    #text-decoration: none;
+    #background-color: "#88888810";
+}
+dt {
+    display: inline-block;
+    text-align: right;
+    width: 120px;
+}
+dt:after {
+    content: ':'
+}
+dd {
+    margin-left: 8px;
+    display: inline;
+}
+dd:after {
+    display: block;
+    content: '';
+}
+
+table.calls td {
+    padding-left: 5px;
+    padding-right: 5px;
+    border-left: 1px solid gray;
+}
+table.calls td:first-child {
+    border-left: none;
+}
+.indent {
+    padding-left: 20px;
+}
+a:hover {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+.sup {
+    vertical-align: super;
+    font-size: smaller;
+}
+.key {
+    width: 100px;
+    display: inline-block;
+    text-align: right;
+    margin-right: 5px;
+    vertical-align: top;
+}
+.key:after {
+    content: ':';
+}
+.value {
+    width: 500px;
+    display: inline-block;
+    text-align: left;
+}
+.collapsed {
+    height: 20px;
+    overflow: hidden;
+}
+.details {
+    width: 100%;
+}
+.left {
+    display: inline-block;
+}
+h1 {
+    margin: 0px;
+    padding-right: 10px;
+}
+header {
+      display: flex;
+      align-items: center;
+}
+input {
+    width: 400px;
+}
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1><a href="/">Mindmap</a></h1>
+        </header>
+        <div id="main">
+            loading...
+        </div>
+    </body>
+</html>
