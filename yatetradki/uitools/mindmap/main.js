@@ -45,25 +45,33 @@ function example() {
     ])
 }
 
-function addLabel(parent, text, x, y) {
+function addLabel(parent, text, x, y, direction) {
     // const g = addSvg(parent, 'g', {
     //     // transform: `translate(${x}, ${y})`
     // })
     const t = addSvg(parent, 'text', {
-        x: x, y: y, style: 'fill: #ffffff;'
+        x: x, y: y, style: 'fill: #ffffff;',
     })
     t.textContent = text
     const w = t.getComputedTextLength()
-    const b = t.getBoundingClientRect()
+    const h = t.getBoundingClientRect().height
     const xmargin = 6
     const ymargin = 6
-    const yoff = b.height/2 + ymargin
+    const yoff = h/2 + ymargin
+    var rx = x-xmargin
+    const ry = y-yoff
+    const rw = w+2*xmargin
+    const rh = h
+    if (direction === 'left') {
+        t.setAttribute('text-anchor', 'end')
+        rx -= rw - 2*xmargin
+    }
     const r = makeSvg('rect', {
-        x: x-xmargin, y: y-yoff, width: w+2*xmargin, height: b.height, //-ymargin
+        x: rx, y: ry, width: rw, height: rh,
         style: 'fill: #486AFF; stroke: #000000; stroke-width: 0'
     })
     parent.insertBefore(r, t)
-    return [parent, w, b.height]
+    return [parent, w, h]
 }
 
 function layoutNaiveDownTree(root, parent, baseX, baseY) {
@@ -71,7 +79,7 @@ function layoutNaiveDownTree(root, parent, baseX, baseY) {
     const marginY = 30
 
     function scan(node, x, y) {
-        const [g, w, h] = addLabel(parent, node.text, x, y)
+        const [g, w, h] = addLabel(parent, node.text, x, y, 'right')
         var childI = 0
         var maxR = x
         for (const child of node.children) {
@@ -91,7 +99,7 @@ function layoutNaiveRightTree(root, parent, baseX, baseY) {
     const marginY = 15
 
     function scan(node, x, y) {
-        const [g, w, h] = addLabel(parent, node.text, x, y)
+        const [g, w, h] = addLabel(parent, node.text, x, y, 'right')
         var childI = 0
         var maxB = y
         for (const child of node.children) {
@@ -114,7 +122,7 @@ function layoutRightCenteredTree(root, parent, baseX, baseY) {
     function scan(node, parent, x, y) {
         const g = addSvg(parent, 'g', {})
         const gHeader = addSvg(g, 'g', {})
-        const [_g, w, h] = addLabel(gHeader, node.text, x, y)
+        const [_g, w, h] = addLabel(gHeader, node.text, x, y, 'right')
         var childI = 0
         var maxB = y
         const gChildren = addSvg(g, 'g', {})
@@ -143,13 +151,15 @@ function layoutLeftCenteredTree(root, parent, baseX, baseY) {
     function scan(node, parent, x, y) {
         const g = addSvg(parent, 'g', {})
         const gHeader = addSvg(g, 'g', {})
-        const [_g, w, h] = addLabel(gHeader, node.text, x, y)
+        const [_g, w, h] = addLabel(gHeader, node.text, x, y, 'left')
         var childI = 0
         var maxB = y
         const gChildren = addSvg(g, 'g', {})
         for (const child of node.children) {
             const my = childI === 0 ? 0 : marginY
-            const [t, b] = scan(child, gChildren, x + w + marginX, maxB + my)
+            const cx = x - w - marginX
+            const cy = maxB + my
+            const [t, b] = scan(child, gChildren, cx, cy)
             maxB = Math.max(maxB, b)
             childI++
         }
@@ -193,7 +203,7 @@ function enableMoveAndZoomViewport(el) {
     })
     el.addEventListener('wheel', function (e) {
         const delta = e.deltaY
-        const zoom = 1.1
+        const zoom = 1.05
         if (delta < 0) {
             scale *= zoom
         } else {
