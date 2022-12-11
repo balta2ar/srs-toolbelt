@@ -46,6 +46,9 @@ function example() {
 }
 
 function addLabel(parent, text, x, y) {
+    // const g = addSvg(parent, 'g', {
+    //     // transform: `translate(${x}, ${y})`
+    // })
     const t = addSvg(parent, 'text', {
         x: x, y: y, style: 'fill: #ffffff;'
     })
@@ -60,7 +63,7 @@ function addLabel(parent, text, x, y) {
         style: 'fill: #486AFF; stroke: #000000; stroke-width: 0'
     })
     parent.insertBefore(r, t)
-    return [w, b.height]
+    return [parent, w, b.height]
 }
 
 function layoutNaiveDownTree(root, parent, baseX, baseY) {
@@ -68,7 +71,7 @@ function layoutNaiveDownTree(root, parent, baseX, baseY) {
     const marginY = 30
 
     function scan(node, x, y) {
-        const [w, h] = addLabel(parent, node.text, x, y)
+        const [g, w, h] = addLabel(parent, node.text, x, y)
         var childI = 0
         var maxR = x
         for (const child of node.children) {
@@ -88,7 +91,7 @@ function layoutNaiveRightTree(root, parent, baseX, baseY) {
     const marginY = 15
 
     function scan(node, x, y) {
-        const [w, h] = addLabel(parent, node.text, x, y)
+        const [g, w, h] = addLabel(parent, node.text, x, y)
         var childI = 0
         var maxB = y
         for (const child of node.children) {
@@ -108,21 +111,29 @@ function layoutRightCenteredTree(root, parent, baseX, baseY) {
     const marginX = 20
     const marginY = 15
 
-    function scan(node, x, y) {
-        const [w, h] = addLabel(parent, node.text, x, y)
+    function scan(node, parent, x, y) {
+        const g = addSvg(parent, 'g', {})
+        const gHeader = addSvg(g, 'g', {})
+        const [_g, w, h] = addLabel(gHeader, node.text, x, y)
         var childI = 0
         var maxB = y
+        const gChildren = addSvg(g, 'g', {})
         for (const child of node.children) {
             const my = childI === 0 ? 0 : marginY
-            const [t, b] = scan(child, x + w + marginX, maxB + my)
+            const [t, b] = scan(child, gChildren, x + w + marginX, maxB + my)
             maxB = Math.max(maxB, b)
             childI++
         }
+        maxB = Math.max(y + marginY, maxB)
+        if (node.children.length > 0) {
+            const yoff = gChildren.getBBox().height / 2 - gHeader.getBBox().height / 2
+            gHeader.setAttribute('transform', `translate(0, ${yoff})`)
+        }
 
-        return [y, Math.max(y + marginY, maxB)]
+        return [y, maxB]
     }
 
-    scan(root, baseX, baseY)
+    scan(root, parent, baseX, baseY)
 }
 
 function Main() {
@@ -157,7 +168,7 @@ function Main() {
     layoutNaiveDownTree(root, g3, 0, 0)
 
     const g4 = addSvg(svg, 'g', {
-        transform: 'translate(550, 300)'
+        transform: 'translate(550, 400)'
     })
     layoutRightCenteredTree(root, g4, 0, 0)
 }
