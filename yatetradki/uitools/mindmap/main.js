@@ -104,6 +104,27 @@ function layoutNaiveRightTree(root, parent, baseX, baseY) {
     scan(root, baseX, baseY)
 }
 
+function layoutRightCenteredTree(root, parent, baseX, baseY) {
+    const marginX = 20
+    const marginY = 15
+
+    function scan(node, x, y) {
+        const [w, h] = addLabel(parent, node.text, x, y)
+        var childI = 0
+        var maxB = y
+        for (const child of node.children) {
+            const my = childI === 0 ? 0 : marginY
+            const [t, b] = scan(child, x + w + marginX, maxB + my)
+            maxB = Math.max(maxB, b)
+            childI++
+        }
+
+        return [y, Math.max(y + marginY, maxB)]
+    }
+
+    scan(root, baseX, baseY)
+}
+
 function Main() {
     main.innerText = ""
     var svg = addSvg(main, 'svg', {
@@ -131,9 +152,14 @@ function Main() {
     })
     layoutNaiveRightTree(root, g2, 0, 0)
     const g3 = addSvg(svg, 'g', {
-        transform: 'translate(400, 100)'
+        transform: 'translate(500, 100)'
     })
     layoutNaiveDownTree(root, g3, 0, 0)
+
+    const g4 = addSvg(svg, 'g', {
+        transform: 'translate(550, 300)'
+    })
+    layoutRightCenteredTree(root, g4, 0, 0)
 }
 
 function makeSvg(type, attr) {
