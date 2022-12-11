@@ -136,13 +136,52 @@ function layoutRightCenteredTree(root, parent, baseX, baseY) {
     scan(root, parent, baseX, baseY)
 }
 
+function enableMoveAndZoomViewport(el) {
+    var x = 0
+    var y = 0
+    var scale = 1
+    var dragging = false
+    var dragStartX = 0
+    var dragStartY = 0
+    el.addEventListener('mousedown', function (e) {
+        dragging = true
+        dragStartX = e.clientX
+        dragStartY = e.clientY
+    })
+    el.addEventListener('mousemove', function (e) {
+        if (dragging) {
+            const dx = e.clientX - dragStartX
+            const dy = e.clientY - dragStartY
+            x += dx
+            y += dy
+            dragStartX = e.clientX
+            dragStartY = e.clientY
+            el.setAttribute('transform', `translate(${x}, ${y}) scale(${scale})`)
+        }
+    })
+    el.addEventListener('mouseup', function (e) {
+        dragging = false
+    })
+    el.addEventListener('wheel', function (e) {
+        const delta = e.deltaY
+        const zoom = 1.1
+        if (delta < 0) {
+            scale *= zoom
+        } else {
+            scale /= zoom
+        }
+        el.setAttribute('transform', `translate(${x}, ${y}) scale(${scale})`)
+    })
+}
+
 function Main() {
     main.innerText = ""
     var svg = addSvg(main, 'svg', {
         width: "100%",
         height: "100%",
-        style: 'border:1px solid #000000'
+        // style: 'border:1px solid #000000'
     })
+    enableMoveAndZoomViewport(svg)
 
     var g = addSvg(svg, 'g', {
         transform: 'translate(10, 20)'
@@ -154,7 +193,7 @@ function Main() {
         style: 'fill: #000000; stroke: #ff0000; stroke-width: 1'
     })
 
-    text.textContent = 'hello'
+    // text.textContent = 'hello'
 
     const root = example()
     console.log('root: %o', root)
