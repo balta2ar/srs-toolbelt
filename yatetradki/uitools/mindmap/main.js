@@ -60,8 +60,6 @@ function addLabel(parent, text, x, y) {
         style: 'fill: #486AFF; stroke: #000000; stroke-width: 0'
     })
     parent.insertBefore(r, t)
-    // parent.appendChild(r)
-    // parent.appendChild(t)
     return [w, b.height]
 }
 
@@ -70,11 +68,6 @@ function layoutNaiveDownTree(root, parent, baseX, baseY) {
     const marginY = 30
 
     function scan(node, x, y) {
-        // const t = addSvg(parent, 'text', {
-        //     x: x, y: y, style: ''
-        // })
-        // t.textContent = node.text
-        // const w = t.getComputedTextLength()
         const [w, h] = addLabel(parent, node.text, x, y)
         var childI = 0
         var maxR = x
@@ -95,11 +88,6 @@ function layoutNaiveRightTree(root, parent, baseX, baseY) {
     const marginY = 15
 
     function scan(node, x, y) {
-        // const t = addSvg(parent, 'text', {
-        //     x: x, y: y, style: ''
-        // })
-        // t.textContent = node.text
-        // const w = t.getComputedTextLength()
         const [w, h] = addLabel(parent, node.text, x, y)
         var childI = 0
         var maxB = y
@@ -127,14 +115,6 @@ function Main() {
     var g = addSvg(svg, 'g', {
         transform: 'translate(10, 20)'
     })
-
-    // var rect = addSvg(g, 'rect', {
-    //     x: 0,
-    //     y: 0,
-    //     width: 100,
-    //     height: 100,
-    //     style: 'fill: #000000; stroke: #000000; stroke-width: 1'
-    // })
 
     var text = addSvg(g, 'text', {
         x: 0,
