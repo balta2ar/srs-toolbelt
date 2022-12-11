@@ -52,21 +52,22 @@ function addLabel(parent, text, x, y) {
     t.textContent = text
     const w = t.getComputedTextLength()
     const b = t.getBoundingClientRect()
-    const xmargin = 3
-    const ymargin = 3
+    const xmargin = 6
+    const ymargin = 6
     const yoff = b.height/2 + ymargin
-    const r = addSvg(parent, 'rect', {
-        x: x-xmargin, y: y-yoff, width: w+2*xmargin, height: b.height-ymargin,
+    const r = makeSvg('rect', {
+        x: x-xmargin, y: y-yoff, width: w+2*xmargin, height: b.height, //-ymargin
         style: 'fill: #486AFF; stroke: #000000; stroke-width: 0'
     })
+    parent.insertBefore(r, t)
     // parent.appendChild(r)
     // parent.appendChild(t)
     return [w, b.height]
 }
 
 function layoutNaiveDownTree(root, parent, baseX, baseY) {
-    const marginX = 10
-    const marginY = 25
+    const marginX = 20
+    const marginY = 30
 
     function scan(node, x, y) {
         // const t = addSvg(parent, 'text', {
