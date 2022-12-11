@@ -175,6 +175,37 @@ function layoutLeftCenteredTree(root, parent, baseX, baseY) {
     scan(root, parent, baseX, baseY)
 }
 
+function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
+    const marginX = 20
+    const marginY = 15
+
+    function scan(node, parent, x, y) {
+        const g = addSvg(parent, 'g', {})
+        const gHeader = addSvg(g, 'g', {})
+        const [_g, w, h] = addLabel(gHeader, node.text, x, y, 'left')
+        var childI = 0
+        var maxB = y
+        const gChildren = addSvg(g, 'g', {})
+        for (const child of node.children) {
+            const my = childI === 0 ? 0 : marginY
+            const cx = x - w - marginX
+            const cy = maxB + my
+            const [t, b] = scan(child, gChildren, cx, cy)
+            maxB = Math.max(maxB, b)
+            childI++
+        }
+        maxB = Math.max(y + marginY, maxB)
+        if (node.children.length > 0) {
+            const yoff = gChildren.getBBox().height / 2 - gHeader.getBBox().height / 2
+            gHeader.setAttribute('transform', `translate(0, ${yoff})`)
+        }
+
+        return [y, maxB]
+    }
+
+    scan(root, parent, baseX, baseY)
+}
+
 function enableMoveAndZoomViewport(el) {
     var x = 0
     var y = 0
@@ -237,23 +268,29 @@ function Main() {
     const root = example()
     console.log('root: %o', root)
     const g2 = addSvg(svg, 'g', {
-        transform: 'translate(50, 100)'
+        transform: 'translate(10, 50)'
     })
     layoutNaiveRightTree(root, g2, 0, 0)
+    
     const g3 = addSvg(svg, 'g', {
-        transform: 'translate(500, 100)'
+        transform: 'translate(400, 50)'
     })
     layoutNaiveDownTree(root, g3, 0, 0)
 
     const g4 = addSvg(svg, 'g', {
-        transform: 'translate(450, 300)'
+        transform: 'translate(350, 250)'
     })
     layoutRightCenteredTree(root, g4, 0, 0)
 
     const g5 = addSvg(svg, 'g', {
-        transform: 'translate(1250, 300)'
+        transform: 'translate(1150, 250)'
     })
     layoutLeftCenteredTree(root, g5, 0, 0)
+
+    const g6 = addSvg(svg, 'g', {
+        transform: 'translate(1450, 250)'
+    })
+    layoutLeftCenteredTree(root, g6, 0, 0)
 }
 
 function makeSvg(type, attr) {
