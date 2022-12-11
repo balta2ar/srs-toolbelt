@@ -45,15 +45,36 @@ function example() {
     ])
 }
 
+function addLabel(parent, text, x, y) {
+    const t = addSvg(parent, 'text', {
+        x: x, y: y, style: 'fill: #ffffff;'
+    })
+    t.textContent = text
+    const w = t.getComputedTextLength()
+    const b = t.getBoundingClientRect()
+    const xmargin = 3
+    const ymargin = 3
+    const yoff = b.height/2 + ymargin
+    const r = addSvg(parent, 'rect', {
+        x: x-xmargin, y: y-yoff, width: w+2*xmargin, height: b.height-ymargin,
+        style: 'fill: #486AFF; stroke: #000000; stroke-width: 0'
+    })
+    // parent.appendChild(r)
+    // parent.appendChild(t)
+    return [w, b.height]
+}
+
 function layoutNaiveDownTree(root, parent, baseX, baseY) {
     const marginX = 10
-    const marginY = 20
+    const marginY = 25
 
     function scan(node, x, y) {
-        const t = addSvg(parent, 'text', {
-            x: x, y: y, style: ''
-        })
-        t.textContent = node.text
+        // const t = addSvg(parent, 'text', {
+        //     x: x, y: y, style: ''
+        // })
+        // t.textContent = node.text
+        // const w = t.getComputedTextLength()
+        const [w, h] = addLabel(parent, node.text, x, y)
         var childI = 0
         var maxR = x
         for (const child of node.children) {
@@ -62,7 +83,6 @@ function layoutNaiveDownTree(root, parent, baseX, baseY) {
             maxR = Math.max(maxR, r)
             childI++
         }
-        const w = t.getComputedTextLength()
         return [x, Math.max(x + w, maxR)]
     }
 
@@ -71,14 +91,15 @@ function layoutNaiveDownTree(root, parent, baseX, baseY) {
 
 function layoutNaiveRightTree(root, parent, baseX, baseY) {
     const marginX = 20
-    const marginY = 10
+    const marginY = 15
 
     function scan(node, x, y) {
-        const t = addSvg(parent, 'text', {
-            x: x, y: y, style: ''
-        })
-        t.textContent = node.text
-        const w = t.getComputedTextLength()
+        // const t = addSvg(parent, 'text', {
+        //     x: x, y: y, style: ''
+        // })
+        // t.textContent = node.text
+        // const w = t.getComputedTextLength()
+        const [w, h] = addLabel(parent, node.text, x, y)
         var childI = 0
         var maxB = y
         for (const child of node.children) {
@@ -134,12 +155,17 @@ function Main() {
     layoutNaiveDownTree(root, g3, 0, 0)
 }
 
-function addSvg(parent, type, attr) {
+function makeSvg(type, attr) {
     var el = document.createElementNS('http://www.w3.org/2000/svg', type);
-    parent.appendChild(el)
     forEach(attr, (k, v) => {
         el.setAttribute(k, v)
     })
+    return el
+}
+
+function addSvg(parent, type, attr) {
+    var el = makeSvg(type, attr)
+    parent.appendChild(el)
     return el
 }
 
