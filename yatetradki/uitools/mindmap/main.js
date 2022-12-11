@@ -179,31 +179,58 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
     const marginX = 20
     const marginY = 15
 
-    function scan(node, parent, x, y) {
+    function scan(level, dir, node, parent, x, y) {
         const g = addSvg(parent, 'g', {})
         const gHeader = addSvg(g, 'g', {})
-        const [_g, w, h] = addLabel(gHeader, node.text, x, y, 'left')
+        const [_g, w, h] = addLabel(gHeader, node.text, x, y, dir)
+        function midChild() { return Math.floor(node.children.length / 2) }
+        function getMy(childI) {
+            const first = childI === 0
+            if (level > 0) { return first ? 0 : marginY }
+            const mid = childI === midChild()
+            return (first || mid) ? 0 : marginY
+        }
+        function nextDir(childI) {
+            if (level > 0) { return dir }
+            return childI < midChild() ? 'right' : 'left'
+        }
+        function getCx(nDir) {
+            switch (nDir) {
+                case 'left': return x - w - marginX
+                case 'right': return x + w + marginX
+                default: throw new Error('bad dir')
+            }
+        }
         var childI = 0
-        var maxB = y
+        var maxB1 = y
+        var maxB2 = y
+        var lastNextDir = undefined
         const gChildren = addSvg(g, 'g', {})
         for (const child of node.children) {
-            const my = childI === 0 ? 0 : marginY
-            const cx = x - w - marginX
-            const cy = maxB + my
-            const [t, b] = scan(child, gChildren, cx, cy)
-            maxB = Math.max(maxB, b)
+            const nDir = nextDir(childI)
+            if (lastNextDir === undefined) { lastNextDir = nDir }
+            if (lastNextDir !== nDir) { // reset maximums
+                maxB2 = maxB1
+                maxB1 = y
+                lastNextDir = nDir
+            }
+            const my = getMy(childI) //childI === 0 ? 0 : marginY
+            const cx = getCx(nDir)
+            const cy = maxB1 + my
+            const [t, b] = scan(level+1, nDir, child, gChildren, cx, cy)
+            maxB1 = Math.max(maxB1, b)
             childI++
         }
-        maxB = Math.max(y + marginY, maxB)
+        maxB1 = Math.max(y + marginY, maxB1, maxB2)
         if (node.children.length > 0) {
             const yoff = gChildren.getBBox().height / 2 - gHeader.getBBox().height / 2
             gHeader.setAttribute('transform', `translate(0, ${yoff})`)
         }
 
-        return [y, maxB]
+        return [y, maxB1]
     }
 
-    scan(root, parent, baseX, baseY)
+    scan(0, 'right', root, parent, baseX, baseY)
 }
 
 function enableMoveAndZoomViewport(el) {
@@ -272,25 +299,25 @@ function Main() {
     })
     layoutNaiveRightTree(root, g2, 0, 0)
     
-    const g3 = addSvg(svg, 'g', {
-        transform: 'translate(400, 50)'
-    })
-    layoutNaiveDownTree(root, g3, 0, 0)
+    // const g3 = addSvg(svg, 'g', {
+    //     transform: 'translate(400, 50)'
+    // })
+    // layoutNaiveDownTree(root, g3, 0, 0)
 
-    const g4 = addSvg(svg, 'g', {
-        transform: 'translate(350, 250)'
-    })
-    layoutRightCenteredTree(root, g4, 0, 0)
+    // const g4 = addSvg(svg, 'g', {
+    //     transform: 'translate(350, 250)'
+    // })
+    // layoutRightCenteredTree(root, g4, 0, 0)
 
-    const g5 = addSvg(svg, 'g', {
-        transform: 'translate(1150, 250)'
-    })
-    layoutLeftCenteredTree(root, g5, 0, 0)
+    // const g5 = addSvg(svg, 'g', {
+    //     transform: 'translate(1150, 250)'
+    // })
+    // layoutLeftCenteredTree(root, g5, 0, 0)
 
     const g6 = addSvg(svg, 'g', {
-        transform: 'translate(1450, 250)'
+        transform: 'translate(1050, 250)'
     })
-    layoutLeftCenteredTree(root, g6, 0, 0)
+    layoutBothSidesCenteredTree(root, g6, 0, 0)
 }
 
 function makeSvg(type, attr) {
