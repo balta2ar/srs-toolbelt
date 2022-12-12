@@ -244,41 +244,93 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
     scan(0, 'right', root, parent, baseX, baseY)
 }
 
-function enableMoveAndZoomViewport(el) {
+// function enableMoveAndZoomViewport(el) {
+//     var x = 0
+//     var y = 0
+//     var scale = 1
+//     var dragging = false
+//     var dragStartX = 0
+//     var dragStartY = 0
+//     el.addEventListener('mousedown', function (e) {
+//         if (e.which !== 1) { return }
+//         dragging = true
+//         dragStartX = e.clientX
+//         dragStartY = e.clientY
+//     })
+//     el.addEventListener('mousemove', function (e) {
+//         if (dragging) {
+//             const dx = e.clientX - dragStartX
+//             const dy = e.clientY - dragStartY
+//             x += dx
+//             y += dy
+//             dragStartX = e.clientX
+//             dragStartY = e.clientY
+//             el.setAttribute('transform', `translate(${x}, ${y}) scale(${scale})`)
+//             console.log(`viewbox: %o`, el.viewBox)
+//         }
+//     })
+//     el.addEventListener('mouseup', function (e) {
+//         dragging = false
+//     })
+//     el.addEventListener('wheel', function (e) {
+//         const delta = e.deltaY
+//         const zoom = 1.05
+//         if (delta < 0) {
+//             scale *= zoom
+//         } else {
+//             scale /= zoom
+//         }
+//         el.setAttribute('transform', `translate(${x}, ${y}) scale(${scale})`)
+//         console.log(`viewbox: %o`, el.viewBox)
+//     })
+// }
+
+function enableSvgViewboxMoveAndZoom(svg) {
     var x = 0
     var y = 0
+    var width = svg.getBoundingClientRect().width
+    var height = svg.getBoundingClientRect().height
+    console.log(`width: %o, height: %o`, width, height)
     var scale = 1
     var dragging = false
     var dragStartX = 0
     var dragStartY = 0
-    el.addEventListener('mousedown', function (e) {
+    svg.addEventListener('mousedown', function (e) {
+        if (e.which !== 1) { return }
         dragging = true
         dragStartX = e.clientX
         dragStartY = e.clientY
     })
-    el.addEventListener('mousemove', function (e) {
+    svg.addEventListener('mousemove', function (e) {
         if (dragging) {
             const dx = e.clientX - dragStartX
             const dy = e.clientY - dragStartY
-            x += dx
-            y += dy
+            x -= dx
+            y -= dy
             dragStartX = e.clientX
             dragStartY = e.clientY
-            el.setAttribute('transform', `translate(${x}, ${y}) scale(${scale})`)
+            svg.setAttribute('viewBox', `${x} ${y} ${width} ${height}`)
         }
     })
-    el.addEventListener('mouseup', function (e) {
+    svg.addEventListener('mouseup', function (e) {
         dragging = false
     })
-    el.addEventListener('wheel', function (e) {
+    svg.addEventListener('wheel', function (e) {
         const delta = e.deltaY
-        const zoom = 1.05
-        if (delta < 0) {
-            scale *= zoom
-        } else {
-            scale /= zoom
-        }
-        el.setAttribute('transform', `translate(${x}, ${y}) scale(${scale})`)
+        const zoom = 0.05 // delta < 0 ? 0.95 : 1.05
+        const sign = delta < 0 ? 1 : -1
+        const dx = width * zoom
+        const dy = height * zoom
+        x += dx * sign
+        y += dy * sign
+        width -= dx * 2 * sign
+        height -= dy * 2 * sign
+        // if (delta < 0) {
+        //     scale *= zoom
+        // } else {
+        //     scale /= zoom
+        // }
+        svg.setAttribute('viewBox', `${x} ${y} ${width} ${height}`)
     })
 }
 
@@ -289,7 +341,8 @@ function Main() {
         height: "100%",
         // style: 'border:1px solid #000000'
     })
-    enableMoveAndZoomViewport(svg)
+    // enableMoveAndZoomViewport(svg)
+    enableSvgViewboxMoveAndZoom(svg)
 
     var g = addSvg(svg, 'g', {
         transform: 'translate(10, 20)'
