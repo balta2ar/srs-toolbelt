@@ -205,7 +205,8 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
         var maxB1 = y
         var maxB2 = y
         var lastNextDir = undefined
-        const gChildren = addSvg(g, 'g', {})
+        const gChildrenR = addSvg(g, 'g', {})
+        const gChildrenL = addSvg(g, 'g', {})
         for (const child of node.children) {
             const nDir = nextDir(childI)
             if (lastNextDir === undefined) { lastNextDir = nDir }
@@ -217,14 +218,24 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
             const my = getMy(childI) //childI === 0 ? 0 : marginY
             const cx = getCx(nDir)
             const cy = maxB1 + my
+            const gChildren = childI < midChild() ? gChildrenR : gChildrenL
             const [t, b] = scan(level+1, nDir, child, gChildren, cx, cy)
             maxB1 = Math.max(maxB1, b)
             childI++
         }
         maxB1 = Math.max(y + marginY, maxB1, maxB2)
+        function byBBoxHeight(a, b) {
+            if (a.getBBox().height === b.getBBox().height) { return 0 }
+            return a.getBBox().height < b.getBBox().height ? -1 : 1
+        }
         if (node.children.length > 0) {
-            const yoff = gChildren.getBBox().height / 2 - gHeader.getBBox().height / 2
+            const yoff = g.getBBox().height / 2 - gHeader.getBBox().height / 2
             gHeader.setAttribute('transform', `translate(0, ${yoff})`)
+            if (level === 0 && node.children.length > 1) {
+                const children = [gChildrenR, gChildrenL]
+                children.sort(byBBoxHeight)
+                children[0].setAttribute('transform', `translate(0, ${yoff-marginY})`)
+            }
         }
 
         return [y, maxB1]
