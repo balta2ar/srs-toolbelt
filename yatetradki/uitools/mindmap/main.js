@@ -309,26 +309,38 @@ function Main() {
         transform: 'translate(10, 50)'
     })
     layoutNaiveRightTree(root, g2, 0, 0)
-    
-    // const g3 = addSvg(svg, 'g', {
-    //     transform: 'translate(400, 50)'
-    // })
-    // layoutNaiveDownTree(root, g3, 0, 0)
+    restyle(g2, 'rect', 'fill: #486AFF; stroke: #000000; stroke-width: 0')
 
-    // const g4 = addSvg(svg, 'g', {
-    //     transform: 'translate(350, 250)'
-    // })
-    // layoutRightCenteredTree(root, g4, 0, 0)
+    const g3 = addSvg(svg, 'g', {
+        transform: 'translate(400, 50)'
+    })
+    layoutNaiveDownTree(root, g3, 0, 0)
+    restyle(g2, 'rect', 'fill: #B86AFF; stroke: #000000; stroke-width: 0')
 
-    // const g5 = addSvg(svg, 'g', {
-    //     transform: 'translate(1150, 250)'
-    // })
-    // layoutLeftCenteredTree(root, g5, 0, 0)
+    const g4 = addSvg(svg, 'g', {
+        transform: 'translate(350, 250)'
+    })
+    layoutRightCenteredTree(root, g4, 0, 0)
+    restyle(g4, 'rect', 'fill: #B86AAF; stroke: #000000; stroke-width: 0')
 
-    const g6 = addSvg(svg, 'g', {
+    const g5 = addSvg(svg, 'g', {
         transform: 'translate(1050, 250)'
     })
+    layoutLeftCenteredTree(root, g5, 0, 0)
+    restyle(g5, 'rect', 'fill: #986A3F; stroke: #000000; stroke-width: 0')
+
+    const g6 = addSvg(svg, 'g', {
+        transform: 'translate(1350, 250)'
+    })
     layoutBothSidesCenteredTree(root, g6, 0, 0)
+    restyle(g6, 'rect', 'fill: #18BAFF; stroke: #000000; stroke-width: 0')
+}
+
+function restyle(parent, query, style) {
+    const els = parent.querySelectorAll(query)
+    for (const el of els) {
+        el.setAttribute('style', style)
+    }
 }
 
 function makeSvg(type, attr) {
