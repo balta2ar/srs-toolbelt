@@ -1,4 +1,6 @@
 let main
+let mousePosX
+let mousePosY
 window.onload = function () {
     main = document.getElementById('main')
     main.innerText = "init..."
@@ -325,12 +327,21 @@ function enableSvgViewboxMoveAndZoom(svg) {
         y += dy * sign
         width -= dx * 2 * sign
         height -= dy * 2 * sign
+        x += zoom * width * (mousePosX - 0.5)
+        y += zoom * height * (mousePosY - 0.5)
         // if (delta < 0) {
         //     scale *= zoom
         // } else {
         //     scale /= zoom
         // }
         svg.setAttribute('viewBox', `${x} ${y} ${width} ${height}`)
+    })
+}
+
+function trackMousePosition(svg) {
+    main.addEventListener('mousemove', function (e) {
+        mousePosX = e.clientX / window.innerWidth
+        mousePosY = e.clientY / window.innerHeight
     })
 }
 
@@ -343,6 +354,7 @@ function Main() {
     })
     // enableMoveAndZoomViewport(svg)
     enableSvgViewboxMoveAndZoom(svg)
+    trackMousePosition(svg)
 
     var g = addSvg(svg, 'g', {
         transform: 'translate(10, 20)'
