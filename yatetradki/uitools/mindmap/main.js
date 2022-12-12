@@ -299,12 +299,14 @@ function enableSvgViewboxMoveAndZoom(svg) {
     var dragStartY = 0
     svg.addEventListener('mousedown', function (e) {
         if (e.which !== 1) { return }
+        e.preventDefault()
         dragging = true
         dragStartX = e.clientX
         dragStartY = e.clientY
     })
     svg.addEventListener('mousemove', function (e) {
         if (dragging) {
+            e.preventDefault()
             const dx = e.clientX - dragStartX
             const dy = e.clientY - dragStartY
             x -= dx
@@ -315,9 +317,11 @@ function enableSvgViewboxMoveAndZoom(svg) {
         }
     })
     svg.addEventListener('mouseup', function (e) {
+        e.preventDefault()
         dragging = false
     })
     svg.addEventListener('wheel', function (e) {
+        e.preventDefault()
         const delta = e.deltaY
         const zoom = 0.05 // delta < 0 ? 0.95 : 1.05
         const sign = delta < 0 ? 1 : -1
