@@ -360,46 +360,45 @@ function Main() {
     enableSvgViewboxMoveAndZoom(svg)
     trackMousePosition(svg)
 
-    var g = addSvg(svg, 'g', {
-        transform: 'translate(10, 20)'
-    })
+    // var g = addSvg(svg, 'g', {
+    //     transform: 'translate(10, 20)'
+    // })
 
-    var text = addSvg(g, 'text', {
-        x: 0,
-        y: 0,
-        style: 'fill: #000000; stroke: #ff0000; stroke-width: 1'
-    })
-
+    // var text = addSvg(g, 'text', {
+    //     x: 0,
+    //     y: 0,
+    //     style: 'fill: #000000; stroke: #ff0000; stroke-width: 1'
+    // })
     // text.textContent = 'hello'
 
     const root = example()
     console.log('root: %o', root)
-    const g2 = addSvg(svg, 'g', {
+    const g1 = addSvg(svg, 'g', {
         transform: 'translate(10, 50)'
     })
-    layoutNaiveRightTree(root, g2, 0, 0)
-    restyle(g2, 'rect', 'fill: #486AFF; stroke: #000000; stroke-width: 0')
+    layoutNaiveRightTree(root, g1, 0, 0)
+    restyle(g1, 'rect', 'fill: #486AFF; stroke: #000000; stroke-width: 0')
 
     const g3 = addSvg(svg, 'g', {
         transform: 'translate(400, 50)'
     })
     layoutNaiveDownTree(root, g3, 0, 0)
-    restyle(g2, 'rect', 'fill: #B86AFF; stroke: #000000; stroke-width: 0')
+    restyle(g3, 'rect', 'fill: #B86AFF; stroke: #000000; stroke-width: 0')
 
     const g4 = addSvg(svg, 'g', {
-        transform: 'translate(350, 250)'
+        transform: 'translate(50, 400)'
     })
     layoutRightCenteredTree(root, g4, 0, 0)
     restyle(g4, 'rect', 'fill: #B86AAF; stroke: #000000; stroke-width: 0')
 
     const g5 = addSvg(svg, 'g', {
-        transform: 'translate(1050, 250)'
+        transform: 'translate(850, 250)'
     })
     layoutLeftCenteredTree(root, g5, 0, 0)
     restyle(g5, 'rect', 'fill: #986A3F; stroke: #000000; stroke-width: 0')
 
     const g6 = addSvg(svg, 'g', {
-        transform: 'translate(1350, 250)'
+        transform: 'translate(1250, 250)'
     })
     layoutBothSidesCenteredTree(root, g6, 0, 0)
     restyle(g6, 'rect', 'fill: #18BAFF; stroke: #000000; stroke-width: 0')
