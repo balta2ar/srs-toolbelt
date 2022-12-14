@@ -52,7 +52,8 @@ function addLabel(parent, text, x, y, direction) {
     //     // transform: `translate(${x}, ${y})`
     // })
     const t = addSvg(parent, 'text', {
-        x: x, y: y, style: 'fill: #ffffff;',
+        x: x, y: y, //style: 'fill: #ffffff;',
+        class: 'label-text',
     })
     t.textContent = text
     const w = t.getComputedTextLength()
@@ -69,8 +70,13 @@ function addLabel(parent, text, x, y, direction) {
         rx -= rw - 2*xmargin
     }
     const r = makeSvg('rect', {
-        x: rx, y: ry, width: rw, height: rh,
-        style: 'fill: #486AFF; stroke: #000000; stroke-width: 0'
+        x: rx, y: ry, width: rw, height: rh, rx: 5, ry: 5,
+        class: 'label-rect',
+        // style: 'fill: #486AFF; stroke: #000000; stroke-width: 0'
+    })
+    r.addEventListener('click', (e) => {
+        selectLabel(r)
+        console.log(`click: ${text}`)
     })
     parent.insertBefore(r, t)
     return [parent, w, h]
@@ -309,8 +315,8 @@ function enableSvgViewboxMoveAndZoom(svg) {
             e.preventDefault()
             const dx = e.clientX - dragStartX
             const dy = e.clientY - dragStartY
-            x -= dx
-            y -= dy
+            x -= dx / scale
+            y -= dy / scale
             dragStartX = e.clientX
             dragStartY = e.clientY
             svg.setAttribute('viewBox', `${x} ${y} ${width} ${height}`)
@@ -333,11 +339,11 @@ function enableSvgViewboxMoveAndZoom(svg) {
         height -= dy * 2 * sign
         x += zoom * width * (mousePosX - 0.5)
         y += zoom * height * (mousePosY - 0.5)
-        // if (delta < 0) {
-        //     scale *= zoom
-        // } else {
-        //     scale /= zoom
-        // }
+        if (delta < 0) {
+            scale *= (1.0 + zoom)
+        } else {
+            scale /= (1.0 + zoom)
+        }
         svg.setAttribute('viewBox', `${x} ${y} ${width} ${height}`)
     })
 }
@@ -377,31 +383,37 @@ function Main() {
         transform: 'translate(10, 50)'
     })
     layoutNaiveRightTree(root, g1, 0, 0)
-    restyle(g1, 'rect', 'fill: #486AFF; stroke: #000000; stroke-width: 0')
+    addClass(g1, 'rect', 'color1')
+    // restyle(g1, 'rect', 'fill: #486AFF; stroke: #000000; stroke-width: 0')
 
-    const g3 = addSvg(svg, 'g', {
+    const g2 = addSvg(svg, 'g', {
         transform: 'translate(400, 50)'
     })
-    layoutNaiveDownTree(root, g3, 0, 0)
-    restyle(g3, 'rect', 'fill: #B86AFF; stroke: #000000; stroke-width: 0')
+    layoutNaiveDownTree(root, g2, 0, 0)
+    addClass(g2, 'rect', 'color2')
+    // restyle(g3, 'rect', 'fill: #B86AFF; stroke: #000000; stroke-width: 0')
 
-    const g4 = addSvg(svg, 'g', {
+    const g3 = addSvg(svg, 'g', {
         transform: 'translate(50, 400)'
     })
-    layoutRightCenteredTree(root, g4, 0, 0)
-    restyle(g4, 'rect', 'fill: #B86AAF; stroke: #000000; stroke-width: 0')
+    layoutRightCenteredTree(root, g3, 0, 0)
+    addClass(g3, 'rect', 'color3')
+    // restyle(g4, 'rect', 'fill: #B86AAF; stroke: #000000; stroke-width: 0')
 
-    const g5 = addSvg(svg, 'g', {
+    const g4 = addSvg(svg, 'g', {
         transform: 'translate(850, 250)'
     })
-    layoutLeftCenteredTree(root, g5, 0, 0)
-    restyle(g5, 'rect', 'fill: #986A3F; stroke: #000000; stroke-width: 0')
+    layoutLeftCenteredTree(root, g4, 0, 0)
+    addClass(g4, 'rect', 'color4')
+    // restyle(g5, 'rect', 'fill: #986A3F; stroke: #000000; stroke-width: 2')
+    // restyle(g5, 'rect', '')
 
-    const g6 = addSvg(svg, 'g', {
+    const g5 = addSvg(svg, 'g', {
         transform: 'translate(1250, 250)'
     })
-    layoutBothSidesCenteredTree(root, g6, 0, 0)
-    restyle(g6, 'rect', 'fill: #18BAFF; stroke: #000000; stroke-width: 0')
+    layoutBothSidesCenteredTree(root, g5, 0, 0)
+    addClass(g5, 'rect', 'color5')
+    // restyle(g6, 'rect', 'fill: #18BAFF; stroke: #000000; stroke-width: 0')
 }
 
 function restyle(parent, query, style) {
@@ -409,6 +421,22 @@ function restyle(parent, query, style) {
     for (const el of els) {
         el.setAttribute('style', style)
     }
+}
+
+function addClass(parent, query, klass) {
+    const els = parent.querySelectorAll(query)
+    for (const el of els) {
+        //el.setAttribute('class', klass)
+        el.classList.add(klass)
+    }
+}
+
+function selectLabel(el) {
+    const klass = 'label-selected'
+    for (const old of document.querySelectorAll('.' + klass)) {
+        old.classList.remove(klass)
+    }
+    el.classList.add(klass)
 }
 
 function makeSvg(type, attr) {
