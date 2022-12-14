@@ -252,47 +252,6 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
     scan(0, 'right', root, parent, baseX, baseY)
 }
 
-// function enableMoveAndZoomViewport(el) {
-//     var x = 0
-//     var y = 0
-//     var scale = 1
-//     var dragging = false
-//     var dragStartX = 0
-//     var dragStartY = 0
-//     el.addEventListener('mousedown', function (e) {
-//         if (e.which !== 1) { return }
-//         dragging = true
-//         dragStartX = e.clientX
-//         dragStartY = e.clientY
-//     })
-//     el.addEventListener('mousemove', function (e) {
-//         if (dragging) {
-//             const dx = e.clientX - dragStartX
-//             const dy = e.clientY - dragStartY
-//             x += dx
-//             y += dy
-//             dragStartX = e.clientX
-//             dragStartY = e.clientY
-//             el.setAttribute('transform', `translate(${x}, ${y}) scale(${scale})`)
-//             console.log(`viewbox: %o`, el.viewBox)
-//         }
-//     })
-//     el.addEventListener('mouseup', function (e) {
-//         dragging = false
-//     })
-//     el.addEventListener('wheel', function (e) {
-//         const delta = e.deltaY
-//         const zoom = 1.05
-//         if (delta < 0) {
-//             scale *= zoom
-//         } else {
-//             scale /= zoom
-//         }
-//         el.setAttribute('transform', `translate(${x}, ${y}) scale(${scale})`)
-//         console.log(`viewbox: %o`, el.viewBox)
-//     })
-// }
-
 function enableSvgViewboxMoveAndZoom(svg) {
     var x = 0
     var y = 0
@@ -362,58 +321,30 @@ function Main() {
         height: "100%",
         // style: 'border:1px solid #000000'
     })
-    // enableMoveAndZoomViewport(svg)
     enableSvgViewboxMoveAndZoom(svg)
     trackMousePosition(svg)
 
-    // var g = addSvg(svg, 'g', {
-    //     transform: 'translate(10, 20)'
-    // })
-
-    // var text = addSvg(g, 'text', {
-    //     x: 0,
-    //     y: 0,
-    //     style: 'fill: #000000; stroke: #ff0000; stroke-width: 1'
-    // })
-    // text.textContent = 'hello'
-
     const root = example()
     console.log('root: %o', root)
-    const g1 = addSvg(svg, 'g', {
-        transform: 'translate(10, 50)'
-    })
+    const g1 = addSvg(svg, 'g', { transform: 'translate(10, 50)' })
     layoutNaiveRightTree(root, g1, 0, 0)
     addClass(g1, 'rect', 'color1')
-    // restyle(g1, 'rect', 'fill: #486AFF; stroke: #000000; stroke-width: 0')
 
-    const g2 = addSvg(svg, 'g', {
-        transform: 'translate(400, 50)'
-    })
+    const g2 = addSvg(svg, 'g', { transform: 'translate(400, 50)' })
     layoutNaiveDownTree(root, g2, 0, 0)
     addClass(g2, 'rect', 'color2')
-    // restyle(g3, 'rect', 'fill: #B86AFF; stroke: #000000; stroke-width: 0')
 
-    const g3 = addSvg(svg, 'g', {
-        transform: 'translate(50, 400)'
-    })
+    const g3 = addSvg(svg, 'g', { transform: 'translate(50, 400)' })
     layoutRightCenteredTree(root, g3, 0, 0)
     addClass(g3, 'rect', 'color3')
-    // restyle(g4, 'rect', 'fill: #B86AAF; stroke: #000000; stroke-width: 0')
 
-    const g4 = addSvg(svg, 'g', {
-        transform: 'translate(850, 250)'
-    })
+    const g4 = addSvg(svg, 'g', { transform: 'translate(850, 250)' })
     layoutLeftCenteredTree(root, g4, 0, 0)
     addClass(g4, 'rect', 'color4')
-    // restyle(g5, 'rect', 'fill: #986A3F; stroke: #000000; stroke-width: 2')
-    // restyle(g5, 'rect', '')
 
-    const g5 = addSvg(svg, 'g', {
-        transform: 'translate(1250, 250)'
-    })
+    const g5 = addSvg(svg, 'g', { transform: 'translate(1250, 250)' })
     layoutBothSidesCenteredTree(root, g5, 0, 0)
     addClass(g5, 'rect', 'color5')
-    // restyle(g6, 'rect', 'fill: #18BAFF; stroke: #000000; stroke-width: 0')
 }
 
 function restyle(parent, query, style) {
