@@ -14,6 +14,28 @@ class Node {
         this.text = text
         this.children = children
     }
+    static fromString(s, title) {
+        const root = new Node(title, [])
+        var stack = [root]
+        var lastIndent = 0
+        function top() { return stack[stack.length-1] }
+        function lastChild() { return top().children[top().children.length-1] }
+        for (const line of s.split('\n')) {
+            if (line.length === 0) { continue }
+            const indent = line.match(/^\s*/)[0].length
+            if (indent > lastIndent) {
+                stack.push(lastChild())
+                top().children.push(new Node(line.trim(), []))
+            } else if (indent < lastIndent) {
+                for (var _ = 0; _ < lastIndent - indent; _++) { stack.pop() }
+                top().children.push(new Node(line.trim(), []))
+            } else {
+                top().children.push(new Node(line.trim(), []))
+            }
+            lastIndent = indent
+        }
+        return root
+    }
 }
 
 function example() {
@@ -79,7 +101,7 @@ function addLabel(parent, text, x, y, direction) {
         console.log(`click: ${text}`)
     })
     parent.insertBefore(r, t)
-    return [parent, w, h]
+    return [parent, r.getBoundingClientRect().width, h]
 }
 
 function layoutNaiveDownTree(root, parent, baseX, baseY) {
@@ -326,25 +348,33 @@ function Main() {
 
     const root = example()
     console.log('root: %o', root)
-    const g1 = addSvg(svg, 'g', { transform: 'translate(10, 50)' })
-    layoutNaiveRightTree(root, g1, 0, 0)
-    addClass(g1, 'rect', 'color1')
 
-    const g2 = addSvg(svg, 'g', { transform: 'translate(400, 50)' })
-    layoutNaiveDownTree(root, g2, 0, 0)
-    addClass(g2, 'rect', 'color2')
+    // const g1 = addSvg(svg, 'g', { transform: 'translate(10, 50)' })
+    // layoutNaiveRightTree(root, g1, 0, 0)
+    // addClass(g1, 'rect', 'color1')
 
-    const g3 = addSvg(svg, 'g', { transform: 'translate(50, 400)' })
-    layoutRightCenteredTree(root, g3, 0, 0)
-    addClass(g3, 'rect', 'color3')
+    // const g2 = addSvg(svg, 'g', { transform: 'translate(400, 50)' })
+    // layoutNaiveDownTree(root, g2, 0, 0)
+    // addClass(g2, 'rect', 'color2')
 
-    const g4 = addSvg(svg, 'g', { transform: 'translate(850, 250)' })
-    layoutLeftCenteredTree(root, g4, 0, 0)
-    addClass(g4, 'rect', 'color4')
+    // const g3 = addSvg(svg, 'g', { transform: 'translate(50, 400)' })
+    // layoutRightCenteredTree(root, g3, 0, 0)
+    // addClass(g3, 'rect', 'color3')
 
-    const g5 = addSvg(svg, 'g', { transform: 'translate(1250, 250)' })
-    layoutBothSidesCenteredTree(root, g5, 0, 0)
-    addClass(g5, 'rect', 'color5')
+    // const g4 = addSvg(svg, 'g', { transform: 'translate(850, 250)' })
+    // layoutLeftCenteredTree(root, g4, 0, 0)
+    // addClass(g4, 'rect', 'color4')
+
+    // const g5 = addSvg(svg, 'g', { transform: 'translate(1250, 250)' })
+    // layoutBothSidesCenteredTree(root, g5, 0, 0)
+    // addClass(g5, 'rect', 'color5')
+
+    const g6 = addSvg(svg, 'g', { transform: 'translate(10, 50)' })
+    const norsk = Node.fromString(norskXmind, 'norsk')
+    console.log('norsk: %o', norsk)
+    // layoutRightCenteredTree(norsk, g6, 0, 0)
+    layoutBothSidesCenteredTree(norsk, g6, 0, 0)
+    addClass(g6, 'rect', 'color1')
 }
 
 function restyle(parent, query, style) {
@@ -403,3 +433,172 @@ function forEach(obj, cb) {
         }
     }
 }
+
+const norskXmind = `
+verbs
+
+adjektiver
+	følelse
+		trist
+			vemodig
+
+været
+
+med andre gjenstander
+	bevege
+		riste
+	ødelegge
+		rive
+		røste opp
+
+bevegelse
+	pile ut
+
+våpen
+	ruste opp
+
+hjem
+	soverom
+		en seng
+			laken
+				vaske
+			dyne
+			ei pute
+	kjøkken
+		oppvaskmaskin
+	stua
+
+helse
+	ulykke
+		hånda i et fatle
+
+gruppe ved
+	ordklass
+	handling
+	kapittel
+	sted/plass
+
+job
+	dokumenter
+		refusjon
+			bilag
+				kvittering
+
+b2
+	k6 klima og miljø
+		k6.5 Frederic Hauge
+			ord
+				fram til i dag
+				avdekket områder
+				han tilbakeviser dette
+				gravd ned tønner med giftig avfall
+				grave opp
+				fastslå statens tinsyn
+	k7 helsa vår
+		k7.1 innledning
+			ord
+				minner om formynderstat
+				ta opp spørsmål
+				de er med på å påvirke den
+				røykere må stille bakerst
+				reklame for alkohol
+		k7.3 taper mot bakterier
+			ord
+				bakterier haler innpå
+				forekomsten av resistent bakterie
+				forkorte sykdommen
+				forkjølelse går over av seg selv
+				kan til tider være
+				fører til plager som allergi
+				øynene renner
+				har uttalt seg om dette til NRK
+				noen løfter på øyenbrynene
+				allergien er på sitt verste
+				smogen ligger Oslo-gryta
+		k7.4 psykisk helse
+			ord
+				hun bryter sammen
+					nervous breakdown / collapse
+				vegre seg
+					hestitate / nøle
+				innlang på avdelingen
+				hvitt hefte
+				håndskrift
+					handwriting
+				forlegen
+					flau
+				uttæret
+					sliten
+				beklage seg
+					klage, complain
+				smerte
+				tilgi selv
+					forgive yourself
+				oppførsel
+					væremåte
+			ideer
+		k7.5 Profilen Katti Anker Møller
+			ord
+				modig og kontroversiell person
+				preget av frykt for nye graviditeter
+				gjøre til ære for min bror
+				gifte seg med en godseier
+				fattige, ugifte mødre sto overfor problemer
+					å ha krav på økonomisk hjelp
+					hjemme for enslige mødre
+						gjøre noe med det
+						ble straks fullt
+				arbeide sammen med svoger
+					for å få loven vedtatt
+						vakte protester
+					født utenfor ekteskap
+					rett til farens arv
+					få tilgang til prevensjonsmidler
+					stor interesse for saken
+					ga seksuallopplysning
+					få endret loven
+					måtte søke en nemnd
+	k8 litt norsk historie
+		k8.1 innledning
+			ord
+				vi kjenner til hva som kjedde
+				lykkelig er det folk
+				unionsoppløsning
+				en gravhaug på Oseberg
+				innholde to kvinnelik
+				en vakkert utskåret vogn
+				datidas syn på døden
+
+prøve
+
+mine feil
+	noe/noen
+	bege dele/to
+	skulle/ville/hadde
+	det spørs om jeg rekker det eller ikke
+
+preso
+	fengsel
+		i drift (in use)
+		straff
+			varetekt
+			ubetinget fengselsstraf
+			forvaring
+			frihetsberøvelse
+			innskrenkning
+		kriminalomsorgen
+			utøver makt
+			innsyn
+		rom
+			køyeseng
+			kjøkkenkrok
+			gitter (bars) på vinduer
+		isolasjon
+			kjennelse fra domstolen
+			fatte et vedtak om isolasjon
+			mest nedverdigende
+			ble løslatt
+			vanlig soning
+			et rom med mange til stede
+			erverve erfaring
+`
