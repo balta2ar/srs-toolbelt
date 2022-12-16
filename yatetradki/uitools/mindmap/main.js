@@ -8,9 +8,8 @@ window.onload = function () {
     Main()
 }
 
-class Node {
+class Data {
     constructor(text, children) {
-        this.id = 0
         this.text = text
         this.children = children
     }
@@ -38,32 +37,45 @@ class Node {
     }
 }
 
-function example() {
-    return new Node("norsk", [
-        new Node("liv omstendigheter", [
-            new Node("familie", []),
-            new Node("arbeid", []),
+class Svg {
+    static fromData(svg, data, x, y) {
+        const tree = addSvg(svg, 'g', {transform: `translate(${x}, ${y})`})
+        layoutLeftCenteredTree(data, tree, 0, 0)
+        addClass(tree, 'rect', 'color4')
+    }
+}
+
+function test1() {
+    const data = new Data()
+    // const g1 = Svg.fromData(data)
+}
+
+function exampleData() {
+    return new Data("norsk", [
+        new Data("liv omstendigheter", [
+            new Data("familie", []),
+            new Data("arbeid", []),
         ]),
-        new Node("handlinger", [
-            new Node("bevegelse", [
-                new Node("gå", []),
-                new Node("stå", []),
-                new Node("pile ut", []),
+        new Data("handlinger", [
+            new Data("bevegelse", [
+                new Data("gå", []),
+                new Data("stå", []),
+                new Data("pile ut", []),
             ]),
-            new Node("slå / kamp", [
-                new Node("dytte", []),
-                new Node("skyve", []),
+            new Data("slå / kamp", [
+                new Data("dytte", []),
+                new Data("skyve", []),
             ]),
         ]),
-        new Node("følelser", [
-            new Node("positive", [
-                new Node("lykke", []),
-                new Node("glede", []),
+        new Data("følelser", [
+            new Data("positive", [
+                new Data("lykke", []),
+                new Data("glede", []),
             ]),
-            new Node("negative", [
-                new Node("sorg", []),
-                new Node("angst", []),
-                new Node("sin", []),
+            new Data("negative", [
+                new Data("sorg", []),
+                new Data("angst", []),
+                new Data("sin", []),
             ]),
         ]),
     ])
@@ -336,6 +348,28 @@ function trackMousePosition(svg) {
     })
 }
 
+function trackKeyboard() {
+    document.addEventListener('keydown', function (e) {
+        console.log(`document key: %o`, e.key)
+        if (e.key === 'Escape') {
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault()
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault()
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault()
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault()
+        } else if (e.key === 'Enter') {
+            e.preventDefault()
+        } else if (e.key === 'Tab') {
+            e.preventDefault()
+        } else if (e.key === 'Backspace') {
+            e.preventDefault()
+        }
+    })
+}
+
 function Main() {
     main.innerText = ""
     var svg = addSvg(main, 'svg', {
@@ -343,11 +377,23 @@ function Main() {
         height: "100%",
         // style: 'border:1px solid #000000'
     })
+    // cursor = #96DEFF
+    // selected = #2EBDFF
+    svg.innerHTML = `
+    <defs>
+    <radialGradient id="labelRectHoverGradient">
+      <stop offset="0%" stop-color="white" stop-opacity="100%" />
+      <stop offset="90%" stop-color="white" stop-opacity="100%" />
+      <stop offset="100%" stop-color="#96DEFF"  stop-opacity="100%" />
+    </radialGradient>
+  </defs>
+`
     enableSvgViewboxMoveAndZoom(svg)
     trackMousePosition(svg)
+    trackKeyboard()
 
-    const root = example()
-    console.log('root: %o', root)
+    const data = exampleData()
+    console.log('root: %o', data)
 
     // const g1 = addSvg(svg, 'g', { transform: 'translate(10, 50)' })
     // layoutNaiveRightTree(root, g1, 0, 0)
@@ -362,19 +408,20 @@ function Main() {
     // addClass(g3, 'rect', 'color3')
 
     // const g4 = addSvg(svg, 'g', { transform: 'translate(850, 250)' })
-    // layoutLeftCenteredTree(root, g4, 0, 0)
+    // layoutLeftCenteredTree(data, g4, 0, 0)
     // addClass(g4, 'rect', 'color4')
+    const g4 = Svg.fromData(svg, data, 850, 250)
 
     // const g5 = addSvg(svg, 'g', { transform: 'translate(1250, 250)' })
     // layoutBothSidesCenteredTree(root, g5, 0, 0)
     // addClass(g5, 'rect', 'color5')
 
-    const g6 = addSvg(svg, 'g', { transform: 'translate(10, 50)' })
-    const norsk = Node.fromString(norskXmind, 'norsk')
-    console.log('norsk: %o', norsk)
-    // layoutRightCenteredTree(norsk, g6, 0, 0)
-    layoutBothSidesCenteredTree(norsk, g6, 0, 0)
-    addClass(g6, 'rect', 'color1')
+    // const g6 = addSvg(svg, 'g', { transform: 'translate(10, 50)' })
+    // const norsk = Node.fromString(norskXmind, 'norsk')
+    // console.log('norsk: %o', norsk)
+    // // layoutRightCenteredTree(norsk, g6, 0, 0)
+    // layoutBothSidesCenteredTree(norsk, g6, 0, 0)
+    // addClass(g6, 'rect', 'color1')
 }
 
 function restyle(parent, query, style) {
