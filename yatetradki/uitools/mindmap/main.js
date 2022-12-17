@@ -324,14 +324,6 @@ function enableSvgViewboxMoveAndZoom(svg) {
         const delta = e.deltaY
         const zoom = 0.05 // delta < 0 ? 0.95 : 1.05
         const sign = delta < 0 ? 1 : -1
-        // const dx = width * zoom
-        // const dy = height * zoom
-        // x += dx * sign
-        // y += dy * sign
-        // width -= dx * 2 * sign
-        // height -= dy * 2 * sign
-        // x += zoom * width * (mousePosX - 0.5)
-        // y += zoom * height * (mousePosY - 0.5)
         var zoom1 = 1.0 - zoom * sign
         if (delta < 0) {
             scale *= (1.0 + zoom)
