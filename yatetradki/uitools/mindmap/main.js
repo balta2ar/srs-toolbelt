@@ -1,6 +1,6 @@
 let main
-let mousePosX
-let mousePosY
+let mouseRatioX
+let mouseRatioY
 window.onload = function () {
     main = document.getElementById('main')
     main.innerText = "init..."
@@ -17,8 +17,8 @@ class Data {
         const root = new Node(title, [])
         var stack = [root]
         var lastIndent = 0
-        function top() { return stack[stack.length-1] }
-        function lastChild() { return top().children[top().children.length-1] }
+        function top() { return stack[stack.length - 1] }
+        function lastChild() { return top().children[top().children.length - 1] }
         for (const line of s.split('\n')) {
             if (line.length === 0) { continue }
             const indent = line.match(/^\s*/)[0].length
@@ -39,7 +39,7 @@ class Data {
 
 class Svg {
     static fromData(svg, data, x, y) {
-        const tree = addSvg(svg, 'g', {transform: `translate(${x}, ${y})`})
+        const tree = addSvg(svg, 'g', { transform: `translate(${x}, ${y})` })
         layoutLeftCenteredTree(data, tree, 0, 0)
         addClass(tree, 'rect', 'color4')
     }
@@ -94,14 +94,14 @@ function addLabel(parent, text, x, y, direction) {
     const h = t.getBoundingClientRect().height
     const xmargin = 6
     const ymargin = 6
-    const yoff = h/2 + ymargin
-    var rx = x-xmargin
-    const ry = y-yoff
-    const rw = w+2*xmargin
+    const yoff = h / 2 + ymargin
+    var rx = x - xmargin
+    const ry = y - yoff
+    const rw = w + 2 * xmargin
     const rh = h
     if (direction === 'left') {
         t.setAttribute('text-anchor', 'end')
-        rx -= rw - 2*xmargin
+        rx -= rw - 2 * xmargin
     }
     const r = makeSvg('rect', {
         x: rx, y: ry, width: rw, height: rh, rx: 5, ry: 5,
@@ -261,7 +261,7 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
             const cx = getCx(nDir)
             const cy = maxB1 + my
             const gChildren = childI < midChild() ? gChildrenR : gChildrenL
-            const [t, b] = scan(level+1, nDir, child, gChildren, cx, cy)
+            const [t, b] = scan(level + 1, nDir, child, gChildren, cx, cy)
             maxB1 = Math.max(maxB1, b)
             childI++
         }
@@ -276,7 +276,7 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
             if (level === 0 && node.children.length > 1) {
                 const children = [gChildrenR, gChildrenL]
                 children.sort(byBBoxHeight)
-                children[0].setAttribute('transform', `translate(0, ${yoff-marginY})`)
+                children[0].setAttribute('transform', `translate(0, ${yoff - marginY})`)
             }
         }
 
@@ -324,27 +324,61 @@ function enableSvgViewboxMoveAndZoom(svg) {
         const delta = e.deltaY
         const zoom = 0.05 // delta < 0 ? 0.95 : 1.05
         const sign = delta < 0 ? 1 : -1
-        const dx = width * zoom
-        const dy = height * zoom
-        x += dx * sign
-        y += dy * sign
-        width -= dx * 2 * sign
-        height -= dy * 2 * sign
-        x += zoom * width * (mousePosX - 0.5)
-        y += zoom * height * (mousePosY - 0.5)
+        // const dx = width * zoom
+        // const dy = height * zoom
+        // x += dx * sign
+        // y += dy * sign
+        // width -= dx * 2 * sign
+        // height -= dy * 2 * sign
+        // x += zoom * width * (mousePosX - 0.5)
+        // y += zoom * height * (mousePosY - 0.5)
+        var zoom1 = 1.0 - zoom * sign
         if (delta < 0) {
             scale *= (1.0 + zoom)
         } else {
             scale /= (1.0 + zoom)
         }
+        const mouseVirtualX = x + mouseRatioX * width
+        const newWidth = width * zoom1
+        const newX = mouseVirtualX - mouseRatioX * newWidth
+        const mouseVirtualY = y + mouseRatioY * height
+        const newHeight = height * zoom1
+        const newY = mouseVirtualY - mouseRatioY * newHeight
+        x = newX
+        y = newY
+        width = newWidth
+        height = newHeight
+
         svg.setAttribute('viewBox', `${x} ${y} ${width} ${height}`)
     })
 }
 
+function pageWidth() {
+    return Math.max(
+        document.body.scrollWidth,
+        document.documentElement.scrollWidth,
+        document.body.offsetWidth,
+        document.documentElement.offsetWidth,
+        document.documentElement.clientWidth,
+        window.innerWidth
+    );
+}
+
+function pageHeight() {
+    return Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        document.body.offsetHeight,
+        document.documentElement.offsetHeight,
+        document.documentElement.clientHeight,
+        window.innerHeight
+    );
+}
+
 function trackMousePosition(svg) {
     main.addEventListener('mousemove', function (e) {
-        mousePosX = e.clientX / window.innerWidth
-        mousePosY = e.clientY / window.innerHeight
+        mouseRatioX = e.clientX / pageWidth();
+        mouseRatioY = e.clientY / pageHeight();
     })
 }
 
