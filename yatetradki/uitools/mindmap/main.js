@@ -38,10 +38,14 @@ class Data {
 }
 
 class Svg {
-    static fromData(svg, data, x, y) {
+    static fromData(svg, data, x, y, layoutFn, colorKlass) {
         const tree = addSvg(svg, 'g', { transform: `translate(${x}, ${y})` })
-        layoutLeftCenteredTree(data, tree, 0, 0)
-        addClass(tree, 'rect', 'color4')
+        // layoutLeftCenteredTree(data, tree, 0, 0)
+        layoutFn(data, tree, 0, 0)
+        // addClass(tree, 'rect', 'color4')
+        addClass(tree, 'rect', `${colorKlass}-rect`)
+        addClass(tree, 'path', `${colorKlass}-path`)
+        return tree
     }
 }
 
@@ -81,6 +85,70 @@ function exampleData() {
     ])
 }
 
+// 0 -- 0..90º, 1 -- 90..180º, 2 -- 180..270º, 3 -- 270..360º
+function section2quarter(x1, y1, x2, y2) {
+    if (x1 <= x2) {
+        if (y1 <= y2) { return 3 }
+        else { return 0 }
+    } else {
+        if (y1 <= y2) { return 2 }
+        else { return 1 }
+    }
+}
+
+function addHorizontalPath(parent, x1, y1, x2, y2) {
+    const x = Math.min(x1, x2)
+    const y = Math.min(y1, y2)
+    const g = addSvg(parent, 'g', {})
+    g.setAttribute('transform', `translate(${x}, ${y})`)
+    const d = genVerticalPath(x1, y1, x2, y2)
+    // console.log(`d: ${d}`)
+    addSvg(g, 'path', {class: 'path', d: d})
+}
+
+function genVerticalPath(x1, y1, x2, y2) {
+    const [midX, midY] = [(x1 + x2) / 2, (y1 + y2) / 2]
+    const [w, h] = [Math.abs(x2 - x1), Math.abs(y2 - y1)]
+    const [hw, hh] = [w / 2, h / 2]
+    const [x, y] = [Math.min(x1, x2), Math.min(y1, y2)]
+    const quarter = section2quarter(x1, y1, x2, y2)
+    const r = Math.min(5, h)
+    const p = (x) => Math.max(0, x)
+    if (quarter === 0) { // move to top-right
+        if (y1 == y2) return `M 0 0 l ${w} 0`
+        return `M 0 ${h} l ${p(hw-r)} 0
+                a ${r} ${r} 0 0 0 ${r} -${r}
+                l 0 -${p(h-2*r)}
+                a ${r} ${r} 0 0 1 ${r} -${r}
+                l ${p(hw-r)} 0
+        `
+    } else if (quarter === 1) { // move to top-left
+        if (y1 == y2) return `M ${w} 0 l -${w} 0`
+        return `M ${w} ${h} l -${p(hw-r)} 0
+                a ${r} ${r} 0 0 1 -${r} -${r}
+                l 0 -${p(h-2*r)}
+                a ${r} ${r} 0 0 0 -${r} -${r}
+                l -${p(hw-r)} 0
+        `
+    } else if (quarter === 2) { // move to bottom-left
+        if (y1 == y2) return `M ${w} 0 l -${w} 0`
+        return `M ${w} 0 l -${p(hw-r)} 0
+                a ${r} ${r} 0 0 0 -${r} ${r}
+                l 0 ${p(h-2*r)}
+                a ${r} ${r} 0 0 1 -${r} ${r}
+                l -${p(hw-r)} 0
+        `
+    } else if (quarter === 3) { // move to bottom-right
+        if (y1 == y2) return `M 0 0 l ${w} 0`
+        return `M 0 0 l ${p(hw-r)} 0
+                a ${r} ${r} 0 0 1 ${r} ${r}
+                l 0 ${p(h-2*r)}
+                a ${r} ${r} 0 0 0 ${r} ${r}
+                l ${p(hw-r)} 0
+        `
+    }
+}
+
 function addLabel(parent, text, x, y, direction) {
     // const g = addSvg(parent, 'g', {
     //     // transform: `translate(${x}, ${y})`
@@ -113,7 +181,7 @@ function addLabel(parent, text, x, y, direction) {
         console.log(`click: ${text}`)
     })
     parent.insertBefore(r, t)
-    return [parent, r.getBoundingClientRect().width, h]
+    return [parent, r.getBoundingClientRect().width, r.getBoundingClientRect().height]
 }
 
 function layoutNaiveDownTree(root, parent, baseX, baseY) {
@@ -140,34 +208,48 @@ function layoutNaiveRightTree(root, parent, baseX, baseY) {
     const marginX = 20
     const marginY = 15
 
-    function scan(node, x, y) {
-        const [g, w, h] = addLabel(parent, node.text, x, y, 'right')
+    function scan(node, parent, x, y) {
+        const g = contChild(parent)
+        const gHeader = contHeader(g)
+        const [_g, w, h] = addLabel(gHeader, node.text, x, y, 'right')
         var childI = 0
         var maxB = y
+        const gChildren = contChildren(g)
         for (const child of node.children) {
             const my = childI === 0 ? 0 : marginY
-            const [t, b] = scan(child, x + w + marginX, maxB + my)
+            const cx = x + w + marginX
+            const cy = maxB + my
+            const [t, b] = scan(child, gChildren, cx, cy)
             maxB = Math.max(maxB, b)
             childI++
         }
-
+        for (const gChild of gChildren.children) {
+            const cx = x + w + marginX
+            const cy = gChild.firstChild.getBoundingClientRect().y
+            const hy = gHeader.getBoundingClientRect().y
+            const yChildOff = hy - cy
+            addHorizontalPath(g, x+w-marginX/2, y-marginY/2, cx, y-marginY/2-yChildOff)
+        }
         return [y, Math.max(y + marginY, maxB)]
     }
-
-    scan(root, baseX, baseY)
+    scan(root, parent, baseX, baseY)
 }
+
+function contChild(parent) { return addSvg(parent, 'g', {class: 'g-child'}) }
+function contHeader(parent) { return addSvg(parent, 'g', {class: 'g-header'}) }
+function contChildren(parent) { return addSvg(parent, 'g', {class: 'g-children'}) }
 
 function layoutRightCenteredTree(root, parent, baseX, baseY) {
     const marginX = 20
     const marginY = 15
 
     function scan(node, parent, x, y) {
-        const g = addSvg(parent, 'g', {})
-        const gHeader = addSvg(g, 'g', {})
+        const g = contChild(parent)
+        const gHeader = contHeader(g)
         const [_g, w, h] = addLabel(gHeader, node.text, x, y, 'right')
         var childI = 0
         var maxB = y
-        const gChildren = addSvg(g, 'g', {})
+        const gChildren = contChildren(g)
         for (const child of node.children) {
             const my = childI === 0 ? 0 : marginY
             const [t, b] = scan(child, gChildren, x + w + marginX, maxB + my)
@@ -175,11 +257,18 @@ function layoutRightCenteredTree(root, parent, baseX, baseY) {
             childI++
         }
         maxB = Math.max(y + marginY, maxB)
+        var yHeaderOff = 0
         if (node.children.length > 0) {
-            const yoff = gChildren.getBBox().height / 2 - gHeader.getBBox().height / 2
-            gHeader.setAttribute('transform', `translate(0, ${yoff})`)
+            yHeaderOff = gChildren.getBBox().height / 2 - gHeader.getBBox().height / 2
+            gHeader.setAttribute('transform', `translate(0, ${yHeaderOff})`)
         }
-
+        for (const gChild of gChildren.children) {
+            const hy = gHeader.getBoundingClientRect().y
+            const cy = gChild.firstChild.getBoundingClientRect().y
+            const yChildOff = hy - cy
+            const yFrom = y+yHeaderOff-h/4
+            addHorizontalPath(g, x+w-marginX/2, yFrom, x+w+marginX, yFrom-yChildOff)
+        }
         return [y, maxB]
     }
 
@@ -190,31 +279,38 @@ function layoutLeftCenteredTree(root, parent, baseX, baseY) {
     const marginX = 20
     const marginY = 15
 
-    function scan(node, parent, x, y) {
-        const g = addSvg(parent, 'g', {})
-        const gHeader = addSvg(g, 'g', {})
+    function scan(level, node, parent, x, y) {
+        const g = contChild(parent)
+        const gHeader = contHeader(g)
         const [_g, w, h] = addLabel(gHeader, node.text, x, y, 'left')
-        var childI = 0
         var maxB = y
-        const gChildren = addSvg(g, 'g', {})
+        const gChildren = contChildren(g)
+        var childI = 0
         for (const child of node.children) {
             const my = childI === 0 ? 0 : marginY
             const cx = x - w - marginX
             const cy = maxB + my
-            const [t, b] = scan(child, gChildren, cx, cy)
+            const [t, b] = scan(level+1, child, gChildren, cx, cy)
             maxB = Math.max(maxB, b)
             childI++
         }
         maxB = Math.max(y + marginY, maxB)
+        var yHeaderOff = 0
         if (node.children.length > 0) {
-            const yoff = gChildren.getBBox().height / 2 - gHeader.getBBox().height / 2
-            gHeader.setAttribute('transform', `translate(0, ${yoff})`)
+            yHeaderOff = gChildren.getBBox().height / 2 - gHeader.getBBox().height / 2
+            gHeader.setAttribute('transform', `translate(0, ${yHeaderOff})`)
         }
-
+        for (const gChild of gChildren.children) {
+            const hy = gHeader.getBoundingClientRect().y
+            const cy = gChild.firstChild.getBoundingClientRect().y
+            const yChildOff = hy - cy
+            const yFrom = y+yHeaderOff-h/4
+            addHorizontalPath(g, x-w+marginX/2, yFrom, x-w-marginX, yFrom-yChildOff)
+        }
         return [y, maxB]
     }
 
-    scan(root, parent, baseX, baseY)
+    scan(0, root, parent, baseX, baseY)
 }
 
 function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
@@ -222,8 +318,124 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
     const marginY = 15
 
     function scan(level, dir, node, parent, x, y) {
-        const g = addSvg(parent, 'g', {})
-        const gHeader = addSvg(g, 'g', {})
+        const g = contChild(parent)
+        const gHeader = contHeader(g)
+        const [_g, w, h] = addLabel(gHeader, node.text, x, y, dir)
+        function midChild() { return Math.floor(node.children.length / 2) }
+        function getMy(childI) {
+            const first = childI === 0
+            return first ? 0 : marginY
+            // if (level > 0) { return first ? 0 : marginY }
+            // const mid = childI === midChild()
+            // return (first || mid) ? 0 : marginY
+        }
+        // function nextDir(childI) {
+        //     if (level > 0) { return dir }
+        //     return childI < midChild() ? 'right' : 'left'
+        // }
+        function getCx(nDir) {
+            switch (nDir) {
+                case 'left': return x - w - marginX
+                case 'right': return x + w + marginX
+                default: throw new Error('bad dir')
+            }
+        }
+        // var childI = 0
+        // var maxB1 = y
+        // var maxB2 = y
+        var maxB = y
+        function left() { return node.children.slice(0, midChild()) }
+        function right() { return node.children.slice(midChild(), -1) }
+        // var lastNextDir = undefined
+        // console.log('cLeft %o', left())
+        function kids(children, dir, gChildren) {
+            var maxBLocal = y
+            for (const [childI, child] of children.entries()) {
+                const nDir = dir // nextDir(childI)
+                // if (lastNextDir === undefined) { lastNextDir = nDir }
+                // if (lastNextDir !== nDir) { // reset maximums
+                //     maxB2 = maxB1
+                //     maxB1 = y
+                //     lastNextDir = nDir
+                // }
+                const my = getMy(childI)
+                const cx = getCx(nDir)
+                const cy = maxBLocal + my
+                const [t, b] = scan(level + 1, nDir, child, gChildren, cx, cy)
+                maxBLocal = Math.max(maxBLocal, b)
+            }
+            maxB = Math.max(maxB, maxBLocal)
+        }
+        function getYOff() { return g.getBBox().height / 2 - gHeader.getBBox().height / 2 }
+        function adjustHeader() {
+            if (node.children.length > 0) {
+                gHeader.setAttribute('transform', `translate(0, ${getYOff()})`)
+            }
+        }
+        // var yoff = 0
+        if (level === 0) {
+            const gChildrenR = contChildren(g)
+            const gChildrenL = contChildren(g)
+            kids(left(), 'left', gChildrenL)
+            kids(right(), 'right', gChildrenR)
+            adjustHeader()
+            if (node.children.length > 1) {
+                const children = [gChildrenR, gChildrenL]
+                children.sort(byBBoxHeight)
+                children[0].setAttribute('transform', `translate(0, ${getYOff() - marginY})`)
+            }
+        } else {
+            const gChildren = contChildren(g)
+            kids(node.children, dir, gChildren)
+            adjustHeader()
+        }
+
+        // for (const child of node.children) {
+        //     const nDir = nextDir(childI)
+        //     if (lastNextDir === undefined) { lastNextDir = nDir }
+        //     if (lastNextDir !== nDir) { // reset maximums
+        //         maxB2 = maxB1
+        //         maxB1 = y
+        //         lastNextDir = nDir
+        //     }
+        //     const my = getMy(childI) //childI === 0 ? 0 : marginY
+        //     const cx = getCx(nDir)
+        //     const cy = maxB1 + my
+        //     const gChildren = childI < midChild() ? gChildrenR : gChildrenL
+        //     const [t, b] = scan(level + 1, nDir, child, gChildren, cx, cy)
+        //     maxB1 = Math.max(maxB1, b)
+        //     childI++
+        // }
+        // maxB1 = Math.max(y + marginY, maxB1, maxB2)
+        
+        function byBBoxHeight(a, b) {
+            if (a.getBBox().height === b.getBBox().height) { return 0 }
+            return a.getBBox().height < b.getBBox().height ? -1 : 1
+        }
+        // if (node.children.length > 0) {
+            //     // yoff = g.getBBox().height / 2 - gHeader.getBBox().height / 2
+        //     gHeader.setAttribute('transform', `translate(0, ${yoff})`)
+        //     if (level === 0 && node.children.length > 1) {
+        //         const children = [gChildrenR, gChildrenL]
+        //         children.sort(byBBoxHeight)
+        //         children[0].setAttribute('transform', `translate(0, ${yoff - marginY})`)
+        //     }
+        // }
+        
+        maxB = Math.max(y + marginY, maxB)
+        return [y, maxB]
+    }
+
+    scan(0, 'right', root, parent, baseX, baseY)
+}
+
+function layoutBothSidesCenteredTree2(root, parent, baseX, baseY) {
+    const marginX = 20
+    const marginY = 15
+
+    function scan(level, dir, node, parent, x, y) {
+        const g = contChild(parent)
+        const gHeader = contHeader(g)
         const [_g, w, h] = addLabel(gHeader, node.text, x, y, dir)
         function midChild() { return Math.floor(node.children.length / 2) }
         function getMy(childI) {
@@ -247,8 +459,8 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
         var maxB1 = y
         var maxB2 = y
         var lastNextDir = undefined
-        const gChildrenR = addSvg(g, 'g', {})
-        const gChildrenL = addSvg(g, 'g', {})
+        const gChildrenR = contChildren(g)
+        const gChildrenL = contChildren(g)
         for (const child of node.children) {
             const nDir = nextDir(childI)
             if (lastNextDir === undefined) { lastNextDir = nDir }
@@ -270,8 +482,9 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
             if (a.getBBox().height === b.getBBox().height) { return 0 }
             return a.getBBox().height < b.getBBox().height ? -1 : 1
         }
+        var yoff = 0
         if (node.children.length > 0) {
-            const yoff = g.getBBox().height / 2 - gHeader.getBBox().height / 2
+            yoff = g.getBBox().height / 2 - gHeader.getBBox().height / 2
             gHeader.setAttribute('transform', `translate(0, ${yoff})`)
             if (level === 0 && node.children.length > 1) {
                 const children = [gChildrenR, gChildrenL]
@@ -405,6 +618,7 @@ function Main() {
     })
     // cursor = #96DEFF
     // selected = #2EBDFF
+    // blue line = #486AFF
     svg.innerHTML = `
     <defs>
     <radialGradient id="labelRectHoverGradient">
@@ -436,7 +650,17 @@ function Main() {
     // const g4 = addSvg(svg, 'g', { transform: 'translate(850, 250)' })
     // layoutLeftCenteredTree(data, g4, 0, 0)
     // addClass(g4, 'rect', 'color4')
-    const g4 = Svg.fromData(svg, data, 850, 250)
+    
+    const g1 = Svg.fromData(svg, data, 10, 50, layoutNaiveRightTree, 'color1')
+    const g2 = Svg.fromData(svg, data, 400, 50, layoutNaiveDownTree, 'color2')
+    const g3 = Svg.fromData(svg, data, 50, 400, layoutRightCenteredTree, 'color3')
+    const g4 = Svg.fromData(svg, data, 850, 250, layoutLeftCenteredTree, 'color4')
+    const g5 = Svg.fromData(svg, data, 1250, 250, layoutBothSidesCenteredTree, 'color5')
+    
+    // addVerticalPath(svg, 200, 500, 100, 100) // 1
+    // addVerticalPath(svg, 400, 100, 300, 500) // 2
+    // addVerticalPath(svg, 700, 500, 800, 100) // 0
+    // addVerticalPath(svg, 900, 100, 1000, 500) // 3
 
     // const g5 = addSvg(svg, 'g', { transform: 'translate(1250, 250)' })
     // layoutBothSidesCenteredTree(root, g5, 0, 0)
