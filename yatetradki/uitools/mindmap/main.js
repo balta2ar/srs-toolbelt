@@ -372,7 +372,8 @@ function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
             if (node.children.length > 1) {
                 const children = [l, r]
                 children.sort(byBBoxHeight)
-                children[0].setAttribute('transform', `translate(0, ${getYOff() - marginY})`)
+                const h0 = children[0].getBoundingClientRect().height
+                children[0].setAttribute('transform', `translate(0, ${getYOff()-h0/4-marginY})`)
             }
         }
         function paths(gChildren, dir) {
