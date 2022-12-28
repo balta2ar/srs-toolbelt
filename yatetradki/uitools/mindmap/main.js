@@ -1,10 +1,13 @@
 let main
 let mouseRatioX
 let mouseRatioY
+let trees = {}
+var data = null
 window.onload = function () {
     main = document.getElementById('main')
     main.innerText = "init..."
 
+    data = exampleData()
     Main()
 }
 
@@ -38,14 +41,19 @@ class Data {
 }
 
 class Svg {
-    static fromData(svg, data, x, y, layoutFn, colorKlass) {
+    static fromData(svg, data, x, y, layoutFn, colorKlass, treeId) {
         const tree = addSvg(svg, 'g', { transform: `translate(${x}, ${y})` })
         // layoutLeftCenteredTree(data, tree, 0, 0)
-        layoutFn(data, tree, 0, 0)
+        layoutFn(data, tree, 0, 0, treeId)
         // addClass(tree, 'rect', 'color4')
         addClass(tree, 'rect', `${colorKlass}-rect`)
         addClass(tree, 'path', `${colorKlass}-path`)
         return tree
+    }
+    static fromTree(treeId) {
+        const opts = trees[treeId]
+        console.log(`treeId: ${treeId}, opts: ${opts}`)
+        opts.root = Svg.fromData(opts.svg, opts.data, opts.x, opts.y, opts.layout, opts.color, treeId)
     }
 }
 
@@ -161,7 +169,7 @@ function genVerticalPath(x1, y1, x2, y2) {
     }
 }
 
-function addLabel(parent, text, x, y, dir) {
+function addLabel(parent, text, x, y, dir, treeId) {
     // const g = addSvg(parent, 'g', {
     //     // transform: `translate(${x}, ${y})`
     // })
@@ -186,6 +194,7 @@ function addLabel(parent, text, x, y, dir) {
     const r = makeSvg('rect', {
         x: rx, y: ry, width: rw, height: rh, rx: 5, ry: 5,
         class: 'label-rect',
+        "data-treeid": treeId,
         // style: 'fill: #486AFF; stroke: #000000; stroke-width: 0'
     })
     r.addEventListener('click', (e) => {
@@ -323,14 +332,14 @@ function layoutLeftCenteredTree(root, parent, baseX, baseY) {
     scan(0, root, parent, baseX, baseY)
 }
 
-function layoutBothSidesCenteredTree(root, parent, baseX, baseY) {
+function layoutBothSidesCenteredTree(root, parent, baseX, baseY, treeId) {
     const marginX = 20
     const marginY = 15
 
     function scan(level, dir, node, parent, x, y) {
         const g = contChild(parent)
         const gHeader = contHeader(g)
-        const [_g, w, h] = addLabel(gHeader, node.text, x, y, dir)
+        const [_g, w, h] = addLabel(gHeader, node.text, x, y, dir, treeId)
         function mid() { return Math.floor(node.children.length / 2) }
         function getMy(childI) {
             const first = childI === 0
@@ -504,6 +513,25 @@ function trackMousePosition(svg) {
     })
 }
 
+function currentTree() {
+    const node = document.querySelector('.label-selected')
+    console.log(`node: %o`, node)
+    if (!node) { return null }
+    const treeId = node.getAttribute('data-treeid')
+    console.log(`treeId: %o`, treeId)
+    return trees[treeId]
+}
+
+function commandAddChild() {
+    console.log('commandAddChild')
+    const tree = currentTree()
+    console.log(`tree: %o`, tree)
+}
+
+function commandAddSibling() {
+
+}
+
 function trackKeyboard() {
     document.addEventListener('keydown', function (e) {
         console.log(`document key: %o`, e.key)
@@ -520,6 +548,7 @@ function trackKeyboard() {
             e.preventDefault()
         } else if (e.key === 'Tab') {
             e.preventDefault()
+            commandAddChild()
         } else if (e.key === 'Backspace') {
             e.preventDefault()
         }
@@ -549,7 +578,7 @@ function Main() {
     trackMousePosition(svg)
     trackKeyboard()
 
-    const data = exampleData()
+    // const data = exampleData()
     console.log('root: %o', data)
 
     // const g1 = addSvg(svg, 'g', { transform: 'translate(10, 50)' })
@@ -568,11 +597,20 @@ function Main() {
     // layoutLeftCenteredTree(data, g4, 0, 0)
     // addClass(g4, 'rect', 'color4')
     
-    const g1 = Svg.fromData(svg, data, 10, 50, layoutNaiveRightTree, 'color1')
-    const g2 = Svg.fromData(svg, data, 400, 50, layoutNaiveDownTree, 'color2')
-    const g3 = Svg.fromData(svg, data, 50, 700, layoutRightCenteredTree, 'color3')
-    const g4 = Svg.fromData(svg, data, 850, 300, layoutLeftCenteredTree, 'color4')
-    const g5 = Svg.fromData(svg, data, 1200, 180, layoutBothSidesCenteredTree, 'color5')
+    // const g1 = Svg.fromData(svg, data, 10, 50, layoutNaiveRightTree, 'color1')
+    // const g2 = Svg.fromData(svg, data, 400, 50, layoutNaiveDownTree, 'color2')
+    // const g3 = Svg.fromData(svg, data, 50, 700, layoutRightCenteredTree, 'color3')
+    // const g4 = Svg.fromData(svg, data, 850, 300, layoutLeftCenteredTree, 'color4')
+    trees['5'] = {
+        svg: svg,
+        data: data,
+        x: 1200,
+        y: 180,
+        layout: layoutBothSidesCenteredTree,
+        color: 'color5'
+    }
+    // const g5 = Svg.fromData(svg, data, 1200, 180, layoutBothSidesCenteredTree, 'color5')
+    Svg.fromTree('5')
     
     // addVerticalPath(svg, 200, 500, 100, 100) // 1
     // addVerticalPath(svg, 400, 100, 300, 500) // 2
