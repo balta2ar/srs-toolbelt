@@ -751,7 +751,7 @@ class GlosbeWord(WordGetter):
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
-        self.html = extract('GlosbeWord', soup, 'div', {'id': 'dictionary-content'})
+        self.html = extract('GlosbeWord', soup, 'main', {'id': 'dictionary-content'})
     def styled(self):
         return self.style() + self.html
     def get_url(self, word):
