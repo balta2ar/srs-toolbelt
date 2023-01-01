@@ -18,6 +18,7 @@ div.tmem__item__meta.trufla {
 .pt-1 { padding: 0 !important; }
 .py-1 { padding: 0 !important; }
 .py-2 { padding: 0 !important; }
+.pb-4 { padding: 0 !important; }
 div.py-2 + div.flex { display: none !important; }
 #translation_automatic { display: none !important; }
 #indirect-translations-container-0 { display: none !important; }
@@ -25,3 +26,4 @@ div.p-2 { display: none !important; }
 div.dir-aware-text-right { display: none !important; }
 div.px-1.pb-4 { display: none !important; }
 [data-element="no-translations"] { display: none !important; }
+.fragment_expandIcon { display: none !important; }
