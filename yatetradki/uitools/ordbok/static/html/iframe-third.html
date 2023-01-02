@@ -5,16 +5,25 @@
         <link href="/static/css/iframe.css" rel="stylesheet" type="text/css">
     </head>
     <body>
-        <div class="left">
-            <div class="fullw top">
-                <!-- <iframe src="http://localhost:5660/ordbok/inflect/${word}" frameBorder="0" title="ordbok-inflection"></iframe> -->
+        <div class="fullh">
+            <div class="left">
+                <!-- <iframe src="http://localhost:5660/wiktionary/no/${word}" frameBorder="0" title="wiktionary"></iframe> -->
+                <iframe src="http://localhost:5660/glosbe/enno/${word}" frameBorder="0" title="glosbe-enno"></iframe>
             </div>
-            <div class="fullw bottom">
-                <!-- <iframe src="http://localhost:5660/ordbokene/inflect/${word}" frameBorder="0" title="ordbokene-inflection"></iframe> -->
+            <div class="right">
+                <iframe src="http://localhost:5660/cambridge/enno/${word}" frameBorder="0" title="cambridge"></iframe>
             </div>
         </div>
-        <div class="fullh right">
-            <!-- <iframe src="http://localhost:5660/ordbokene/word/${word}" frameBorder="0" title="ordbokene-word"></iframe> -->
-        </div>
+        <!-- <div class="left"> -->
+        <!--     <div class="fullw top"> -->
+        <!--         &#60;&#33;&#45;&#45; <iframe src="http://localhost:5660/ordbok/inflect/${word}" frameBorder="0" title="ordbok-inflection"></iframe> &#45;&#45;&#62; -->
+        <!--     </div> -->
+        <!--     <div class="fullw bottom"> -->
+        <!--         &#60;&#33;&#45;&#45; <iframe src="http://localhost:5660/ordbokene/inflect/${word}" frameBorder="0" title="ordbokene-inflection"></iframe> &#45;&#45;&#62; -->
+        <!--     </div> -->
+        <!-- </div> -->
+        <!-- <div class="fullh right"> -->
+        <!--     &#60;&#33;&#45;&#45; <iframe src="http://localhost:5660/ordbokene/word/${word}" frameBorder="0" title="ordbokene-word"></iframe> &#45;&#45;&#62; -->
+        <!-- </div> -->
     </body>
 </html>
