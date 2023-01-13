@@ -147,6 +147,7 @@ setup(
             'srst-dehyphen=yatetradki.uitools.dehyphen.dehyphen:main',
             'srst-sayit=yatetradki.uitools.sayit.sayit:main',
             'srst-textmarksman=yatetradki.uitools.textmarksman.textmarksman:main',
+            'srst-textmarkswoman=yatetradki.uitools.textmarksman.textmarkswoman:main',
         ],
     },
     install_requires=REQUIRED,

@@ -64,23 +64,6 @@ def ocr(filename: str, lang: str) -> str:
     modes = [RIL.BLOCK, RIL.PARA, RIL.TEXTLINE, RIL.WORD, RIL.SYMBOL]
     with PyTessBaseAPI(lang=lang, psm=PSM.SINGLE_COLUMN) as api:
         api.SetImageFile(filename)
-        # for mode in modes:
-            #mode_dir = ensure_dir('out{}'.format(mode))
-            # with Image.open(filename) as orig:
-            #     draw = ImageDraw.Draw(orig)
-            #     boxes = api.GetComponentImages(mode, True)
-                # print('boxes', len(boxes))
-                # print('boxes', boxes)
-                # for i, (im, box, _, _) in enumerate(boxes):
-                #     # im is a PIL image object
-                #     # box is a dict with x, y, w and h keys
-                #     #api.SetRectangle(box['x'], box['y'], box['w'], box['h'])
-                #     print(i, im, box)
-                #     x, y, w, h = box['x'], box['y'], box['w'], box['h']
-                #     draw.rectangle((x, y, x+w, y+h), outline='red')
-                #     #im.save('{}/{:05d}.png'.format(mode_dir, i))
-                # orig.save('out{}.png'.format(mode))
-
         return api.GetUTF8Text()
 
 def unwrap(text: str) -> str:
@@ -114,29 +97,64 @@ def parse_args():
     parser.add_argument('-i', '--input', default=None, help='Input file name, instead of taking a screenshot')
     return parser.parse_args()
 
-def main():
-    args = parse_args()
-    print(tesserocr.tesseract_version())
-    print(tesserocr.get_languages())
-    filename = args.input if args.input else capture()
+def do_generic(engine, filename: Optional[str], lang: str, is_unproject: bool, is_sayit: bool) -> int:
+    filename = filename if filename else capture()
     if filename:
         #deskew(filename, filename)
         #text = ocr(filename, 'nor+rus')
-        if args.unproject:
+        if is_unproject:
             dest = '/tmp/unproject.jpg'
             from yatetradki.uitools.textmarksman.unproject.unproject_text import unproject
             unproject(filename, dest)
             filename = dest
-        text = ocr(filename, 'nor')
+        text = engine(filename, lang)
         text = unwrap(text)
         copy(text)
         notify('OCR', text)
         print(text)
-        if args.sayit:
+        if is_sayit:
             from yatetradki.uitools.sayit.sayit import sayit
             sayit(text)
         return EXIT_OK
     return EXIT_CANCEL
+
+def do_tesseract(filename: Optional[str], lang: str, is_unproject: bool, is_sayit: bool) -> int:
+    return do_generic(ocr, filename, lang, is_unproject, is_sayit)
+
+def engine_easyocr(filename: str, lang: str) -> str:
+    import easyocr
+    reader = easyocr.Reader(lang.split(','))
+    result = reader.readtext(filename, detail=0)
+    text = '\n'.join(result)
+    return text
+
+def do_easyocr(filename: Optional[str], lang: str, is_unproject: bool, is_sayit: bool) -> int:
+    return do_generic(engine_easyocr, filename, lang, is_unproject, is_sayit)
+
+def main():
+    args = parse_args()
+    print(tesserocr.tesseract_version())
+    print(tesserocr.get_languages())
+    return do_tesseract(args.input, 'nor', args.unproject, args.sayit)
+    # filename = args.input if args.input else capture()
+    # if filename:
+    #     #deskew(filename, filename)
+    #     #text = ocr(filename, 'nor+rus')
+    #     if args.unproject:
+    #         dest = '/tmp/unproject.jpg'
+    #         from yatetradki.uitools.textmarksman.unproject.unproject_text import unproject
+    #         unproject(filename, dest)
+    #         filename = dest
+    #     text = ocr(filename, 'nor')
+    #     text = unwrap(text)
+    #     copy(text)
+    #     notify('OCR', text)
+    #     print(text)
+    #     if args.sayit:
+    #         from yatetradki.uitools.sayit.sayit import sayit
+    #         sayit(text)
+    #     return EXIT_OK
+    # return EXIT_CANCEL
 
 
 if __name__ == '__main__':
