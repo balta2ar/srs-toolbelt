@@ -67,7 +67,7 @@ class WatchDog:
 DIR = Path(dirname(__file__))
 ICON_FILENAME = str(DIR / 'ocr.png')
 WATCHDOG_HOST = 'localhost'
-WATCHDOG_PORT = 5650
+WATCHDOG_PORT = 6650
 dog = WatchDog(WATCHDOG_HOST, WATCHDOG_PORT)
 if (not is_interactive()) and (not dog.start()):
     dog.show()
