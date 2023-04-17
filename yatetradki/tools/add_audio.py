@@ -102,7 +102,8 @@ def add_audio(args):
     must_env('AZURE_KEY')
     must_env('AZURE_REGION')
 
-    col = Collection(COLLECTION, log=True)
+    #col = Collection(COLLECTION, log=True)
+    col = Collection(COLLECTION)
     pronunciation = Pronunciation(args.audio)
 
     modelBasic = col.models.by_name(args.model)

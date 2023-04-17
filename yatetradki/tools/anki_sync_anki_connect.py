@@ -44,7 +44,8 @@ ERROR_ANKI_ALREADY_RUNNING = 3
 COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/share/Anki2/bz/collection.anki2')))
 
 def get_latest_mod(deck_name: str, model_name: str) -> Optional[int]:
-    col = Collection(COLLECTION, log=True)
+    #col = Collection(COLLECTION, log=True)
+    col = Collection(COLLECTION)
     modelBasic = col.models.by_name(model_name)
     deck = col.decks.by_name(deck_name)
     col.decks.select(deck['id'])
@@ -59,7 +60,7 @@ def get_latest_mod(deck_name: str, model_name: str) -> Optional[int]:
 
     latest = None
     for fnote in found_notes:
-        note = col.getNote(fnote)
+        note = col.get_note(fnote)
         note.note_type()['did'] = deck['id']
         if latest is None or note.mod > latest:
             latest = note.mod
