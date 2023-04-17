@@ -99,6 +99,7 @@ from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as Asyn
 import time
 from functools import wraps
 import socket
+from telnetlib import Telnet
 
 from requests.exceptions import HTTPError, ReadTimeout, ConnectionError
 from bs4 import BeautifulSoup
@@ -133,7 +134,8 @@ DIR = Path(dirname(__file__))
 ICON_FILENAME = str(DIR / 'ordbok.png')
 TEMPLATE_DIR = DIR / 'static' / 'html'
 STATIC_DIR = DIR / 'static'
-CACHE_DIR = Path(environ.get('CACHE_DIR', DIR / 'cache'))
+HOME = Path(expanduser('~'))
+CACHE_DIR = Path(environ.get('CACHE_DIR', HOME / '.cache' / 'ordbok'))
 CACHE_BY_WORD = CACHE_DIR / 'by_word'
 SUFFIX_BY_METHOD = 'by_method'
 SUFFIX_BY_URL = 'by_url'
@@ -152,7 +154,7 @@ invalidate_word: ContextVar[bool] = ContextVar('invalidate_word', default=False)
 def force_ipv4():
     """
     https://ordbok.uib.no gets stuck when accessed by IPV6.
-    Should be disbled when switched to https://ordbokene.no.
+    Should be disabled when switched to https://ordbokene.no.
     """
     old_getaddrinfo = socket.getaddrinfo
     def new_getaddrinfo(*args, **kwargs):
@@ -931,6 +933,26 @@ def combine(group):
         lines.append(notilda(equals(text(g))))
     return lines
 
+def human_to_seconds(text):
+    h, m, s = 0, 0, 0
+    match = re.match(r'(\d+h)?(\d+m)?(\d+s)', str(text))
+    if match is None: return 0
+    gh, gm, gs = match.groups()
+    if gh: h = int(gh[:-1])
+    if gm: m = int(gm[:-1])
+    if gs: s = int(gs[:-1])
+    return h*3600+m*60+s
+
+def vlc_seek(seconds):
+    password = 'pass'
+    try:
+        with Telnet('localhost', 4212) as tn:
+            tn.read_until(b'Password: ')
+            tn.write(password.encode('ascii') + b'\n')
+            tn.write(f'seek {seconds}'.encode('ascii') + b'\n')
+    except ConnectionRefusedError as e:
+        logging.error('cannot seek vlc: %s', e)
+
 class QComboBoxKey(QComboBox):
     def __init__(self, parent, on_key_press):
         super(QComboBoxKey, self).__init__(parent)
@@ -999,6 +1021,7 @@ class MainWindow(QWidget):
         super().__init__()
         self.myActivate.connect(self.activate)
         self.app = app
+        self.last_seek = ''
 
         mainLayout = QVBoxLayout(self)
         mainLayout.setSpacing(0)
@@ -1057,11 +1080,20 @@ class MainWindow(QWidget):
     def short(self, content):
         return content and (len(content.split()) <= self.MAX_WORDS_IN_CLIPBOARD)
 
+    def same_seek(self, seek):
+        return self.last_seek == seek
+
     def grab(self, content):
         content = content.strip()
         self.last_manual_change = time.time()
         if self.short(content) and not self.same_text(content):
-            self.set_text(content)
+            seconds = human_to_seconds(content)
+            if seconds > 0:
+                if not self.same_seek(seconds):
+                    self.last_seek = seconds
+                    vlc_seek(seconds)
+            else:
+                self.set_text(content)
             return True
         return False
 
