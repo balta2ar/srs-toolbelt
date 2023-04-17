@@ -67,7 +67,7 @@ class WatchDog:
 DIR = Path(dirname(__file__))
 ICON_FILENAME = str(DIR / 'ocr.png')
 WATCHDOG_HOST = 'localhost'
-WATCHDOG_PORT = 6650
+WATCHDOG_PORT = 5650
 dog = WatchDog(WATCHDOG_HOST, WATCHDOG_PORT)
 if (not is_interactive()) and (not dog.start()):
     dog.show()
@@ -102,6 +102,8 @@ class SystemTrayIcon(QSystemTrayIcon):
         exit = menu.addAction("Exit")
         exit.triggered.connect(app.quit)
 
+        menu.addSeparator()
+
         capture = menu.addAction("Capture")
         capture.triggered.connect(self.on_capture)
 
@@ -131,21 +133,10 @@ class SystemTrayIcon(QSystemTrayIcon):
         self.eng_easyocr.setCheckable(True)
         self.eng_paddleocr = menu.addAction("paddleocr")
         self.eng_paddleocr.setCheckable(True)
-        self.eng_mmocr = menu.addAction("mmocr")
-        self.eng_mmocr.setCheckable(True)
         engine_group = QActionGroup(menu)
         engine_group.addAction(self.eng_tesseract)
         engine_group.addAction(self.eng_easyocr)
         engine_group.addAction(self.eng_paddleocr)
-        engine_group.addAction(self.eng_mmocr)
-
-        menu.addSeparator()
-
-        capture = menu.addAction("Capture")
-        capture.triggered.connect(self.on_capture)
-
-        exit = menu.addAction("Exit")
-        exit.triggered.connect(app.quit)
 
         self.setContextMenu(menu)
 
