@@ -88,7 +88,7 @@ def copy(text: str) -> str:
     return text
 
 def notify(title, message):
-    subprocess.run(['notify-send', title, message], check=True)
+    subprocess.run(['notify-send', title, '--', message], check=True)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='OCR text from screen')
@@ -110,7 +110,7 @@ def do_generic(engine, filename: Optional[str], lang: str, is_unproject: bool, i
         text = engine(filename, lang)
         text = unwrap(text)
         copy(text)
-        notify('OCR', text)
+        notify('OCR', "%s" % (text,))
         print(text)
         if is_sayit:
             from yatetradki.uitools.sayit.sayit import sayit
