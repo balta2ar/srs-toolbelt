@@ -117,6 +117,8 @@ from PyQt6.QtGui import QIcon, QFont, QClipboard
 from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtCore import pyqtSignal, pyqtSlot
 
+from html2text import HTML2Text
+
 from yatetradki.reader.dsl import lookup as dsl_lookup
 from yatetradki.uitools.index.search import search as index_search
 from yatetradki.tools.telegram import WordLogger
@@ -256,24 +258,32 @@ class DynamicClient:
     TIMEOUT = NETWORK_TIMEOUT
 
 class PlaywrightClientAsync(DynamicClient):
-    async def get_async(self, url, selector=None, action=None):
+    async def get_async(self, url, selector=None, extractor=None, action=None, wait_until=None):
         disable_logging()
         async with async_playwright() as p:
             browser = await p.chromium.launch()
             page = await browser.new_page()
-            await page.goto(url)
+            await page.goto(url, wait_until=wait_until)
             if selector is not None:
                 await page.wait_for_selector(selector, timeout=self.TIMEOUT)
             if action is not None:
                 await page.evaluate(action)
-            content = await page.evaluate('document.body.innerHTML')
+            ev = 'document.body.innerHTML'
+            if extractor is not None:
+                ev = 'document.querySelector("%s").innerHTML' % (extractor,)
+            content = await page.evaluate(ev)
             logging.info('async playwright "%d"', len(content))
             await browser.close()
             return content
 
 class DynamicHttpClient:
-    async def get_async(self, url, selector=None, action=None):
-        return await PlaywrightClientAsync().get_async(url, selector, action)
+    async def get_async(self, url, selector=None, extractor=None, action=None, wait_until=None):
+        return await PlaywrightClientAsync().get_async(
+            url,
+            selector=selector,
+            extractor=extractor,
+            action=action,
+            wait_until=wait_until)
 
 def get_file_dir_stats(base):
     num_files = 0
@@ -342,11 +352,11 @@ class CachedHttpClient:
             cacher.set(keypath, value)
         return value
     def get_key(self, url):
-        J = lambda x: re.sub(r'\W+', '', x)
+        J = lambda x: re.sub(r'\W+', '', x) # remove space
         S = lambda x: re.sub(r'^\w\s\d-', '/', x)
         p = urlparse(url)
         a = normpath('/'.join([J(p.hostname), J(p.path), J(p.query)]))
-        b = normpath('/'.join([J(p.hostname), S(p.path)]))
+        b = normpath('/'.join([J(p.hostname), S(p.path), S(p.fragment)]))
         return a if p.query else b
 
 class NoContent(Exception):
@@ -375,6 +385,24 @@ def spit(do_open, filename, content):
 
 def to_text(html):
     return parse(html).text
+
+def clean(text):
+    output = []
+    for l in text.splitlines():
+        line = l.strip()
+        if line:
+            output.append(l)
+    return '\n'.join(output)
+
+def as_text(html):
+    h = HTML2Text()
+    h.ignore_links = True
+    h.ignore_images = True
+    h.ignore_emphasis = False
+    h.ignore_tables = True
+    out = h.handle(html)
+    out = clean(out)
+    return out
 
 def uniq(items, key):
     seen = set()
@@ -607,6 +635,38 @@ class LexinOsloMetArticle(WordGetter):
 #
 #     def __repr__(self):
 #         return f'Suggestions(word={self.word}, count={len(self.items)}, top={self.top})'
+
+class DeeplWord(WordGetter):
+    # https://www.deepl.com/translator#nb/en/skarpe%20pigger
+    URL = ''
+    async def get_async(self):
+        selector = 'section.lmt__side_container--target div.lmt__textarea_container'
+        extractor = selector
+        soup = parse(await self.client.get_async(self.get_url(self.word),
+                                                 selector=selector,
+                                                 extractor=extractor,
+                                                 wait_until='networkidle'))
+        self.parse(soup)
+        return self.styled()
+    def parse(self, soup):
+        #right = soup.select_one('section.lmt__side_container--target')
+        #main = extract('DeeplWord', soup, 'div', {'class': 'lmt__textarea_container'})
+        soup = remove_one(soup, 'div#target-dummydiv')
+        main = as_text(soup.prettify())
+        main = '<br>\n'.join(main.split('\n'))
+        self.html = main
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return css('deepl.css')
+    def get_url(self, word):
+        return self.URL.format(word)
+
+class DeeplNoEnWord(DeeplWord):
+    URL = 'https://www.deepl.com/translator#nb/en/{0}'
+
+class DeeplEnNoWord(DeeplWord):
+    URL = 'https://www.deepl.com/translator#en/nb/{0}'
 
 class NaobWord(WordGetter):
     async def get_async(self):
@@ -1305,6 +1365,8 @@ class AIOHTTPUIServer:
         router.add_get('/dsl/word/{word}', wrap(self.route_dsl_word))
         router.add_get('/gtrans/noen/{word}', wrap(self.route_gtrans_noen))
         router.add_get('/gtrans/enno/{word}', wrap(self.route_gtrans_enno))
+        router.add_get('/deepl/noen/{word}', wrap(self.route_deepl_noen))
+        router.add_get('/deepl/enno/{word}', wrap(self.route_deepl_enno))
         router.add_get('/aulismedia/norsk/{word}', wrap(self.route_aulismedia_norsk))
         router.add_get('/aulismedia/prev/{word}', wrap(self.route_aulismedia_prev))
         router.add_get('/aulismedia/next/{word}', wrap(self.route_aulismedia_next))
@@ -1375,6 +1437,12 @@ class AIOHTTPUIServer:
     @cached_async
     async def route_gtrans_enno(self, word):
         return await GoogleTranslateEnNo(self.static_client, word).get_async()
+    @cached_async
+    async def route_deepl_noen(self, word):
+        return await DeeplNoEnWord(self.dynamic_client, word).get_async()
+    @cached_async
+    async def route_deepl_enno(self, word):
+        return await DeeplEnNoWord(self.dynamic_client, word).get_async()
     async def route_aulismedia_norsk(self, word):
         return await AulismediaWord(self.static_client, word).get_async()
     async def route_aulismedia_prev(self, word):
@@ -1401,6 +1469,8 @@ class AIOHTTPUIServer:
             self.url('/dsl/word/{}'.format(word)),
             self.url('/gtrans/noen/{}'.format(word)),
             self.url('/gtrans/enno/{}'.format(word)),
+            self.url('/deepl/noen/{}'.format(word)),
+            self.url('/deepl/enno/{}'.format(word)),
             self.url('/aulismedia/norsk/{}'.format(word)),
         ]
         logging.info('all: word=%s, parallel=%s, #urls=%d', word, parallel, len(urls))
@@ -1528,6 +1598,18 @@ def main():
 def testnaob(word):
     client = CachedHttpClient(DynamicHttpClient(), 'cache')
     print(NaobWord(client, word).html)
+
+def testdeepl(word):
+    async def fetch():
+        client = CachedHttpClient(DynamicHttpClient(), CACHE_DIR)
+        return await DeeplNoEnWord(client, word).get_async()
+    loop = new_event_loop()
+    set_event_loop(loop)
+    out = loop.run_until_complete(fetch())
+    #print(out)
+    soup = BeautifulSoup(out, 'html.parser')
+    print(soup.text.strip())
+
 
 if __name__ == '__main__':
     main()
