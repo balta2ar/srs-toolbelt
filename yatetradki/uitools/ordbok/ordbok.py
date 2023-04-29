@@ -239,7 +239,7 @@ class StaticHttpClient:
         headers = {'User-Agent': self.USER_AGENT}
         if origin: headers['Origin'] = origin
         return headers
-    async def get_async(self, url, origin=None):
+    async def get_async(self, url, extractor=None, origin=None):
         retries = self.RETRIES
         logging.info('http get async "%s"', url)
         async with ClientSession() as session:
@@ -248,6 +248,11 @@ class StaticHttpClient:
                     async with session.get(url, timeout=self.TIMEOUT, headers=self.headers(origin), ssl=False, allow_redirects=True) as resp:
                         result = await resp.text()
                         logging.info('http get async done: "%s"', url)
+                        if extractor:
+                            soup = BeautifulSoup(result, 'html.parser')
+                            soup = soup.select_one(extractor)
+                            if soup is None: return ''
+                            return soup.prettify()
                         return result
                 except AsyncioTimeoutError as e:
                     logging.warning('async timeout (%s) getting "%s": "%s"', self.TIMEOUT, url, e)
@@ -668,6 +673,34 @@ class DeeplNoEnWord(DeeplWord):
 class DeeplEnNoWord(DeeplWord):
     URL = 'https://www.deepl.com/translator#en/nb/{0}'
 
+class TrExMe(WordGetter):
+    # https://tr-ex.me/translation/norwegian-russian/p%C3%A5+glid
+    URL = ''
+    async def get_async(self):
+        extractor = 'div.doc-group'
+        body = await self.client.get_async(self.get_url(self.word), extractor=extractor)
+        klass = self.__class__.__name__
+        if not body: raise NoContent(f'{klass}: word="{self.word}"')
+        self.parse(parse(body))
+        return self.styled()
+    def parse(self, soup):
+        soup = remove_all(soup, 'div.ce-w')
+        for a in soup.find_all('a'): del a['href']
+        main = soup.prettify()
+        self.html = main
+    def styled(self):
+        return self.style() + self.html
+    def style(self):
+        return css('trex.css')
+    def get_url(self, word):
+        return self.URL.format(word)
+
+class TrExMeNoEnWord(TrExMe):
+    URL = 'https://tr-ex.me/translation/norwegian-english/{0}'
+
+class TrExMeEnNoWord(TrExMe):
+    URL = 'https://tr-ex.me/translation/english-norwegian/{0}'
+
 class NaobWord(WordGetter):
     async def get_async(self):
         soup = parse(await self.client.get_async(self.get_url(self.word), selector='main > div.container'))
@@ -857,7 +890,7 @@ class CambridgeEnNo(WordGetter):
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
-        self.html = extract('CambridgeEnNo', soup, 'div', {'class': 'dictionary'})
+        self.html = extract('CambridgeEnNo', soup, 'div', {'class': 'entry-body'})
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -1367,6 +1400,8 @@ class AIOHTTPUIServer:
         router.add_get('/gtrans/enno/{word}', wrap(self.route_gtrans_enno))
         router.add_get('/deepl/noen/{word}', wrap(self.route_deepl_noen))
         router.add_get('/deepl/enno/{word}', wrap(self.route_deepl_enno))
+        router.add_get('/trex/noen/{word}', wrap(self.route_trex_noen))
+        router.add_get('/trex/enno/{word}', wrap(self.route_trex_enno))
         router.add_get('/aulismedia/norsk/{word}', wrap(self.route_aulismedia_norsk))
         router.add_get('/aulismedia/prev/{word}', wrap(self.route_aulismedia_prev))
         router.add_get('/aulismedia/next/{word}', wrap(self.route_aulismedia_next))
@@ -1443,6 +1478,12 @@ class AIOHTTPUIServer:
     @cached_async
     async def route_deepl_enno(self, word):
         return await DeeplEnNoWord(self.dynamic_client, word).get_async()
+    @cached_async
+    async def route_trex_noen(self, word):
+        return await TrExMeNoEnWord(self.static_client, word).get_async()
+    @cached_async
+    async def route_trex_enno(self, word):
+        return await TrExMeEnNoWord(self.static_client, word).get_async()
     async def route_aulismedia_norsk(self, word):
         return await AulismediaWord(self.static_client, word).get_async()
     async def route_aulismedia_prev(self, word):
@@ -1471,6 +1512,8 @@ class AIOHTTPUIServer:
             self.url('/gtrans/enno/{}'.format(word)),
             self.url('/deepl/noen/{}'.format(word)),
             self.url('/deepl/enno/{}'.format(word)),
+            self.url('/trex/noen/{}'.format(word)),
+            self.url('/trex/enno/{}'.format(word)),
             self.url('/aulismedia/norsk/{}'.format(word)),
         ]
         logging.info('all: word=%s, parallel=%s, #urls=%d', word, parallel, len(urls))
@@ -1603,6 +1646,17 @@ def testdeepl(word):
     async def fetch():
         client = CachedHttpClient(DynamicHttpClient(), CACHE_DIR)
         return await DeeplNoEnWord(client, word).get_async()
+    loop = new_event_loop()
+    set_event_loop(loop)
+    out = loop.run_until_complete(fetch())
+    #print(out)
+    soup = BeautifulSoup(out, 'html.parser')
+    print(soup.text.strip())
+
+def testtrex(word):
+    async def fetch():
+        client = CachedHttpClient(StaticHttpClient(), CACHE_DIR)
+        return await TrExMeNoEnWord(client, word).get_async()
     loop = new_event_loop()
     set_event_loop(loop)
     out = loop.run_until_complete(fetch())

@@ -1,18 +1,32 @@
 <html>
-    <head>
-        <style>
-        </style>
-        <link href="/static/css/iframe.css" rel="stylesheet" type="text/css">
-    </head>
-    <body>
-        <div class="fullh">
-            <div class="left">
-                <!-- <iframe src="http://localhost:5660/wiktionary/no/${word}" frameBorder="0" title="wiktionary"></iframe> -->
-                <!-- <iframe src="http://localhost:5660/glosbe/enno/${word}" frameBorder="0" title="glosbe-enno"></iframe> -->
+<head>
+    <style>
+    </style>
+    <link href="/static/css/iframe.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+    <div class="fullh">
+        <div class="left">
+            <div class="fullw top">
+                <iframe src="http://localhost:5660/gtrans/noen/${word}" frameBorder="0" title="gtrans_noen"></iframe>
             </div>
-            <div class="right">
-                <!-- <iframe src="http://localhost:5660/cambridge/enno/${word}" frameBorder="0" title="cambridge"></iframe> -->
+            <div class="fullw bottom">
+                <div class="fullh left">
+                    <iframe src="http://localhost:5660/deepl/noen/${word}" frameBorder="0" title="deepl-noen"></iframe>
+                </div>
+                <div class="fullh right">
+                    <iframe src="http://localhost:5660/deepl/enno/${word}" frameBorder="0" title="deepl-enno"></iframe>
+                </div>
             </div>
+            <!-- <iframe src="http://localhost:5660/trex/noen/${word}" frameBorder="0" title="trex-noen"></iframe> -->
+            <!-- <iframe src="http://localhost:5660/wiktionary/no/${word}" frameBorder="0" title="wiktionary"></iframe> -->
+            <!-- <iframe src="http://localhost:5660/glosbe/enno/${word}" frameBorder="0" title="glosbe-enno"></iframe> -->
         </div>
-    </body>
+        <div class="right">
+            <iframe src="http://localhost:5660/trex/enno/${word}" frameBorder="0" title="trex-enno"></iframe>
+            <!-- <iframe src="http://localhost:5660/cambridge/enno/${word}" frameBorder="0" title="cambridge"></iframe> -->
+        </div>
+    </div>
+</body>
+
 </html>
