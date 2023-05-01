@@ -26,6 +26,7 @@ DONE: argument for presets: small, large, etc
 import re
 import sys
 from shutil import which
+from plumbum import BG
 from plumbum.cmd import bash, xclip, plantuml
 from argparse import ArgumentParser
 from html2text import HTML2Text
@@ -35,7 +36,7 @@ from bs4 import BeautifulSoup
 
 PUML = '/tmp/digraph.puml'
 SVG = '/tmp/digraph.svg'
-PNG = '/tmp/digraph.PNG'
+PNG = '/tmp/digraph.png'
 
 def chrome_binary():
     candidates = [
@@ -460,8 +461,10 @@ def render(text, preset, start):
     print(output)
 
     spit(PUML, output)
-    # bash[must_bin('plantuml'), PUML, '-tsvg', '-o', '/tmp']()
-    bash[must_bin('plantuml'), PUML, '-tpng', '-o', '/tmp']()
+    a = bash[must_bin('plantuml'), PUML, '-tsvg', '-o', '/tmp'] & BG
+    b = bash[must_bin('plantuml'), PUML, '-tpng', '-o', '/tmp'] & BG
+    a.wait()
+    b.wait()
 
 def main():
     must_bin("xclip", "Install xclip to use this script.")

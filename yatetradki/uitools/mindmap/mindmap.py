@@ -14,12 +14,14 @@ file, and opens the SVG in Chrome.
 """
 import sys
 from shutil import which
+from plumbum import BG
 from plumbum.cmd import xclip, plantuml
 from argparse import ArgumentParser
 from html2text import HTML2Text
 import webbrowser
 
 PUML = '/tmp/mindmap.puml'
+PNG = '/tmp/mindmap.png'
 SVG = '/tmp/mindmap.svg'
 
 def chrome_binary():
@@ -176,6 +178,21 @@ def markdown(lines):
         output.append(text)
     return '\n'.join(output)
 
+def render(text):
+    text = dense(as_text(text))
+    lines = Line.from_text(text)
+    lines = colors(lines)
+    lines = divide(lines)
+
+    output = HEADER + markdown(lines) + FOOTER
+    print(output)
+
+    spit(PUML, output)
+    a = plantuml[PUML, '-tsvg', '-o', '/tmp'] & BG
+    b = plantuml[PUML, '-tpng', '-o', '/tmp'] & BG
+    a.wait()
+    b.wait()
+
 def main():    
     must_bin("xclip", "Install xclip to use this script.")
     must_bin("plantuml", "Install plantuml to use this script.")
@@ -185,19 +202,21 @@ def main():
     parser.add_argument("-i", "--input", default=None, help="Input file")
     args = parser.parse_args()
 
-    text = dense(as_text(slurp(args.input)))
-    lines = Line.from_text(text)
-    lines = colors(lines)
-    lines = divide(lines)
+    text = slurp(args.input)
+    # text = dense(as_text(text))
+    # lines = Line.from_text(text)
+    # lines = colors(lines)
+    # lines = divide(lines)
 
-    output = HEADER + markdown(lines) + FOOTER
-    print(output)
+    # output = HEADER + markdown(lines) + FOOTER
+    # print(output)
 
-    if args.input is None:
-        spit(PUML, output)
-        plantuml[PUML, '-tsvg', '-o', '/tmp']()
-        print("Mindmap saved to {}".format(SVG), file=sys.stderr)
-        open_in_browser(SVG)
+    # if args.input is None:
+    #     spit(PUML, output)
+    #     plantuml[PUML, '-tsvg', '-o', '/tmp']()
+    render(args.input)
+    print("Mindmap saved to {}".format(SVG), file=sys.stderr)
+    open_in_browser(SVG)
 
 if __name__ == "__main__":
     main()
