@@ -1,0 +1,11 @@
+[Unit]
+Description=NRK news downloader & uploader helper
+After=local-fs.target network.target
+
+[Service]
+Type=simple
+ExecStart=/home/bz/dev/src/srs-toolbelt/yatetradki/uitools/nrkup/nrkup.py
+Restart=always
+
+[Install]
+WantedBy=default.target
