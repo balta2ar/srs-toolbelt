@@ -286,9 +286,10 @@ I tend to use news from [Nordland](https://tv.nrk.no/serie/distriktsnyheter-nord
 * Download and save video of episodes using [nrkdownload](https://github.com/marhoy/nrk-download)
 * Extract audio track using [ffmpeg](https://ffmpeg.org/)
 * Remove silence from the audio and apply dynamic range compression using [sox](http://sox.sourceforge.net/) for better sound quality
-* Upload that audio to Telegram -- I use Telegram as my audio player
+* Upload that audio to Telegram using [telethon](https://github.com/LonamiWebs/Telethon) -- I use Telegram as my audio player
 * Fetch subtitles and generate study text material by grouping text accroding to news sections in the report, e.g. (removed most of the text for compactness)
 * Within topics subtitles are also grouped by speaker: I run [pyannote](https://github.com/pyannote/pyannote-audio) to perform speaker diarization, and then I group subtitles by speaker -- one speaker per paragraph:
+* I tried noise removal using [rnnoise](https://github.com/xiph/rnnoise), but it didn't work well:
 
 ```
 20220613
