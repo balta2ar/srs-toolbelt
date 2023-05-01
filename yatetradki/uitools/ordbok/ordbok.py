@@ -440,6 +440,9 @@ def parse(body):
     logging.info('parse: %.2f (size=%d)', t1-t0, len(body))
     return result
 
+def parseM(body):
+    return parse(body) if body else None
+
 def iframe_mix(word):
     t = Template(open(here_html('iframe-mix.html')).read())
     return t.substitute(word=word)
@@ -676,17 +679,28 @@ class DeeplEnNoWord(DeeplWord):
 class TrExMe(WordGetter):
     # https://tr-ex.me/translation/norwegian-russian/p%C3%A5+glid
     URL = ''
+    PAGE = '?page={0}'
     async def get_async(self):
         extractor = 'div.doc-group'
-        body = await self.client.get_async(self.get_url(self.word), extractor=extractor)
+        # body = await self.client.get_async(self.get_url(self.word), extractor=extractor)
+        body, page2, page3 = await gather(
+            self.client.get_async(self.get_url(self.word), extractor=extractor),
+            self.client.get_async(self.get_url(self.word) + self.PAGE.format(2), extractor=extractor),
+            self.client.get_async(self.get_url(self.word) + self.PAGE.format(3), extractor=extractor),
+        )
         klass = self.__class__.__name__
         if not body: raise NoContent(f'{klass}: word="{self.word}"')
-        self.parse(parse(body))
+        # self.parse(parse(body))
+        self.parse(parse(body), parseM(page2), parseM(page3))
         return self.styled()
-    def parse(self, soup):
-        soup = remove_all(soup, 'div.ce-w')
-        for a in soup.find_all('a'): del a['href']
-        main = soup.prettify()
+    def parse(self, soup, *pages):
+        main = ''
+        for page in (soup,) + pages:
+            if not page: continue
+            page = remove_all(page, 'script')
+            page = remove_all(page, 'div.ce-w')
+            for a in page.find_all('a'): del a['href']
+            main += page.prettify()
         self.html = main
     def styled(self):
         return self.style() + self.html
@@ -1653,6 +1667,12 @@ def testdeepl(word):
     soup = BeautifulSoup(out, 'html.parser')
     print(soup.text.strip())
 
+def non_empty_lines(text):
+    result = []
+    for x in text.strip().split('\n'):
+        if x.strip(): result.append(x.strip())
+    return '\n'.join(result)
+
 def testtrex(word):
     async def fetch():
         client = CachedHttpClient(StaticHttpClient(), CACHE_DIR)
@@ -1661,8 +1681,9 @@ def testtrex(word):
     set_event_loop(loop)
     out = loop.run_until_complete(fetch())
     #print(out)
-    soup = BeautifulSoup(out, 'html.parser')
-    print(soup.text.strip())
+    soup = parse(out)
+    # print(soup.text.strip())
+    print(non_empty_lines(soup.text))
 
 
 if __name__ == '__main__':
