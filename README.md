@@ -314,7 +314,7 @@ Takk for følget.
 
 ## 10. Mindmaps and digraphs
 
-One of the activities that I do to improve my language skills is to create mindmaps. Besides of drawing them manualy, which is important step for memorisation, I also made a script to visualize them using PlantUML. What I do is I make a nested list like this:
+One of the activities that I do to improve my language skills is to create mindmaps. Besides of drawing them manualy, which is important step for memorisation, I also made a script to visualize them using PlantUML+GraphViz. What I do is I make a nested list like this:
 
 ```text
 forelder
@@ -333,7 +333,7 @@ forelder
         i sitt ess
 ```
 
-And then a bit of PlantUML layout magick + [Streamlit](https://docs.streamlit.io/) app to provide a simple UI to tune parameters. For example, the default value of `start` parameter often is not the best. The UI allows me to try various layouts and their settings quick. For now it supports generation in two formats: bidirectional graph and a mindmap.
+And then a bit of PlantUML+GraphViz layout magick + [Streamlit](https://docs.streamlit.io/) app to provide a simple UI to tune parameters. For example, the default value of `start` parameter often is not the best. The UI allows me to try various layouts and their settings quick. For now it supports generation in two formats: bidirectional graph and a mindmap.
 
 ![digraph](images/mindmap-digraph.png)
 ![mindmap](images/mindmap-mindmap.png)
