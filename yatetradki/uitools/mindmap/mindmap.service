@@ -1,0 +1,11 @@
+[Unit]
+Description=GUI for mindmap-from-text generator
+After=local-fs.target network.target
+
+[Service]
+Type=simple
+ExecStart=python3 -m streamlit run /home/bz/dev/src/srs-toolbelt/yatetradki/uitools/mindmap/streamlit_app.py --server.port 8600 --server.headless true
+Restart=always
+
+[Install]
+WantedBy=default.target
