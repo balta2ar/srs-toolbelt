@@ -234,7 +234,7 @@ def base():
 
 def large():
     # large: fdp, K=1.3, overlap=vpsc
-    return HEADER + base() + '''
+    return '''
     layout=fdp;
     K=1.3; # fdp, sfdp
     overlap=vpsc;
@@ -245,7 +245,7 @@ def large():
 
 def medium():
     # large: fdp, K=1.3, overlap=vpsc
-    return HEADER + base() + '''
+    return '''
     layout=fdp;
     K=0.7; # fdp, sfdp
     overlap=vpsc;
@@ -256,7 +256,7 @@ def medium():
 
 def small():
     # small: sfdp, repulsiveforce=10.0, overlap=prism
-    return HEADER + base() + '''
+    return '''
     layout=sfdp;
     repulsiveforce=8.0; # sfdp
     overlap=prism;
@@ -272,7 +272,7 @@ def small():
 
 def neato():
     # neato: overlap=vpsc
-    return HEADER + base() + '''
+    return '''
     layout=neato;
     overlap=vpsc;
     #damping=0.99;
@@ -442,10 +442,26 @@ def rewrap(lines, width):
         output.append(Line(text))
     return output
 
-def extra(args):
+def extra(start):
     return """
     start={};
-""".format(args.start)
+""".format(start)
+
+def render(text, preset, start):
+    max_width = 18
+    text = dense(as_text(text))
+    lines = Line.from_text(text)
+    lines = rewrap(lines, width=max_width)
+    lines = lightness(lines)
+    Node.from_lines(lines).measure()
+
+    head = HEADER + base() + preset + extra(start)
+    output = head + colorize(lines) + "\n" + connections(lines) + FOOTER
+    print(output)
+
+    spit(PUML, output)
+    # bash[must_bin('plantuml'), PUML, '-tsvg', '-o', '/tmp']()
+    bash[must_bin('plantuml'), PUML, '-tpng', '-o', '/tmp']()
 
 def main():
     must_bin("xclip", "Install xclip to use this script.")
@@ -458,23 +474,24 @@ def main():
     parser.add_argument("-s", "--start", default=1, type=int, help="Start value (seed)")
     args = parser.parse_args()
 
-    max_width = 18
-    text = dense(as_text(slurp(args.input)))
-    lines = Line.from_text(text)
-    lines = rewrap(lines, width=max_width)
-    lines = lightness(lines)
-    Node.from_lines(lines).measure()
+    text = slurp(args.input)
+    # text = dense(as_text(text))
+    # lines = Line.from_text(text)
+    # lines = rewrap(lines, width=max_width)
+    # lines = lightness(lines)
+    # Node.from_lines(lines).measure()
 
-    head = footer(args.preset) + extra(args)
-    output = head + colorize(lines) + "\n" + connections(lines) + FOOTER
-    print(output)
+    # head = footer(args.preset) + extra(args)
+    # output = head + colorize(lines) + "\n" + connections(lines) + FOOTER
+    # print(output)
 
-    if args.input is None:
-        spit(PUML, output)
-        bash[must_bin('plantuml'), PUML, '-tsvg', '-o', '/tmp']()
-        print("Mindmap saved to {}".format(SVG), file=sys.stderr)
-        open_in_browser(SVG)
-        bash[must_bin('plantuml'), PUML, '-tpng', '-o', '/tmp']()
+    # if args.input is None:
+    #     spit(PUML, output)
+    #     bash[must_bin('plantuml'), PUML, '-tsvg', '-o', '/tmp']()
+    #     bash[must_bin('plantuml'), PUML, '-tpng', '-o', '/tmp']()
+    render(text, footer(args.preset), args.start)
+    print("Mindmap saved to {}".format(SVG), file=sys.stderr)
+    open_in_browser(SVG)
 
 if __name__ == "__main__":
     main()
