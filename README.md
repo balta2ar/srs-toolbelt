@@ -284,7 +284,7 @@ Page 6:
 I tend to use news from [Nordland](https://tv.nrk.no/serie/distriktsnyheter-nordland/) as my study materials, which I listen to, try to understand, translate, and memorize new words. To help with that, [nrkup.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/uitools/nrkup/nrkup.py) service helps a lot. It can:
 
 * Download and save video of episodes using [nrkdownload](https://github.com/marhoy/nrk-download)
-* Extract audio track
+* Extract audio track using [ffmpeg](https://ffmpeg.org/)
 * Remove silence from the audio and apply dynamic range compression using [sox](http://sox.sourceforge.net/) for better sound quality
 * Upload that audio to Telegram -- I use Telegram as my audio player
 * Fetch subtitles and generate study text material by grouping text accroding to news sections in the report, e.g. (removed most of the text for compactness)
