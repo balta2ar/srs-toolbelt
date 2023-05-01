@@ -17,12 +17,13 @@ srs-toolbelt (former yandex-slovari-tetradki)
   - [7. Do forced alignment for korean sentences from my Korean textbook and convert them to Memrise course (flash cards).](#7-do-forced-alignment-for-korean-sentences-from-my-korean-textbook-and-convert-them-to-memrise-course-flash-cards)
   - [8. Multi-sourced UI for several norwegian dictionaries](#8-multi-sourced-ui-for-several-norwegian-dictionaries)
   - [9. NRK news fetcher](#9-nrk-news-fetcher)
+  - [10. Mindmaps and digraphs](#10-mindmaps-and-digraphs)
   - [My decks](#my-decks)
     - [Anki](#anki)
     - [Memrise](#memrise)
   - [Screenshots of anki](#screenshots-of-anki)
   - [Screenshots of conky](#screenshots-of-conky)
-    - [Translation & syn & ant](#translation--syn--ant)
+    - [Translation \& syn \& ant](#translation--syn--ant)
     - [Defs](#defs)
   - [Related materials](#related-materials)
   - [Theory and methods](#theory-and-methods)
@@ -241,9 +242,13 @@ TODO.
 
 ## 8. Multi-sourced UI for several norwegian dictionaries
 
-![page1](https://i.imgur.com/JKmHrHA.png)
-![page2](https://i.imgur.com/Q82LjRK.png)
-![page3](https://i.imgur.com/woKdYHJ.png)
+<!-- ![page1](https://i.imgur.com/JKmHrHA.png) -->
+<!-- ![page2](https://i.imgur.com/Q82LjRK.png) -->
+<!-- ![page3](https://i.imgur.com/woKdYHJ.png) -->
+![page1](images/ordbok-lexin.png)
+![page2](images/ordbok-naob.png)
+![page3](images/ordbok-dsl.png)
+![page4](images/ordbok-cambridge.png)
 
 This script [ordbok.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/uitools/ordbok.py) collects the output from multiple sources in a condensed nice format so that you get quick access to dictionary articles as you type. Results are cached, so servers are not stressed. Currently supported sources:
 
@@ -254,12 +259,23 @@ Page 1:
 * Nor->Eng direction from https://nb.glosbe.com/nb/en/
 
 Page 2:
-* Definitions from https://ordbok.uib.no/
-* Definitions from https://naob.no/
+* https://ordbok.uib.no/
+* https://naob.no/
 
 Page 3:
-* Definitions from https://no.wiktionary.org/wiki/
-* Definitions from https://dictionary.cambridge.org/dictionary/english-norwegian/
+* local DSL russian-norwegian dictionary
+* https://tr-ex.me/translation/norwegian-english/
+
+Page 4:
+* https://no.wiktionary.org/wiki/
+* https://dictionary.cambridge.org/dictionary/english-norwegian/
+
+Page 5:
+* http://norsk.dicts.aulismedia.com/
+
+Page 6:
+* https://translate.google.com
+* https://www.deepl.com/translator
 
 **Shortcuts**: switch between pages with `Alt-!`, `Alt-@`, `Alt-#` (weird shortcuts are convenient in my layout).
 
@@ -267,11 +283,12 @@ Page 3:
 
 I tend to use news from [Nordland](https://tv.nrk.no/serie/distriktsnyheter-nordland/) as my study materials, which I listen to, try to understand, translate, and memorize new words. To help with that, [nrkup.py](https://github.com/balta2ar/srs-toolbelt/blob/master/yatetradki/uitools/nrkup/nrkup.py) service helps a lot. It can:
 
-* Donwload and save video of episodes using [nrkdownload](https://github.com/marhoy/nrk-download)
+* Download and save video of episodes using [nrkdownload](https://github.com/marhoy/nrk-download)
 * Extract audio track
-* Remove silence from audio and apply dynamic range compression using [sox](http://sox.sourceforge.net/) for better sound quality
+* Remove silence from the audio and apply dynamic range compression using [sox](http://sox.sourceforge.net/) for better sound quality
 * Upload that audio to Telegram -- I use Telegram as my audio player
-* Fetch subtitles and generate study text material by grouping text accroding to news sections in the report, e.g. (removed most of the text for compactness):
+* Fetch subtitles and generate study text material by grouping text accroding to news sections in the report, e.g. (removed most of the text for compactness)
+* Subtitles are also grouped by speaker: I run [pyannote](https://github.com/pyannote/pyannote-audio) to perform speaker diarization, and then I group subtitles by speaker -- one speaker per paragraph:
 
 ```
 20220613
@@ -293,6 +310,32 @@ Reporter Frank Nygård, reaksjonene er sterke etter at forslaget om nedleggelse 
 10 13:44 Takk for nå
 Takk for følget.
 ```
+
+## 10. Mindmaps and digraphs
+
+One of the activities that I do to improve my language skills is to create mindmaps. Besides of drawing them manualy, which is important step for memorisation, I also made a script to visualize them using PlantUML. What I do is I make a nested list like this:
+
+```text
+forelder
+    kan
+        gå i vranglås
+        frasi seg foreldreretten
+        planlegge et år i forveien
+        ikke dele en flik av hjertet med noen
+        mye om bordskikk
+    var i
+        fødestua
+    har
+        det godt utad
+        en dong
+    er
+        i sitt ess
+```
+
+And then a bit of PlantUML layout magick + [Streamlit](https://docs.streamlit.io/) app to provide a simple UI to tune parameters. For example, the default value of `start` parameter often is not the best. The UI allows me to try various layouts and their settings quick. For now it supports generation in two formats: bidirectional graph and a mindmap.
+
+![digraph](images/mindmap-digraph.png)
+![mindmap](images/mindmap-mindmap.png)
 
 ## My decks
 
