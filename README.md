@@ -288,7 +288,7 @@ I tend to use news from [Nordland](https://tv.nrk.no/serie/distriktsnyheter-nord
 * Remove silence from the audio and apply dynamic range compression using [sox](http://sox.sourceforge.net/) for better sound quality
 * Upload that audio to Telegram -- I use Telegram as my audio player
 * Fetch subtitles and generate study text material by grouping text accroding to news sections in the report, e.g. (removed most of the text for compactness)
-* Subtitles are also grouped by speaker: I run [pyannote](https://github.com/pyannote/pyannote-audio) to perform speaker diarization, and then I group subtitles by speaker -- one speaker per paragraph:
+* Within topics subtitles are also grouped by speaker: I run [pyannote](https://github.com/pyannote/pyannote-audio) to perform speaker diarization, and then I group subtitles by speaker -- one speaker per paragraph:
 
 ```
 20220613
