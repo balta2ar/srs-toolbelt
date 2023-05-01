@@ -148,6 +148,8 @@ setup(
             'srst-sayit=yatetradki.uitools.sayit.sayit:main',
             'srst-textmarksman=yatetradki.uitools.textmarksman.textmarksman:main',
             'srst-textmarkswoman=yatetradki.uitools.textmarksman.textmarkswoman:main',
+            'generate-digraph=yatetradki.uitools.mindmap.digraph:main',
+            'generate-mindmap=yatetradki.uitools.mindmap.mindmap:main',
         ],
     },
     install_requires=REQUIRED,
