@@ -507,9 +507,9 @@ def iframe_r(word):
     t = Template(open(here_html('iframe-r.html')).read())
     return t.substitute(word=word)
 
-def iframe_h(word):
-    t = Template(open(here_html('iframe-h.html')).read())
-    return t.substitute(word=word)
+def iframe_h(request, word, stats):
+    context = {'word': word, 'stats': stats}
+    return aiohttp_jinja2_render_template("iframe-h.html", request, context=context)
 
 def ui_mix_url(word):
     return 'http://{0}:{1}/ui/mix/{2}'.format(UI_HOST, UI_PORT, word)
@@ -1429,7 +1429,7 @@ class AIOHTTPUIServer:
         router.add_get('/ui/w/{word}', wrap(self.route_ui_w))
         router.add_get('/ui/e/{word}', wrap(self.route_ui_e))
         router.add_get('/ui/r/{word}', wrap(self.route_ui_r))
-        router.add_get('/ui/h/{word}', wrap(self.route_ui_h))
+        router.add_get('/ui/h/{word}', self.route_ui_h)
         router.add_get('/lexin/word/{word}', wrap(self.route_lexin_word))
         router.add_get('/ordbok/inflect/{word}', wrap(self.route_ordbok_inflect))
         router.add_get('/ordbok/word/{word}', wrap(self.route_ordbok_word))
@@ -1474,8 +1474,10 @@ class AIOHTTPUIServer:
         return iframe_e(word)
     async def route_ui_r(self, word):
         return iframe_r(word)
-    async def route_ui_h(self, word):
-        return iframe_h(word)
+    async def route_ui_h(self, request):
+        word = request.match_info.get('word')
+        stats = reversed(self.stats.get_all())
+        return iframe_h(request, word, stats)
     @cached_async
     async def route_lexin_word(self, word):
         return await LexinOsloMetArticle(self.static_client, word).get_async()
@@ -1584,6 +1586,11 @@ class AIOHTTPUIServer:
         context = {'links': links}
         return aiohttp_jinja2_render_template("index.html", request, context=context)
 
+def seconds_to_human(seconds):
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    return '%02d:%02d:%02d' % (h, m, s)
+
 class TimingStats:
     MAX_ITEMS = 30
     def __init__(self):
@@ -1597,7 +1604,12 @@ class TimingStats:
         list = list[-self.MAX_ITEMS:]
         return self.as_dict(list)
     def as_list(self, times):
-        result = [{'path': path, 'took': value['took'], 'at': value['at']}
+        now = time.time()
+        result = [{'path': path,
+                   'took': round(value['took'], 2),
+                   'at': value['at'],
+                   'ago': seconds_to_human(int(now - value['at'])),
+                   }
                   for path, value in times.items()]
         return result
     def as_dict(self, times_list):

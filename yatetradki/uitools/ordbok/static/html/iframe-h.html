@@ -3,9 +3,25 @@
         <style>
         </style>
         <link href="/static/css/iframe.css" rel="stylesheet" type="text/css">
+        <style>
+            p {
+                margin: 0px;
+                padding: 0px;
+            }
+            table, th, td {
+                border: 0px;
+                margin: 0px;
+                padding: 0px;
+                margin-right: 10px;
+                padding-right: 10px;
+            }
+            tr:nth-child(even) td {
+                background: #f0f0f0 !important;
+            }
+        </style>
     </head>
     <body>
-        <sup>${word}</sup>
+        <sup>{{ word }}</sup>
         <p>Help</p>
         <p>Enter -- force send request with the current word</p>
         <p>Ctrl+Enter -- invalidate cache and send request with the current word</p>
@@ -17,5 +33,16 @@
         and grabs its contents if it's a text, so that you can pin ordbok window
         on top of other windows and get translations by just double-clicking (selecting)
         the words in another app or windiw.</p>
+
+        <table>
+            <th>path</th>
+            <th>took</th>
+            <th>ago</th>
+            {% for s in stats %}
+                <tr>
+                <td>{{ s.path }}</td><td>{{ s.took }}</td><td>{{ s.ago }}</td>
+                </tr>
+            {% endfor %}
+        </table>
     </body>
 </html>
