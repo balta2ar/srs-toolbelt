@@ -209,6 +209,12 @@ def with_word(text):
     #word = current_word.get()
     #return '{}/{}/{}'.format(text, SUFFIX_BY_WORD, word) if word else text
 
+def async_run(coro):
+    loop = new_event_loop()
+    set_event_loop(loop)
+    out = loop.run_until_complete(coro)
+    return out
+
 def http_get_sync(url):
     req = Request(url)
     req.add_header('User-Agent', USER_AGENT)
@@ -224,6 +230,7 @@ async def http_get_async(url, timeout=None):
     async with ClientSession() as session:
         for i in range(retries):
             try:
+                logging.info('async HTTP GET %s', url)
                 async with session.get(url, timeout=timeout, headers=headers) as resp:
                     return await resp.text()
             except AsyncioTimeoutError as e:
@@ -241,10 +248,10 @@ class StaticHttpClient:
         return headers
     async def get_async(self, url, extractor=None, origin=None):
         retries = self.RETRIES
-        logging.info('http get async "%s"', url)
         async with ClientSession() as session:
             for i in range(retries):
                 try:
+                    logging.info('static client "%s"', url)
                     async with session.get(url, timeout=self.TIMEOUT, headers=self.headers(origin), ssl=False, allow_redirects=True) as resp:
                         result = await resp.text()
                         logging.info('http get async done: "%s"', url)
@@ -263,23 +270,55 @@ class DynamicClient:
     TIMEOUT = NETWORK_TIMEOUT
 
 class PlaywrightClientAsync(DynamicClient):
-    async def get_async(self, url, selector=None, extractor=None, action=None, wait_until=None):
+    def __init__(self):
         disable_logging()
-        async with async_playwright() as p:
-            browser = await p.chromium.launch()
-            page = await browser.new_page()
-            await page.goto(url, wait_until=wait_until)
-            if selector is not None:
-                await page.wait_for_selector(selector, timeout=self.TIMEOUT)
-            if action is not None:
-                await page.evaluate(action)
-            ev = 'document.body.innerHTML'
-            if extractor is not None:
-                ev = 'document.querySelector("%s").innerHTML' % (extractor,)
-            content = await page.evaluate(ev)
-            logging.info('async playwright "%d"', len(content))
-            await browser.close()
-            return content
+        self.p = None
+        self.browser = None
+        self.page = None
+    async def init(self):
+        super().__init__()
+        self.p = await async_playwright().__aenter__()
+        self.browser = await self.p.chromium.launch(headless=True)
+        self.page = await self.browser.new_page()
+    async def close(self):
+        await self.page.close()
+        await self.browser.close()
+        await self.p.__aexit__()
+    async def get_async(self, url, selector=None, extractor=None, action=None, wait_until='load'):
+        if self.browser is None: await self.init()
+        # async with async_playwright() as p:
+        # opts = {
+        #     'channel': 'chrome',
+        # }
+        #browser = await p.chromium.launch(**opts)
+        #browser = await p.firefox.launch()
+        # browser = await p.chromium.launch()
+        #page = await browser.new_page(user_agent=USER_AGENT)
+        page = await self.browser.new_page()
+        logging.info('dynamic client GOTO "%s"', url)
+        #await page.goto(url, wait_until=wait_until)
+        #await page.goto(url, wait_until='domcontentloaded', timeout=5000)
+        #url = 'https://www.deepl.com/translator#nb/en/brostein'
+        await page.goto(url, wait_until=wait_until)
+        #await page.goto(url, wait_until='load')
+        logging.debug('dynamic client done GOTO "%s"', url)
+        if selector is not None:
+            logging.debug('dynamic client waiting for selector "%s"', selector)
+            await page.wait_for_selector(selector, timeout=self.TIMEOUT)
+            logging.debug('dynamic client done waiting for selector "%s"', selector)
+        if action is not None:
+            logging.debug('dynamic client running action "%s"', action)
+            await page.evaluate(action)
+            logging.debug('dynamic client done running action "%s"', action)
+        ev = 'document.body.innerHTML'
+        if extractor is not None:
+            ev = 'document.querySelector("%s").innerHTML' % (extractor,)
+        logging.debug('dynamic client running extractor "%s"', ev)
+        content = await page.evaluate(ev)
+        logging.info('async playwright "%d"', len(content))
+        await page.close()
+        # await browser.close()
+        return content
 
 class DynamicHttpClient:
     async def get_async(self, url, selector=None, extractor=None, action=None, wait_until=None):
@@ -289,6 +328,11 @@ class DynamicHttpClient:
             extractor=extractor,
             action=action,
             wait_until=wait_until)
+
+def get_dynamic(url):
+    client = DynamicHttpClient()
+    out = async_run(client.get_async(url))
+    return out
 
 def get_file_dir_stats(base):
     num_files = 0
@@ -1677,14 +1721,81 @@ def testtrex(word):
     async def fetch():
         client = CachedHttpClient(StaticHttpClient(), CACHE_DIR)
         return await TrExMeNoEnWord(client, word).get_async()
-    loop = new_event_loop()
-    set_event_loop(loop)
-    out = loop.run_until_complete(fetch())
     #print(out)
+    out = async_run(fetch())
     soup = parse(out)
     # print(soup.text.strip())
     print(non_empty_lines(soup.text))
 
+def testdyn(word):
+    #url = f'https://ordbokene.no/bm/search?q={word}&scope=ei'
+    invalidate_word.set(True)
+    client = DynamicHttpClient()
+    t0 = time.time()
+    out = async_run(OrdbokeneWord(client, word).get_async())
+    print('took', time.time() - t0)
+    #print(out)
+
+
+class Async:
+    def __init__(self):
+        disable_logging()
+    async def init(self):
+        self.p = await async_playwright().__aenter__()
+        self.browser = await self.p.chromium.launch(headless=False)
+        self.page = await self.browser.new_page()
+        #self.browser = await self.p.firefox.launch(headless=False)
+    async def close(self):
+        await self.page.close()
+        await self.browser.close()
+        await async_playwright().__aexit__(None, None, None)
+    async def get_async(self, url):
+        page = await self.browser.new_page()
+        logging.info('dynamic client GOTO "%s"', url)
+        await page.goto(url, wait_until='load', timeout=10000)
+        #await page.goto(url, wait_until='commit', timeout=10000)
+        logging.debug('dynamic client done GOTO "%s"', url)
+        # if selector is not None:
+        #     logging.debug('dynamic client waiting for selector "%s"', selector)
+        #     await page.wait_for_selector(selector, timeout=self.TIMEOUT)
+        #     logging.debug('dynamic client done waiting for selector "%s"', selector)
+        # if action is not None:
+        #     logging.debug('dynamic client running action "%s"', action)
+        #     await page.evaluate(action)
+        #     logging.debug('dynamic client done running action "%s"', action)
+        #ev = 'document.body.innerHTML'
+        # if extractor is not None:
+        #     ev = 'document.querySelector("%s").innerHTML' % (extractor,)
+        #logging.debug('dynamic client running extractor "%s"', ev)
+        #content = await page.evaluate(ev)
+        content = await page.content()
+        logging.info('async playwright "%d"', len(content))
+        await page.close()
+        return content
+
+def testgen():
+    links = [
+        # 'http://localhost:8000/update.sh',
+        # 'http://localhost:8000/rafiki.txt',
+        # 'http://localhost:8000/codes.txt',
+        'https://github.com/microsoft/playwright/issues/2528',
+        'https://www.deepl.com/translator#nb/en/brostein',
+        'https://ordbokene.no/bm/search?q=lynne&scope=ei',
+        #None,
+    ]
+    print('starting')
+    async def fetch():
+        # client = Async()
+        # await client.init()
+        client = DynamicHttpClient()
+        coros = []
+        for x in links:
+            #out = await client.get(x)
+            coros.append(client.get_async(x))
+            # print(x, ' -> ', len(out) if out is not None else 'None')
+        await gather(*coros)
+    async_run(fetch())
+    print('done')
 
 if __name__ == '__main__':
     main()
