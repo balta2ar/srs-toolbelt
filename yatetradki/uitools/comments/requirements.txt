@@ -1,0 +1,2 @@
+browsercookie==0.7.7
+pycookiecheat==0.5.0
