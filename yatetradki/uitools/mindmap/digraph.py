@@ -12,7 +12,9 @@ tannlege
 Without arguments, the script grabs the clipboard contents as HTML, generates PlantUML
 file, and opens the SVG in Chrome.
 
-TODO: ui for quick editing and parameter tweaking
+TODO: link from the SVG back to the app for extra intaractivity (no idea how)
+TODO: make it more vertical (mobile) or horizontal (desktop)
+TODO: use colorwheel, advance hue for each level (jump, don't take a neighbor)
 TODO: distance based on # of children / total # of descendants
 TODO: support bold, underline, strikethrough, italics
 TODO: add cli arguments to the script
