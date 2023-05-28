@@ -272,25 +272,19 @@ class DynamicClient:
 class PlaywrightClientAsync(DynamicClient):
     def __init__(self):
         disable_logging()
-        self.p = None
-        self.browser = None
-        # self.page = None
-    async def init(self):
-        logging.info('init PlaywrightClientAsync')
-        super().__init__()
-        self.p = await async_playwright().__aenter__()
-        self.browser = await self.p.chromium.launch(headless=True, channel='chrome')
-        #self.browser = await self.p.firefox.launch(headless=True)
-        #self.browser = await self.p.firefox.launch(headless=True)
-        #self.page = await self.browser.new_page()
-    async def close(self):
-        #await self.page.close()
-        await self.browser.close()
-        await self.p.__aexit__()
+    def launch(self, p):
+        hostname = socket.gethostname()
+        if hostname == 'ybochkarev-thinkpad':
+            return p.firefox.launch()
+        elif hostname == 'boltmsi':
+            return p.chromium.launch(headless=True, channel='chrome')
+        logging.warning('browser: unknown hostname "%s", using chromium by default', hostname)
+        return p.chromium.launch(headless=True)
     async def get_async(self, url, selector=None, extractor=None, action=None, wait_until='load'):
         # if self.browser is None: await self.init()
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True, channel='chrome')
+            browser = await self.launch(p)
+            #browser = await p.firefox.launch(headless=True)
             page = await browser.new_page()
             content = await self.get_async_page(page, url, selector, extractor, action, wait_until)
             await page.close()
@@ -316,7 +310,6 @@ class PlaywrightClientAsync(DynamicClient):
         logging.debug('dynamic client running extractor "%s"', ev)
         content = await page.evaluate(ev)
         logging.info('async playwright "%d"', len(content))
-        # await page.close()
         return content
 
 class DynamicHttpClient:
