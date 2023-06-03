@@ -365,6 +365,13 @@ def by_method_and_arg(f, *args, **kwargs):
     key.extend(kwargs.values())
     return key
 
+def only_short(f):
+    @wraps(f)
+    async def wrapper(self, word):
+        if not short(word): raise NoContent('can only get short words/phrases: "%s"' % (word,))
+        return await f(self, word)
+    return wrapper
+
 def cached_async(f):
     @wraps(f)
     async def wrapper(*args, **kwargs):
@@ -565,6 +572,10 @@ def here_html(name):
 
 def pretty(html):
     return parse(html).prettify()
+
+def short(content):
+    MAX_WORDS_IN_CLIPBOARD = 5
+    return content and (len(content.split()) <= MAX_WORDS_IN_CLIPBOARD)
 
 class WordGetter:
     def __init__(self, client, word):
@@ -1157,7 +1168,6 @@ class Browsers:
 
 class MainWindow(QWidget):
     ZOOM = 1.7
-    MAX_WORDS_IN_CLIPBOARD = 5
     myActivate = pyqtSignal()
     myTranslate = pyqtSignal(str)
     def __init__(self, app):
@@ -1220,16 +1230,14 @@ class MainWindow(QWidget):
             self.grab(QApplication.clipboard().text(QClipboard.Mode.Selection))
         QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
 
-    def short(self, content):
-        return content and (len(content.split()) <= self.MAX_WORDS_IN_CLIPBOARD)
-
     def same_seek(self, seek):
         return self.last_seek == seek
 
     def grab(self, content):
         content = content.strip()
         self.last_manual_change = time.time()
-        if self.short(content) and not self.same_text(content):
+        # if short(content) and not self.same_text(content):
+        if not self.same_text(content):
             seconds = human_to_seconds(content)
             if seconds > 0:
                 if not self.same_seek(seconds):
@@ -1483,39 +1491,51 @@ class AIOHTTPUIServer:
         stats = reversed(self.stats.get_all())
         return iframe_h(request, word, stats)
     @cached_async
+    @only_short
     async def route_lexin_word(self, word):
         return await LexinOsloMetArticle(self.static_client, word).get_async()
     @cached_async
+    @only_short
     async def route_glosbe_noru(self, word):
         return await GlosbeNoRuWord(self.static_client, word).get_async()
     @cached_async
+    @only_short
     async def route_glosbe_noen(self, word):
         return await GlosbeNoEnWord(self.static_client, word).get_async()
     @cached_async
+    @only_short
     async def route_glosbe_enno(self, word):
         return await GlosbeEnNoWord(self.static_client, word).get_async()
     @cached_async
+    @only_short
     async def route_ordbok_inflect(self, word):
         return await OrdbokInflect(self.static_client, word).get_async()
     @cached_async
+    @only_short
     async def route_ordbok_word(self, word):
         return await OrdbokWord(self.static_client, word).get_async()
     @cached_async
+    @only_short
     async def route_ordbokene_word(self, word):
         return await OrdbokeneWord(self.dynamic_client, word).get_async()
     @cached_async
+    @only_short
     async def route_ordbokene_inflect(self, word):
         return await OrdbokeneInflect(self.dynamic_client, word).get_async()
     @cached_async
+    @only_short
     async def route_naob_word(self, word):
         return await NaobWord(self.dynamic_client, word).get_async()
     @cached_async
+    @only_short
     async def route_wiktionary_no(self, word):
         return await WiktionaryNo(self.static_client, word).get_async()
     @cached_async
+    @only_short
     async def route_cambridge_enno(self, word):
         return await CambridgeEnNo(self.static_client, word).get_async()
     @cached_async
+    @only_short
     async def route_dsl_word(self, word):
         return await DslWord(None, word).get_async()
     @cached_async
@@ -1531,9 +1551,11 @@ class AIOHTTPUIServer:
     async def route_deepl_enno(self, word):
         return await DeeplEnNoWord(self.dynamic_client, word).get_async()
     @cached_async
+    @only_short
     async def route_trex_noen(self, word):
         return await TrExMeNoEnWord(self.static_client, word).get_async()
     @cached_async
+    @only_short
     async def route_trex_enno(self, word):
         return await TrExMeEnNoWord(self.static_client, word).get_async()
     async def route_aulismedia_norsk(self, word):
