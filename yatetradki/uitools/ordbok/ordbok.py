@@ -776,6 +776,7 @@ def stateful_page(url, init_read):
     w = worker()
     run_coroutine_threadsafe(w, get_event_loop())
     async def advance(item):
+        logging.info('AQueue input size: %s, output size: %s', input.qsize(), output.qsize())
         await input.put(item)
         return await output.get()
     return advance
