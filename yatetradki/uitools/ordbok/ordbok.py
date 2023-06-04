@@ -381,7 +381,10 @@ def by_method_and_arg(f, *args, **kwargs):
 def only_short(f):
     @wraps(f)
     async def wrapper(self, word):
-        if not short(word): raise NoContent('can only get short words/phrases: "%s"' % (word,))
+        try:
+            assert_short(word)
+        except AssertionError as e:
+            raise NoContent(e)
         return await f(self, word)
     return wrapper
 
@@ -591,9 +594,11 @@ def here_html(name):
 def pretty(html):
     return parse(html).prettify()
 
-def short(content):
-    MAX_WORDS_IN_CLIPBOARD = 5
-    return content and (len(content.split()) <= MAX_WORDS_IN_CLIPBOARD)
+MAX_WORDS_IN_CLIPBOARD = 5
+def assert_short(content):
+    count = len(content.split())
+    msg = f'Too many words: {count} > {MAX_WORDS_IN_CLIPBOARD}: {content}'
+    assert content and (count <= MAX_WORDS_IN_CLIPBOARD), msg
 
 class WordGetter:
     def __init__(self, client, word):
