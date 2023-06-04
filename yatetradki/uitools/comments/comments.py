@@ -7,7 +7,9 @@
 from __future__ import print_function
 
 import os.path
-from json import dumps
+from os.path import expanduser, expandvars, dirname, exists
+from os import makedirs
+from json import dumps, loads
 from typing import List, Tuple
 
 from google.auth.transport.requests import Request
@@ -22,13 +24,25 @@ from diskcache import Cache
 from pycookiecheat import chrome_cookies
 import requests
 
+from revChatGPT.V1 import Chatbot
+
 cache = Cache('/tmp/comments')
 
+def ensure_dir(filename: str) -> str:
+    path = dirname(filename)
+    if not exists(path): makedirs(path)
+    return filename
+
+def expand(filename: str) -> str:
+    return expandvars(expanduser(filename))
+
 def spit(data: bytes, filename: str):
+    filename = ensure_dir(expand(filename))
     with open(filename, 'wb') as f:
         f.write(data)
 
 def slurp(filename: str) -> str:
+    filename = ensure_dir(expand(filename))
     with open(filename, 'r') as f:
         return f.read()
 
@@ -209,6 +223,42 @@ def test_parse():
     # comments = parse_comments_from_html('toyen.html')
     comments = Comment.from_html(data, api_comments)
     # print(comments)
+
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'
+
+def refresh_access_token():
+    url = 'https://chat.openai.com/api/auth/session'
+    cookies = chrome_cookies(url)
+    headers = {'user-agent': USER_AGENT}
+    resp = requests.get(url, cookies=cookies, headers=headers)
+    print(resp)
+    resp.raise_for_status()
+    resp = resp.json()
+    filename = '~/.config/revChatGPT/config.json'
+    data = {'access_token': resp['accessToken']}
+    spit(dumps(data).encode('utf-8'), filename)
+
+def ask_gpt(prompt: str) -> str:
+    # access_token = loads(slurp('~/.config/revChatGPT/config.json'))['access_token']
+    access_token = loads(slurp('./session.json'))['accessToken']
+    chatbot = Chatbot(config={ "access_token": access_token, })
+    response = ""
+    for data in chatbot.ask(prompt):
+        response = data["message"]
+    return response
+
+def prompt_meaning_in_text(word: str, text: str) -> str:
+    prompt = f'''
+hva betyr "{word}" på norsk i teksten? når brukes det? i hvilke situasjoner? hvilken konnotasjon har det? hva er synonymer og antonymer? oversett ordet på english og russisk. gi flere eksempler med ord i en setning. her er opprinnelig teksten for kontekst:
+{text}
+    '''
+    return prompt
+
+def test_gpt():
+    prompt = prompt_meaning_in_text('fortrengte', '''
+Jeg kjente hvor lett skrytet fortrengte det i meg, som hadde villet reservere kvelden for Jostein: Jeg var verdens beste redaktør – da var det klart at jeg slapp det jeg hadde i hendene når forfatteren min trengte meg
+''')
+    print(ask_gpt(prompt))
 
 if __name__ == '__main__':
     pass
