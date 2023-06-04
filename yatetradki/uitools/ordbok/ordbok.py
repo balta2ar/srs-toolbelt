@@ -727,6 +727,10 @@ class Modify(NamedTuple):
     update: str
     read: str
 
+class Output(NamedTuple):
+    value: str
+    created: float
+
 def stateful_page(url, init_read):
     input = AQueue()
     output = AQueue()
@@ -764,7 +768,7 @@ def stateful_page(url, init_read):
                     break
                 if last_update == req.update:
                     logging.info('AQueue stateful_page returning last_read')
-                    await output.put(last_read)
+                    await output.put(Output(last_read, time.time()))
                     continue
                 last_update = req.update
                 v0 = await page.evaluate(req.read)
@@ -772,21 +776,28 @@ def stateful_page(url, init_read):
                 v1 = await wait(req.read, ne, v0)
                 last_read = v1
                 logging.info('AQueue stateful_page returning %s', v1)
-                await output.put(v1)
+                await output.put(Output(v1, time.time()))
 
             logging.info('AQueue stateful_page closing')
             await page.close()
             await browser.close()
         logging.info('AQueue stateful_page exited, putting final message')
         await output.put(None)
+    async def drop_old() -> Output:
+        timeout = 5.0 # NETWORK_TIMEOUT/1000
+        while True:
+            result: Output = await output.get()
+            if result is None: return result
+            if time.time() - result.created < timeout: return result
+            logging.info('AQueue drop_old dropping old result')
     w = worker()
     run_coroutine_threadsafe(w, get_event_loop())
     async def advance(item):
         logging.info('AQueue advance putting item: input size: %s, output size: %s', input.qsize(), output.qsize())
         await input.put(item)
-        result = await output.get()
+        result = await drop_old() # TODO: this is an ugly hack, find out why we have more items in the queue
         logging.info('AQueue advance got item: input size: %s, output size: %s', input.qsize(), output.qsize())
-        return result
+        return result.value
     return advance
 
 class Singleton(type):
