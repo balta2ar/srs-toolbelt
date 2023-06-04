@@ -93,7 +93,13 @@ from pathlib import Path
 from contextvars import ContextVar
 from operator import ne
 from typing import NamedTuple, Iterable
-from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError, run_coroutine_threadsafe
+from asyncio import new_event_loop
+from asyncio import set_event_loop
+from asyncio import get_event_loop
+from asyncio import gather
+from asyncio import ensure_future
+from asyncio import TimeoutError as AsyncioTimeoutError
+from asyncio import run_coroutine_threadsafe
 from asyncio import sleep as asleep
 from asyncio import Queue as AQueue
 # # https://bugs.python.org/issue34679#msg347525
@@ -708,8 +714,9 @@ class Modify(NamedTuple):
     read: str
 
 def stateful_page(url, init_read):
-    q = AQueue()
-    async def exhaust():
+    input = AQueue()
+    output = AQueue()
+    async def worker():
         async with async_playwright() as p:
             browser = await async_launch(p)
             page = await browser.new_page()
@@ -721,9 +728,9 @@ def stateful_page(url, init_read):
                     v1 = await page.evaluate(read)
                     v1 = v1.strip()
                     if pred(v1, v0): return v1
-                    print('waiting, total', time.time() - t0)
+                    logging.debug('stateful_page waiting, total: %s', time.time() - t0)
                     await asleep(0.1)
-                raise AsyncioTimeoutError(f'StatefulPage: Network timeout ({timeout}): {url}')
+                return AsyncioTimeoutError(f'StatefulPage: Network timeout ({timeout}): {url}')
 
             """
             var d = document.querySelector('d-textarea').firstChild
@@ -736,24 +743,27 @@ def stateful_page(url, init_read):
             last_update = None
             last_read = None
             while True:
-                req: Modify = await q.get()
-                # if req is None: break
+                req: Modify = await input.get()
+                if req is None: break
                 if last_update == req.update:
-                    yield last_read
+                    await output.put(last_read)
                     continue
                 last_update = req.update
                 v0 = await page.evaluate(req.read)
                 await page.evaluate(req.update)
                 v1 = await wait(req.read, ne, v0)
                 last_read = v1
-                yield v1
+                await output.put(v1)
 
             await page.close()
             await browser.close()
-    gen = exhaust()
+        print('exiting stateful_page')
+        await output.put(None)
+    w = worker()
+    run_coroutine_threadsafe(w, get_event_loop())
     async def advance(item):
-        await q.put(item)
-        return await anext(gen)
+        await input.put(item)
+        return await output.get()
     return advance
 
 class Singleton(type):
@@ -769,8 +779,12 @@ class DeeplWordStateful(metaclass=Singleton):
     def __init__(self):
         url = self.get_url('init')
         self.page = stateful_page(url, self.READ)
+    async def close(self):
+        await self.page(None)
     async def get_async(self, word):
-        result = await self.page(Modify(DeeplNoEnWordStateful.UPDATE(word), self.READ))
+        req = Modify(DeeplNoEnWordStateful.UPDATE(word), self.READ)
+        result = await self.page(req)
+        if isinstance(result, Exception): raise result
         return self.style() + self.parse(result)
     def parse(self, text):
         lines = [line.strip() for line in text.split('\n') if line.strip()]
@@ -1884,12 +1898,19 @@ def testdeepl2(word1, word2):
 def testdeepl3(word1, word2):
     async def fetch():
         deepl1 = DeeplNoEnWordStateful()
-        print(await deepl1.get_async(word1))
-        print(await deepl1.get_async(word2))
-
         deepl2 = DeeplNoRuWordStateful()
-        print(await deepl2.get_async(word1))
-        print(await deepl2.get_async(word2))
+        w1 = deepl1.get_async(word1)
+        w2 = deepl2.get_async(word1)
+        w3 = deepl1.get_async(word2)
+        w4 = deepl2.get_async(word2)
+        await gather(w1, w2, w3, w4)
+        
+        await deepl1.close()
+        await deepl2.close()
+        # print(await w1)
+        # print(await w2)
+        # print(await w3)
+        # print(await w4)
 
         # deepl2 = DeeplNoEnWordStateful()
         # a = await deepl2.get_async(word1)
