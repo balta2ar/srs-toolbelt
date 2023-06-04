@@ -1,0 +1,9 @@
+ul, li {
+    margin: 0 0;
+    padding: 0 0;
+    list-style: none;
+    color: grey;
+}
+li:nth-child(odd) {
+    background-color: #f6f6f6;
+}

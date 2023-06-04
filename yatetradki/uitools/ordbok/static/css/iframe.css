@@ -44,6 +44,9 @@ div::-webkit-scrollbar {
     display: none; /* for Chrome, Safari, and Opera */
     width: 0 !important;
 }
+.height33 {
+    height: 33%;
+}
 .fullw {
     width: 100%;
 }

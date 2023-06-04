@@ -92,7 +92,7 @@ from itertools import groupby
 from pathlib import Path
 from contextvars import ContextVar
 from operator import ne
-from typing import NamedTuple
+from typing import NamedTuple, Iterable
 from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError, run_coroutine_threadsafe
 from asyncio import sleep as asleep
 from asyncio import Queue as AQueue
@@ -463,6 +463,11 @@ def uniq(items, key):
     seen = set()
     return [x for x in items if not (key(x) in seen or seen.add(key(x)))]
 
+def index_any_or_len(items: Iterable, candidates: Iterable):
+    for candidate in candidates:
+        if candidate in items: return items.index(candidate)
+    return len(items)
+
 def no_content():
     return '<body>No content</body>'
 
@@ -698,6 +703,59 @@ class LexinOsloMetArticle(WordGetter):
 #     def __repr__(self):
 #         return f'Suggestions(word={self.word}, count={len(self.items)}, top={self.top})'
 
+class Modify(NamedTuple):
+    update: str
+    read: str
+
+def stateful_page(url, init_read):
+    q = AQueue()
+    async def exhaust():
+        async with async_playwright() as p:
+            browser = await async_launch(p)
+            page = await browser.new_page()
+
+            async def wait(read, pred, v0):
+                timeout = NETWORK_TIMEOUT/1000
+                t0 = time.time()
+                while time.time() - t0 < timeout:
+                    v1 = await page.evaluate(read)
+                    v1 = v1.strip()
+                    if pred(v1, v0): return v1
+                    print('waiting, total', time.time() - t0)
+                    await asleep(0.1)
+                raise AsyncioTimeoutError(f'StatefulPage: Network timeout ({timeout}): {url}')
+
+            """
+            var d = document.querySelector('d-textarea').firstChild
+            d.dispatchEvent( new Event("input", { bubbles: true, cancelable: true }) );
+            """
+
+            await page.goto(url, wait_until='load')
+            await wait(init_read, ne, '')
+
+            last_update = None
+            last_read = None
+            while True:
+                req: Modify = await q.get()
+                # if req is None: break
+                if last_update == req.update:
+                    yield last_read
+                    continue
+                last_update = req.update
+                v0 = await page.evaluate(req.read)
+                await page.evaluate(req.update)
+                v1 = await wait(req.read, ne, v0)
+                last_read = v1
+                yield v1
+
+            await page.close()
+            await browser.close()
+    gen = exhaust()
+    async def advance(item):
+        await q.put(item)
+        return await anext(gen)
+    return advance
+
 class Singleton(type):
     instance = None
     def __call__(cls, *args, **kw):
@@ -711,13 +769,19 @@ class DeeplWordStateful(metaclass=Singleton):
     def __init__(self):
         url = self.get_url('init')
         self.page = stateful_page(url, self.READ)
-        print('new page:', url)
     async def get_async(self, word):
-        # page = stateful_page('https://www.deepl.com/translator#nb/en/init', self.read)
         result = await self.page(Modify(DeeplNoEnWordStateful.UPDATE(word), self.READ))
-        return result
-    def get_url(self, word):
-        return self.URL.format(word)
+        return self.style() + self.parse(result)
+    def parse(self, text):
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        i = index_any_or_len(lines, ['Alternatives:', 'Alternativer:'])
+        primary = lines[:i]
+        alternatives = lines[i+1:]
+        primary = '<br>\n'.join(primary)
+        alternatives = '<ul><li>' + '</li><li>'.join(alternatives) + '</li></ul>'
+        return primary + alternatives
+    def style(self): return css('deepl.css')
+    def get_url(self, word): return self.URL.format(word)
 
 class DeeplWord(WordGetter):
     # https://www.deepl.com/translator#nb/en/skarpe%20pigger
@@ -1587,13 +1651,16 @@ class AIOHTTPUIServer:
         return await GoogleTranslateEnNo(self.static_client, word).get_async()
     @cached_async
     async def route_deepl_noen(self, word):
-        return await DeeplNoEnWord(self.dynamic_client, word).get_async()
+        return await DeeplNoEnWordStateful().get_async(word)
+        # return await DeeplNoEnWord(self.dynamic_client, word).get_async()
     @cached_async
     async def route_deepl_noru(self, word):
-        return await DeeplNoRuWord(self.dynamic_client, word).get_async()
+        return await DeeplNoRuWordStateful().get_async(word)
+        # return await DeeplNoRuWord(self.dynamic_client, word).get_async()
     @cached_async
     async def route_deepl_enno(self, word):
-        return await DeeplEnNoWord(self.dynamic_client, word).get_async()
+        return await DeeplEnNoWordStateful().get_async(word)
+        # return await DeeplEnNoWord(self.dynamic_client, word).get_async()
     @cached_async
     @only_short
     async def route_trex_noen(self, word):
@@ -1770,11 +1837,11 @@ def testnaob(word):
     client = CachedHttpClient(DynamicHttpClient(), 'cache')
     print(NaobWord(client, word).html)
 
-def testdeepl(word1, word2):
+def testdeepl1(word1, word2):
     async def fetch():
         # client = CachedHttpClient(DynamicHttpClient(), CACHE_DIR)
         client = DynamicHttpClient()
-        first = await DeeplNoEnWord(client, word1).get_async()
+        # first = await DeeplNoEnWord(client, word1).get_async()
         second = await DeeplNoEnWord(client, word2).get_async()
         return second
     loop = new_event_loop()
@@ -1783,61 +1850,6 @@ def testdeepl(word1, word2):
     print(out)
     soup = BeautifulSoup(out, 'html.parser')
     print(soup.text.strip())
-
-class Modify(NamedTuple):
-    update: str
-    read: str
-
-def stateful_page(url, init_read):
-    q = AQueue()
-    async def exhaust():
-        async with async_playwright() as p:
-            browser = await async_launch(p)
-            page = await browser.new_page()
-
-            async def wait(read, pred, v0):
-                while True:
-                    v1 = await page.evaluate(read)
-                    v1 = v1.strip()
-                    if pred(v1, v0): return v1
-                    await asleep(0.1)
-
-            """
-            var d = document.querySelector('d-textarea').firstChild
-            d.dispatchEvent( new Event("input", { bubbles: true, cancelable: true }) );
-            """
-
-            await page.goto(url, wait_until='load')
-            await wait(init_read, ne, '')
-
-            while True:
-                req: Modify = await q.get()
-                if req is None: break
-                v0 = await page.evaluate(req.read)
-                await page.evaluate(req.update)
-                v1 = await wait(req.read, ne, v0)
-                yield v1
-
-            await page.close()
-            await browser.close()
-    gen = exhaust()
-    async def advance(item):
-        await q.put(item)
-        return await anext(gen)
-    return advance
-
-def stateful_page2(url: str):
-    q = AQueue()
-    async def exhaust():
-        while True:
-            item = await q.get()
-            if item is None: break
-            yield 'RECEIVED REQ: %s' % str(item)
-    gen = exhaust()
-    async def advance(item):
-        await q.put(item)
-        return await anext(gen)
-    return advance
 
 def testdeepl2(word1, word2):
     update = lambda x: """var d=document.querySelector('section.lmt__side_container--source div.lmt__textarea_container d-textarea').firstChild; d.innerText = '%s'; setTimeout(() => { d.dispatchEvent(new Event("input", { bubbles: true, cancelable: true })) }, 50);""" % (x,)
@@ -1863,28 +1875,30 @@ def testdeepl2(word1, word2):
 def testdeepl3(word1, word2):
     async def fetch():
         deepl1 = DeeplNoEnWordStateful()
-        a = await deepl1.get_async(word1)
-        print(a)
-        b = await deepl1.get_async(word2)
-        print(b)
+        print(await deepl1.get_async(word1))
+        print(await deepl1.get_async(word2))
 
-        deepl2 = DeeplNoEnWordStateful()
-        a = await deepl2.get_async(word1)
-        print(a)
-        b = await deepl2.get_async(word2)
-        print(b)
+        deepl2 = DeeplNoRuWordStateful()
+        print(await deepl2.get_async(word1))
+        print(await deepl2.get_async(word2))
 
-        deepl3 = DeeplNoRuWordStateful()
-        a = await deepl3.get_async(word1)
-        print(a)
-        b = await deepl3.get_async(word2)
-        print(b)
+        # deepl2 = DeeplNoEnWordStateful()
+        # a = await deepl2.get_async(word1)
+        # print(a)
+        # b = await deepl2.get_async(word2)
+        # print(b)
 
-        deepl4 = DeeplNoRuWordStateful()
-        a = await deepl4.get_async(word1)
-        print(a)
-        b = await deepl4.get_async(word2)
-        print(b)
+        # deepl3 = DeeplNoRuWordStateful()
+        # a = await deepl3.get_async(word1)
+        # print(a)
+        # b = await deepl3.get_async(word2)
+        # print(b)
+
+        # deepl4 = DeeplNoRuWordStateful()
+        # a = await deepl4.get_async(word1)
+        # print(a)
+        # b = await deepl4.get_async(word2)
+        # print(b)
 
     async_run(fetch())
     print('done')
