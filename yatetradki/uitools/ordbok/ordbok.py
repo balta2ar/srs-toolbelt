@@ -141,7 +141,6 @@ WINDOW_TITLE = 'Ordbok'
 WINDOW_WIDTH = 1300
 WINDOW_HEIGHT = 800
 UPDATE_DELAY = 1000
-ACTIVE_MODE_DELAY = 1000 # milliseconds
 DIR = Path(dirname(__file__))
 ICON_FILENAME = str(DIR / 'ordbok.png')
 TEMPLATE_DIR = DIR / 'static' / 'html'
@@ -157,6 +156,16 @@ NETWORK_TIMEOUT = 30000 # milliseconds
 NETWORK_RETRIES = 3
 RECENT_GRAB_DELAY = (UPDATE_DELAY / 1000.0) + 0.1 # seconds
 LOG_FILENAME = 'ordbok.log'
+
+def active_mode_delay(is_main_window_active):
+    """
+    Dynamic because when I copy from the main window, and then switch to
+    Google Docs, I want the main window to remember my selection quicker.
+    Otherwise, it thinks I selected something outside of the main window.
+    """
+    result = 1000 # milliseconds
+    if is_main_window_active: result = 100
+    return result
 
 current_word: ContextVar[str] = ContextVar('current_word', default='')
 invalidate_word: ContextVar[bool] = ContextVar('invalidate_word', default=False)
@@ -1329,7 +1338,7 @@ class MainWindow(QWidget):
 
         QTimer.singleShot(1, self.center)
         self.active_mode = False
-        QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
+        QTimer.singleShot(active_mode_delay(False), self.on_active_mode)
         self.last_manual_change = time.time()
         self.last_seen_selection = ''
 
@@ -1352,15 +1361,16 @@ class MainWindow(QWidget):
         return active_self or active
 
     def on_active_mode(self):
+        focused = self.focused()
         if self.active_mode:
             selection = QApplication.clipboard().text(QClipboard.Mode.Selection)
-            if self.focused():
+            if focused:
                 self.last_seen_selection = selection
             else:
                 if selection != self.last_seen_selection:
                     self.grab(selection)
                     self.last_seen_selection = selection
-        QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
+        QTimer.singleShot(active_mode_delay(focused), self.on_active_mode)
 
     def same_seek(self, seek):
         return self.last_seek == seek
