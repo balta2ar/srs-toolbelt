@@ -1372,11 +1372,11 @@ class MainWindow(QWidget):
     def on_active_mode(self):
         focused = self.focused()
         if self.active_mode:
-            selection = QApplication.clipboard().text(QClipboard.Mode.Selection)
+            selection = QApplication.clipboard().text(QClipboard.Mode.Selection).strip()
             if focused:
                 self.last_seen_selection = selection
             else:
-                if selection != self.last_seen_selection:
+                if selection and (selection != self.last_seen_selection):
                     self.grab(selection)
                     self.last_seen_selection = selection
         QTimer.singleShot(active_mode_delay(focused), self.on_active_mode)
