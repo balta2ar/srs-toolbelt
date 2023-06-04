@@ -1312,6 +1312,7 @@ class MainWindow(QWidget):
         self.active_mode = False
         QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
         self.last_manual_change = time.time()
+        self.last_seen_selection = ''
 
         self.center()
         self.show()
@@ -1327,11 +1328,19 @@ class MainWindow(QWidget):
             self.setWindowTitle(WINDOW_TITLE)
 
     def focused(self):
-        return QApplication.activeWindow() == self
+        active_self = QApplication.activeWindow() == self
+        active = self.isActiveWindow()
+        return active_self or active
 
     def on_active_mode(self):
-        if self.active_mode and not self.focused():
-            self.grab(QApplication.clipboard().text(QClipboard.Mode.Selection))
+        if self.active_mode:
+            selection = QApplication.clipboard().text(QClipboard.Mode.Selection)
+            if self.focused():
+                self.last_seen_selection = selection
+            else:
+                if selection != self.last_seen_selection:
+                    self.grab(selection)
+                    self.last_seen_selection = selection
         QTimer.singleShot(ACTIVE_MODE_DELAY, self.on_active_mode)
 
     def same_seek(self, seek):
