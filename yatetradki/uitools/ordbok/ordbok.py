@@ -744,6 +744,7 @@ def stateful_page(url, init_read):
                     if pred(v1, v0): return v1
                     logging.debug('stateful_page waiting, total: %s', time.time() - t0)
                     await asleep(0.1)
+                logging.error('AQueue stateful_page timeout, total: %s', time.time() - t0)
                 return AsyncioTimeoutError(f'StatefulPage: Network timeout ({timeout}): {url}')
 
             """
@@ -758,8 +759,11 @@ def stateful_page(url, init_read):
             last_read = None
             while True:
                 req: Modify = await input.get()
-                if req is None: break
+                if req is None:
+                    logging.info('AQueue stateful_page got None, exiting')
+                    break
                 if last_update == req.update:
+                    logging.info('AQueue stateful_page returning last_read')
                     await output.put(last_read)
                     continue
                 last_update = req.update
@@ -767,18 +771,22 @@ def stateful_page(url, init_read):
                 await page.evaluate(req.update)
                 v1 = await wait(req.read, ne, v0)
                 last_read = v1
+                logging.info('AQueue stateful_page returning %s', v1)
                 await output.put(v1)
 
+            logging.info('AQueue stateful_page closing')
             await page.close()
             await browser.close()
-        print('exiting stateful_page')
+        logging.info('AQueue stateful_page exited, putting final message')
         await output.put(None)
     w = worker()
     run_coroutine_threadsafe(w, get_event_loop())
     async def advance(item):
-        logging.info('AQueue input size: %s, output size: %s', input.qsize(), output.qsize())
+        logging.info('AQueue advance putting item: input size: %s, output size: %s', input.qsize(), output.qsize())
         await input.put(item)
-        return await output.get()
+        result = await output.get()
+        logging.info('AQueue advance got item: input size: %s, output size: %s', input.qsize(), output.qsize())
+        return result
     return advance
 
 class Singleton(type):
