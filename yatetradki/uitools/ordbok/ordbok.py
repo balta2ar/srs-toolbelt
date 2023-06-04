@@ -91,7 +91,11 @@ from string import Template
 from itertools import groupby
 from pathlib import Path
 from contextvars import ContextVar
+from operator import ne
+from typing import NamedTuple
 from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError, run_coroutine_threadsafe
+from asyncio import sleep as asleep
+from asyncio import Queue as AQueue
 # # https://bugs.python.org/issue34679#msg347525
 # policy = asyncio.get_event_loop_policy()
 # policy._loop_factory = asyncio.SelectorEventLoop
@@ -269,17 +273,20 @@ class StaticHttpClient:
 class DynamicClient:
     TIMEOUT = NETWORK_TIMEOUT
 
+def async_launch(p):
+    hostname = socket.gethostname()
+    if hostname == 'ybochkarev-thinkpad':
+        return p.firefox.launch()
+    elif hostname == 'boltmsi':
+        return p.chromium.launch(headless=True, channel='chrome')
+    logging.warning('browser: unknown hostname "%s", using chromium by default', hostname)
+    return p.chromium.launch(headless=True)
+
 class PlaywrightClientAsync(DynamicClient):
     def __init__(self):
         disable_logging()
     def launch(self, p):
-        hostname = socket.gethostname()
-        if hostname == 'ybochkarev-thinkpad':
-            return p.firefox.launch()
-        elif hostname == 'boltmsi':
-            return p.chromium.launch(headless=True, channel='chrome')
-        logging.warning('browser: unknown hostname "%s", using chromium by default', hostname)
-        return p.chromium.launch(headless=True)
+        return async_launch(p)
     async def get_async(self, url, selector=None, extractor=None, action=None, wait_until='load'):
         # if self.browser is None: await self.init()
         async with async_playwright() as p:
@@ -691,6 +698,27 @@ class LexinOsloMetArticle(WordGetter):
 #     def __repr__(self):
 #         return f'Suggestions(word={self.word}, count={len(self.items)}, top={self.top})'
 
+class Singleton(type):
+    instance = None
+    def __call__(cls, *args, **kw):
+        if not cls.instance: cls.instance = super(Singleton, cls).__call__(*args, **kw)
+        return cls.instance
+
+class DeeplWordStateful(metaclass=Singleton):
+    URl = ''
+    UPDATE = lambda x: """var d=document.querySelector('section.lmt__side_container--source div.lmt__textarea_container d-textarea').firstChild; d.innerText = '%s'; setTimeout(() => { d.dispatchEvent(new Event("input", { bubbles: true, cancelable: true })) }, 50);""" % (x,)
+    READ = "document.querySelector('section.lmt__side_container--target div.lmt__textarea_container').innerText"
+    def __init__(self):
+        url = self.get_url('init')
+        self.page = stateful_page(url, self.READ)
+        print('new page:', url)
+    async def get_async(self, word):
+        # page = stateful_page('https://www.deepl.com/translator#nb/en/init', self.read)
+        result = await self.page(Modify(DeeplNoEnWordStateful.UPDATE(word), self.READ))
+        return result
+    def get_url(self, word):
+        return self.URL.format(word)
+
 class DeeplWord(WordGetter):
     # https://www.deepl.com/translator#nb/en/skarpe%20pigger
     URL = ''
@@ -720,7 +748,19 @@ class DeeplWord(WordGetter):
 class DeeplNoEnWord(DeeplWord):
     URL = 'https://www.deepl.com/translator#nb/en/{0}'
 
+class DeeplNoRuWord(DeeplWord):
+    URL = 'https://www.deepl.com/translator#nb/ru/{0}'
+
 class DeeplEnNoWord(DeeplWord):
+    URL = 'https://www.deepl.com/translator#en/nb/{0}'
+
+class DeeplNoEnWordStateful(DeeplWordStateful):
+    URL = 'https://www.deepl.com/translator#nb/en/{0}'
+
+class DeeplNoRuWordStateful(DeeplWordStateful):
+    URL = 'https://www.deepl.com/translator#nb/ru/{0}'
+
+class DeeplEnNoWordStateful(DeeplWordStateful):
     URL = 'https://www.deepl.com/translator#en/nb/{0}'
 
 class TrExMe(WordGetter):
@@ -1457,6 +1497,7 @@ class AIOHTTPUIServer:
         router.add_get('/gtrans/noen/{word}', wrap(self.route_gtrans_noen))
         router.add_get('/gtrans/enno/{word}', wrap(self.route_gtrans_enno))
         router.add_get('/deepl/noen/{word}', wrap(self.route_deepl_noen))
+        router.add_get('/deepl/noru/{word}', wrap(self.route_deepl_noru))
         router.add_get('/deepl/enno/{word}', wrap(self.route_deepl_enno))
         router.add_get('/trex/noen/{word}', wrap(self.route_trex_noen))
         router.add_get('/trex/enno/{word}', wrap(self.route_trex_enno))
@@ -1547,6 +1588,9 @@ class AIOHTTPUIServer:
     @cached_async
     async def route_deepl_noen(self, word):
         return await DeeplNoEnWord(self.dynamic_client, word).get_async()
+    @cached_async
+    async def route_deepl_noru(self, word):
+        return await DeeplNoRuWord(self.dynamic_client, word).get_async()
     @cached_async
     async def route_deepl_enno(self, word):
         return await DeeplEnNoWord(self.dynamic_client, word).get_async()
@@ -1726,16 +1770,124 @@ def testnaob(word):
     client = CachedHttpClient(DynamicHttpClient(), 'cache')
     print(NaobWord(client, word).html)
 
-def testdeepl(word):
+def testdeepl(word1, word2):
     async def fetch():
-        client = CachedHttpClient(DynamicHttpClient(), CACHE_DIR)
-        return await DeeplNoEnWord(client, word).get_async()
+        # client = CachedHttpClient(DynamicHttpClient(), CACHE_DIR)
+        client = DynamicHttpClient()
+        first = await DeeplNoEnWord(client, word1).get_async()
+        second = await DeeplNoEnWord(client, word2).get_async()
+        return second
     loop = new_event_loop()
     set_event_loop(loop)
     out = loop.run_until_complete(fetch())
-    #print(out)
+    print(out)
     soup = BeautifulSoup(out, 'html.parser')
     print(soup.text.strip())
+
+class Modify(NamedTuple):
+    update: str
+    read: str
+
+def stateful_page(url, init_read):
+    q = AQueue()
+    async def exhaust():
+        async with async_playwright() as p:
+            browser = await async_launch(p)
+            page = await browser.new_page()
+
+            async def wait(read, pred, v0):
+                while True:
+                    v1 = await page.evaluate(read)
+                    v1 = v1.strip()
+                    if pred(v1, v0): return v1
+                    await asleep(0.1)
+
+            """
+            var d = document.querySelector('d-textarea').firstChild
+            d.dispatchEvent( new Event("input", { bubbles: true, cancelable: true }) );
+            """
+
+            await page.goto(url, wait_until='load')
+            await wait(init_read, ne, '')
+
+            while True:
+                req: Modify = await q.get()
+                if req is None: break
+                v0 = await page.evaluate(req.read)
+                await page.evaluate(req.update)
+                v1 = await wait(req.read, ne, v0)
+                yield v1
+
+            await page.close()
+            await browser.close()
+    gen = exhaust()
+    async def advance(item):
+        await q.put(item)
+        return await anext(gen)
+    return advance
+
+def stateful_page2(url: str):
+    q = AQueue()
+    async def exhaust():
+        while True:
+            item = await q.get()
+            if item is None: break
+            yield 'RECEIVED REQ: %s' % str(item)
+    gen = exhaust()
+    async def advance(item):
+        await q.put(item)
+        return await anext(gen)
+    return advance
+
+def testdeepl2(word1, word2):
+    update = lambda x: """var d=document.querySelector('section.lmt__side_container--source div.lmt__textarea_container d-textarea').firstChild; d.innerText = '%s'; setTimeout(() => { d.dispatchEvent(new Event("input", { bubbles: true, cancelable: true })) }, 50);""" % (x,)
+    read = "document.querySelector('section.lmt__side_container--target div.lmt__textarea_container').innerText"
+    async def fetch():
+        # page = stateful_page('https://www.deepl.com/translator#nb/en/init', read)
+        page = stateful_page('https://www.deepl.com/translator#nb/ru/init', read)
+        # init = await page(Modify(update("init"), read))
+        # print('init', init)
+        print('ready')
+        a = await page(Modify(update(word1), read))
+        print(a)
+        b = await page(Modify(update(word2), read))
+        print(b)
+        # try:
+        #     print('async stopping')
+        #     await page.asend(None)
+        # except StopAsyncIteration:
+        #     print('async done')
+    async_run(fetch())
+    print('done')
+
+def testdeepl3(word1, word2):
+    async def fetch():
+        deepl1 = DeeplNoEnWordStateful()
+        a = await deepl1.get_async(word1)
+        print(a)
+        b = await deepl1.get_async(word2)
+        print(b)
+
+        deepl2 = DeeplNoEnWordStateful()
+        a = await deepl2.get_async(word1)
+        print(a)
+        b = await deepl2.get_async(word2)
+        print(b)
+
+        deepl3 = DeeplNoRuWordStateful()
+        a = await deepl3.get_async(word1)
+        print(a)
+        b = await deepl3.get_async(word2)
+        print(b)
+
+        deepl4 = DeeplNoRuWordStateful()
+        a = await deepl4.get_async(word1)
+        print(a)
+        b = await deepl4.get_async(word2)
+        print(b)
+
+    async_run(fetch())
+    print('done')
 
 def non_empty_lines(text):
     result = []
