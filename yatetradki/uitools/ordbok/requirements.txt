@@ -1,7 +1,7 @@
 requests==2.24.0
 beautifulsoup4==4.8.2
 pyppeteer==1.0.2
-playwright==1.21.0
+playwright==1.35.0
 Flask==1.1.2
 
 PyQt6==6.5.0

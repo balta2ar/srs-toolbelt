@@ -1,7 +1,7 @@
 beautifulsoup4==4.8.2
 boto3==1.14.28
 requests==2.24.0
-azure-cognitiveservices-speech==1.21.0
+azure-cognitiveservices-speech==1.24.0
 pydub==0.25.1
 rich==10.4.0
 unidecode==1.2.0
