@@ -34,8 +34,6 @@ from aiohttp_middlewares import cors_middleware
 from bs4 import BeautifulSoup
 from diskcache import Cache
 from urllib3 import disable_warnings
-from yatetradki.tools.telega import aupto
-from yatetradki.tools.telega import init_client
 from yatetradki.tools.telega import TdlibClient
 from yatetradki.utils import must_env
 
@@ -457,19 +455,18 @@ class TeleFile:
             await tele.close()
 
 
-async def fetch(url):
+async def fetch(tg, url):
     chat_id = int(must_env('TELEGRAM_NYHETER_ID'))
     episode = await Episode.make(url)
     logging.info('Found episode: %s', episode)
-    with TdlibClient.make() as tg:
-        filename = await episode.mp3() # make sure file is present in fs
-        if episode.name in tg.recent_filenames_audio(chat_id):
-            await ui_notify('NRKUP', 'Already available: ' + episode.name)
-            return
-        logging.info('Sending %s', filename)
-        await ui_notify('NRKUP', 'Sending: ' + filename)
-        tg.send_audio(chat_id, filename)
-        await ui_notify('NRKUP', 'Uploaded: ' + episode.name)
+    filename = await episode.mp3() # make sure file is present in fs
+    if episode.name in tg.recent_filenames_audio(chat_id):
+        await ui_notify('NRKUP', 'Already available: ' + episode.name)
+        return
+    logging.info('Sending %s', filename)
+    await ui_notify('NRKUP', 'Sending: ' + filename)
+    tg.send_audio(chat_id, filename)
+    await ui_notify('NRKUP', 'Uploaded: ' + episode.name)
 
 
 def subtitles_url(url):
@@ -483,10 +480,11 @@ async def subtitles(url):
 
 
 class HttpServer:
-    def __init__(self, host, port, loop):
+    def __init__(self, host, port, loop, tg):
         self.host = host
         self.port = port
         self.loop = loop
+        self.tg = tg
 
     async def run(self):
         logging.info('Starting HTTP server on %s:%s', self.host, self.port)
@@ -503,7 +501,7 @@ class HttpServer:
             url = (await request.json()).get('url')
             if not url: return web.Response(status=400, text='Missing url')
             await ui_notify('NRKUP', 'Fetching: ' + url)
-            await fetch(url)
+            await fetch(self.tg, url)
             return web.Response(text='OK ' + url)
         except Exception as e:
             logging.exception(e)
@@ -543,7 +541,7 @@ def test(url=None):
     disable_logging()
     loop = new_event_loop()
     host, port = HOST, PORT
-    loop.run_until_complete(fetch(url))
+    loop.run_until_complete(fetch(tg, url))
     # loop.run_until_complete(HttpServer(host, port, loop).run())
     # loop.run_forever()
 
@@ -568,8 +566,10 @@ def main():
     disable_logging()
     loop = new_event_loop()
     host, port = HOST, PORT
-    loop.run_until_complete(HttpServer(host, port, loop).run())
+    tg = TdlibClient()
+    loop.run_until_complete(HttpServer(host, port, loop, tg).run())
     loop.run_forever()
+    tg.close()
 
 
 if __name__ == '__main__':
