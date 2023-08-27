@@ -14,7 +14,7 @@ from yatetradki.tools.log import get_logger
 from yatetradki.tools.anki_control import anki_is_running
 from yatetradki.tools.pronunciation import Pronunciation
 from yatetradki.tools.anki_sync_anki_connect import web_sync
-from yatetradki.tools.telegram import notify
+from yatetradki.tools.telega import notify
 from yatetradki.utils import cleanup_query
 from yatetradki.utils import mute_networking_logging
 from yatetradki.utils import must_env

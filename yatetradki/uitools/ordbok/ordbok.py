@@ -131,7 +131,7 @@ from html2text import HTML2Text
 
 from yatetradki.reader.dsl import lookup as dsl_lookup
 from yatetradki.uitools.index.search import search as index_search
-from yatetradki.tools.telegram import WordLogger
+from yatetradki.tools.telega import WordLogger
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)

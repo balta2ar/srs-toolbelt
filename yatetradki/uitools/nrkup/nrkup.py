@@ -34,8 +34,9 @@ from aiohttp_middlewares import cors_middleware
 from bs4 import BeautifulSoup
 from diskcache import Cache
 from urllib3 import disable_warnings
-from yatetradki.tools.telegram import aupto
-from yatetradki.tools.telegram import init_client
+from yatetradki.tools.telega import aupto
+from yatetradki.tools.telega import init_client
+from yatetradki.tools.telega import TdlibClient
 from yatetradki.utils import must_env
 
 FORMAT = '%(asctime)-15s %(levelname)s (%(name)s) %(message)s'
@@ -457,14 +458,17 @@ class TeleFile:
 
 
 async def fetch(url):
+    chat_id = int(must_env('TELEGRAM_NYHETER_ID'))
     episode = await Episode.make(url)
     logging.info('Found episode: %s', episode)
-    async with TeleFile.open() as tele:
-        await episode.mp3() # make sure file is present in fs
-        if episode.name in await tele.recent():
+    with TdlibClient.make() as tg:
+        filename = await episode.mp3() # make sure file is present in fs
+        if episode.name in tg.recent_filenames_audio(chat_id):
             await ui_notify('NRKUP', 'Already available: ' + episode.name)
             return
-        await tele.send(await episode.mp3())
+        logging.info('Sending %s', filename)
+        await ui_notify('NRKUP', 'Sending: ' + filename)
+        tg.send_audio(chat_id, filename)
         await ui_notify('NRKUP', 'Uploaded: ' + episode.name)
 
 
@@ -529,17 +533,23 @@ def load_env(filename):
 
 
 def test(url=None):
-    url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO99060122'
+    # 
+    # return
+    load_env('~/.telegram')
+    url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202308/DKNO98082423'
+    with TdlibClient.make() as tg:
+        logging.info('created client')
+    return
     disable_logging()
     loop = new_event_loop()
     host, port = HOST, PORT
-    # loop.run_until_complete(fetch(url))
-    loop.run_until_complete(HttpServer(host, port, loop).run())
-    loop.run_forever()
+    loop.run_until_complete(fetch(url))
+    # loop.run_until_complete(HttpServer(host, port, loop).run())
+    # loop.run_forever()
 
 
 def testsub(url=None):
-    url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO98061322/avspiller'
+    # url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO98061322/avspiller'
     url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202207/DKNO98072622/avspiller'
     disable_logging()
     loop = new_event_loop()
