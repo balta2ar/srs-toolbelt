@@ -47,6 +47,7 @@ HOST = 'localhost'
 PORT = 7000
 BASE = expand('~/payload/video/nrkup/nordland')
 CACHE_DIR = expand('~/.cache/nrkup')
+TDLIB = expand('~/.cache/tdlib/nrkup')
 
 
 def which(program):
@@ -530,12 +531,12 @@ def load_env(filename):
             environ[key] = value
 
 
-def test(url=None):
+def test_init(url=None):
     # 
     # return
     load_env('~/.telegram')
     url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202308/DKNO98082423'
-    with TdlibClient.make() as tg:
+    with TdlibClient.make(TDLIB) as tg:
         logging.info('created client')
     return
     disable_logging()
@@ -566,10 +567,9 @@ def main():
     disable_logging()
     loop = new_event_loop()
     host, port = HOST, PORT
-    tg = TdlibClient()
-    loop.run_until_complete(HttpServer(host, port, loop, tg).run())
-    loop.run_forever()
-    tg.close()
+    with TdlibClient.make(TDLIB) as tg:
+        loop.run_until_complete(HttpServer(host, port, loop, tg).run())
+        loop.run_forever()
 
 
 if __name__ == '__main__':

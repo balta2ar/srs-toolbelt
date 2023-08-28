@@ -131,7 +131,8 @@ from html2text import HTML2Text
 
 from yatetradki.reader.dsl import lookup as dsl_lookup
 from yatetradki.uitools.index.search import search as index_search
-from yatetradki.tools.telega import WordLogger
+from yatetradki.tools.telega import TdlibClient, WordLogger
+from yatetradki.utils import must_env
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -148,6 +149,7 @@ STATIC_DIR = DIR / 'static'
 HOME = Path(expanduser('~'))
 CACHE_DIR = Path(environ.get('CACHE_DIR', HOME / '.cache' / 'ordbok'))
 CACHE_BY_WORD = CACHE_DIR / 'by_word'
+TDLIB = expanduser('~/.cache/tdlib/ordbok')
 SUFFIX_BY_METHOD = 'by_method'
 SUFFIX_BY_URL = 'by_url'
 SUFFIX_BY_WORD = 'by_word'
@@ -1827,34 +1829,17 @@ def load_env(filename):
 
 def track_history(source_signal):
     load_env('~/.telegram')
-    phone = environ.get('TELEGRAM_PHONE')
-    api_id = environ.get('TELEGRAM_API_ID')
-    api_hash = environ.get('TELEGRAM_API_HASH')
-    channel_id = environ.get('TELEGRAM_ORDBOK_ID')
-    if not api_id or not api_hash or not channel_id or not phone:
-        logging.info('Missing Telegram env variables')
-        return
+    channel_id = int(must_env('TELEGRAM_ORDBOK_ID'))
     logging.info('Starting Telegram logger')
     channel_id = int(channel_id)
-    wl = WordLogger(phone, api_id, api_hash, channel_id)
-    loop = new_event_loop()
-    async def auth():
-        logging.info('Telegram: checking is_user_authorized')
-        logging.info('Telegram: is_user_authorized: %s', await wl.client.is_user_authorized())
-        logging.info('Telegram: checking is_user_authorized done')
+    tg = TdlibClient(TDLIB)
+    wl = WordLogger(tg, channel_id)
     @pyqtSlot(str)
     def on_translate(word):
         logging.info('Telegram: add word to history: %s', word)
-        run_coroutine_threadsafe(wl.add(word), loop)
+        wl.add(word)
     def start():
-        set_event_loop(loop)
-        loop.run_until_complete(wl.start())
-        loop.run_until_complete(auth())
-        #run_coroutine_threadsafe(wl.start(), loop)
-        #run_coroutine_threadsafe(auth(), loop)
-        loop.run_forever()
-    #set_event_loop(loop)
-    #start()
+        tg.idle()
     source_signal.connect(on_translate)
     Thread(target=start, daemon=True).start()
 

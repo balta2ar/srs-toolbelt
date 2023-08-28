@@ -10,9 +10,6 @@ import requests
 
 from yatetradki.utils import must_env
 
-from telethon import TelegramClient
-from telethon import utils
-
 from telegram.client import Telegram
 from telegram.text import Text
 
@@ -29,6 +26,7 @@ class TdlibClient:
             phone=must_env('TELEGRAM_PHONE'),
             database_encryption_key=must_env('TELEGRAM_DB_ENCRYPTION_KEY'),
             files_directory=db_path,
+            tdlib_verbosity=0,
         )
         tg.login()
         # if this is the first run, library needs to preload all chats
@@ -38,8 +36,8 @@ class TdlibClient:
         self.tg = tg
     @staticmethod
     @contextmanager
-    def make():
-        client = TdlibClient()
+    def make(db_path=None):
+        client = TdlibClient(db_path=db_path)
         try:
             yield client
         finally:
@@ -135,7 +133,7 @@ class TdlibClient:
 
 def test_tdlib():
     client = TdlibClient()
-    #chat_id = int(must_env('TELEGRAM_NYHETER_ID'))
+    chat_id = int(must_env('TELEGRAM_NYHETER_ID'))
     # client.recent_filenames_audio(chat_id)
     name = '/home/bz/dev/src/srs-toolbelt/yatetradki/uitools/nrkup/test.mp3'
     client.send_audio(chat_id, name)
@@ -198,93 +196,27 @@ def add_word(text, word):
     if word in words: return text, False
     return '\n'.join(words + [word]), True
 
-async def get_latest(client, chat, limit=1):
-    async for i, m in aupto(client.iter_messages(chat), limit):
-        return m
-    return None
-
-async def init_client(phone, api_id, api_hash, channel_id):
-    client = TelegramClient('srs-toolbelt', api_id, api_hash)
-    real_id, peer_type = utils.resolve_id(channel_id)
-    await client.start(phone=phone, code_callback=get_code)
-    return client
-
-def get_code():
-    logging.info('Telegram: need code, put it into /tmp/code, waiting 30s')
-    sleep(30.0)
-    logging.info('Telegram: reading code from /tmp/code now')
-    return open('/tmp/code').read().strip()
-
 class WordLogger:
     MAX_SIZE = 4096
-    def __init__(self, phone, api_id, api_hash, channel_id):
-        self.phone = phone
-        self.api_id = api_id
-        self.api_hash = api_hash
-        self.channel_id = channel_id
-        self.client = TelegramClient('ordbok', api_id, api_hash)
-        real_id, peer_type = utils.resolve_id(channel_id)
-    async def start(self):
-        await self.client.start(phone=self.phone, code_callback=get_code)
-    async def add(self, word):
+    def __init__(self, tg, chat_id):
+        self.tg = tg
+        self.chat_id = chat_id
+    def add(self, word):
+        logging.info('Telegram: adding word: %s', word)
         word = word.strip().lower()
-        chat = await self.client.get_entity(self.channel_id)
-        latest = await get_latest(self.client, chat)
-        if latest is None or not is_today(latest.date):
-            await self.client.send_message(chat, word)
+        latest = self.tg.get_latest_message(chat_id=self.chat_id)
+        text = latest['content']['text']['text']
+        when = datetime.fromtimestamp(latest['date'])
+        if latest is None or not is_today(when):
+            self.tg.send_text(self.chat_id, word)
         else:
-            text, updated = add_word(latest.text, word)
+            text, updated = add_word(text, word)
             if updated and len(text) < self.MAX_SIZE:
-                await self.client.edit_message(latest, text)
-
-async def log_word(text):
-    api_id = must_env('TELEGRAM_API_ID')
-    api_hash = must_env('TELEGRAM_API_HASH')
-    channel_id = int(must_env('TELEGRAM_ORDBOK_ID'))
-    phone = int(must_env('TELEGRAM_PHONE'))
-    word_logger = WordLogger(phone, api_id, api_hash, channel_id)
-    await word_logger.start()
-    await word_logger.add(text)
-
-from asyncio import new_event_loop, set_event_loop, gather, TimeoutError as AsyncioTimeoutError, run_coroutine_threadsafe
-from threading import Thread
+                self.tg.edit_message(self.chat_id, latest['id'], text)
 
 def test_log(text):
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
-    api_id = must_env('TELEGRAM_API_ID')
-    api_hash = must_env('TELEGRAM_API_HASH')
     channel_id = int(must_env('TELEGRAM_ORDBOK_ID'))
-    phone = int(must_env('TELEGRAM_PHONE'))
-    wl = WordLogger(phone, api_id, api_hash, channel_id)
-    loop = new_event_loop()
-    async def auth():
-        logging.info('Telegram: checking is_user_authorized')
-        logging.info('Telegram: is_user_authorized: %s', await wl.client.is_user_authorized())
-        logging.info('Telegram: checking is_user_authorized done')
-    #@pyqtSlot(str)
-    def on_translate(word):
-        logging.info('Telegram: add word to history: %s', word)
-        run_coroutine_threadsafe(wl.add(word), loop)
-    def start():
-        print('Telegram: Starting thread')
-        set_event_loop(loop)
-        print('Telegram: loop set')
-        run_coroutine_threadsafe(wl.start(), loop)
-        run_coroutine_threadsafe(auth(), loop)
-        run_coroutine_threadsafe(wl.add(text), loop)
-        # try:
-        #     loop.run_until_complete(wl.start())
-        #     loop.run_until_complete(auth())
-        #     loop.run_until_complete(wl.add(text))
-        # except Exception as e:
-        #     print('Telegram: exception: %s', e)
-        #loop.run_until_complete(auth())
-        print('Telegram: running forever')
-        loop.run_forever()
-    #set_event_loop(loop)
-    #start()
-    #source_signal.connect(on_translate)
-    print('Telegram: creating thread')
-    t = Thread(target=start, daemon=True)
-    t.start()
-    t.join()
+    tg = TdlibClient(db_path='~/.cache/tdlib/ordbok')
+    wl = WordLogger(tg, channel_id)
+    wl.add(text)
