@@ -48,6 +48,7 @@ class TdlibClient:
         filenames = []
         from_message_id = 0
         while len(filenames) < limit:
+            print(f'recent in {chat_id} from {from_message_id}')
             result = self.tg.get_chat_history(
                 chat_id=chat_id, limit=100, from_message_id=from_message_id
             )
@@ -132,12 +133,13 @@ class TdlibClient:
                 break
 
 def test_tdlib():
+    print('start')
     client = TdlibClient()
     chat_id = int(must_env('TELEGRAM_NYHETER_ID'))
-    # client.recent_filenames_audio(chat_id)
-    name = '/home/bz/dev/src/srs-toolbelt/yatetradki/uitools/nrkup/test.mp3'
-    client.send_audio(chat_id, name)
-    client.close()    
+    client.recent_filenames_audio(chat_id)
+    #name = '/home/bz/dev/src/srs-toolbelt/yatetradki/uitools/nrkup/test.mp3'
+    #client.send_audio(chat_id, name)
+    #client.close()
 
 def test_edit():
     chat_id = int(must_env('TELEGRAM_ORDBOK_ID'))

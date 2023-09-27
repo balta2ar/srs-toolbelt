@@ -198,6 +198,7 @@ def disable_logging():
             logger.propagate = False
             #logging.info('Disabled logger "%s"', name)
     logging.getLogger('telethon').setLevel(logging.CRITICAL)
+    logging.getLogger('telegram').setLevel(logging.CRITICAL)
 
 
 def in_temp_dir(filename) -> str:
@@ -1839,7 +1840,8 @@ def track_history(source_signal):
         logging.info('Telegram: add word to history: %s', word)
         wl.add(word)
     def start():
-        tg.idle()
+        pass
+        #tg.idle()
     source_signal.connect(on_translate)
     Thread(target=start, daemon=True).start()
 
@@ -1924,7 +1926,7 @@ def testdeepl3(word1, word2):
         w3 = deepl1.get_async(word2)
         w4 = deepl2.get_async(word2)
         await gather(w1, w2, w3, w4)
-        
+
         await deepl1.close()
         await deepl2.close()
         # print(await w1)
@@ -1994,6 +1996,10 @@ def testgen():
         await gather(*coros)
     async_run(fetch())
     print('done')
+
+def test_init():
+    with TdlibClient.make(TDLIB) as tg:
+        print('hey')
 
 if __name__ == '__main__':
     main()

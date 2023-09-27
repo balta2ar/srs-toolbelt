@@ -77,6 +77,7 @@ def disable_logging():
     disable_warnings()
     logging.getLogger('asyncio').setLevel(logging.WARNING)
     logging.getLogger('telethon').setLevel(logging.CRITICAL)
+    logging.getLogger('telegram').setLevel(logging.WARNING)
 
 
 async def async_http_get(url, timeout=10.0):
@@ -458,6 +459,7 @@ class TeleFile:
 
 async def fetch(tg, url):
     chat_id = int(must_env('TELEGRAM_NYHETER_ID'))
+    logging.info('chat_id = %d', chat_id)
     episode = await Episode.make(url)
     logging.info('Found episode: %s', episode)
     filename = await episode.mp3() # make sure file is present in fs
@@ -532,7 +534,7 @@ def load_env(filename):
 
 
 def test_init(url=None):
-    # 
+    #
     # return
     load_env('~/.telegram')
     url = 'https://tv.nrk.no/serie/distriktsnyheter-nordland/202308/DKNO98082423'
