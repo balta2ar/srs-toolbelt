@@ -317,7 +317,7 @@ class PlaywrightClientAsync(DynamicClient):
             return content
     async def get_async_page(self, page, url, selector=None, extractor=None, action=None, wait_until='load'):
         # if self.browser is None: await self.init()
-        logging.info('dynamic client GOTO "%s"', url)
+        logging.info('dynamic client GOTO "%s", wait_until="%s"', url, wait_until)
         #url = 'https://www.deepl.com/translator#nb/en/brostein'
         await page.goto(url, wait_until=wait_until)
         logging.debug('dynamic client done GOTO "%s"', url)
@@ -919,7 +919,7 @@ class TrExMeEnNoWord(TrExMe):
 
 class NaobWord(WordGetter):
     async def get_async(self):
-        soup = parse(await self.client.get_async(self.get_url(self.word), selector='main > div.container'))
+        soup = parse(await self.client.get_async(self.get_url(self.word), selector='main > div.container', wait_until='domcontentloaded'))
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
@@ -1976,7 +1976,8 @@ def testdyn(word):
     invalidate_word.set(True)
     client = DynamicHttpClient()
     t0 = time.time()
-    out = async_run(OrdbokeneWord(client, word).get_async())
+    # out = async_run(OrdbokeneWord(client, word).get_async())
+    out = async_run(NaobWord(client, word).get_async())
     print('took', time.time() - t0)
     #print(out)
 
