@@ -1,0 +1,92 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Subtitle Editor</title>
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.6.8/plyr.css" />
+    <style>
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+        #player {
+            flex: 1;
+        }
+        #subtitles {
+            flex: 1;
+            overflow-y: scroll;
+            padding: 10px;
+        }
+        .subtitle {
+            cursor: pointer;
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        .subtitle:hover {
+            background-color: #eaeaea;
+        }
+    </style>
+</head>
+<body>
+<div id="container">
+    <div id="player">
+        <video controls crossorigin playsinline id="video">
+            <!-- Video file source will be added by JavaScript -->
+        </video>
+    </div>
+    <div id="subtitles">
+        <!-- Subtitle lines will be added by JavaScript -->
+    </div>
+</div>
+
+<script src="https://cdn.plyr.io/3.6.8/plyr.polyfilled.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize Plyr player
+        const player = new Plyr('#video');
+
+        // Fetch media and subtitles and populate the UI
+        fetch('/media/by10m_03.mp3')  // Replace with the actual API endpoint
+            .then(response => response.json())
+            .then(data => {
+                // Set video source
+                player.source = {
+                    type: 'video',
+                    title: data.file_name,
+                    sources: [{
+                        src: data.file_path,
+                        type: 'video/mp3',
+                    }]
+                };
+
+                // Add subtitle lines to the subtitles container
+                const subtitlesContainer = document.getElementById('subtitles');
+                data.subtitles.forEach(subtitle => {
+                    const div = document.createElement('div');
+                    div.className = 'subtitle';
+                    div.textContent = subtitle.text;
+                    div.dataset.start = subtitle.start_time;
+                    div.addEventListener('click', function () {
+                        player.currentTime = parseTime(this.dataset.start);
+                    });
+                    subtitlesContainer.appendChild(div);
+                });
+            });
+
+        // Add event listener for Space key to toggle play/pause
+        window.addEventListener('keydown', function (event) {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                player.togglePlay();
+            }
+        });
+    });
+
+    function parseTime(timeString) {
+        const [hours, minutes, seconds] = timeString.split(':').map(Number);
+        return hours * 3600 + minutes * 60 + seconds;
+    }
+</script>
+</body>
+</html>
