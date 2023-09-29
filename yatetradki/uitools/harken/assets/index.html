@@ -23,8 +23,18 @@
         }
         .subtitle {
             cursor: pointer;
-            margin-bottom: 10px;
+            margin-bottom: 5px; /* Decreased margin */
+            padding: 2px; /* Decreased padding */
+        }
+        #top-bar {
+            display: flex;
+            background-color: #f0f0f0; /* or any color of your choice */
             padding: 5px;
+        }
+        .recent-media {
+            margin-right: 10px;
+            cursor: pointer;
+            text-decoration: underline;
         }
         .subtitle:hover, .subtitle.active {
             background-color: #eaeaea;
@@ -35,6 +45,9 @@
     </style>
 </head>
 <body>
+<div id="top-bar">
+    <!-- Recent Media Files will be added by JavaScript -->
+</div>
 <div id="container">
     <div id="player-container">
         <audio id="player" playsinline controls>
@@ -59,27 +72,57 @@
         let subtitles = [];
         let activeSubtitleIndex = null;
 
-        fetch('/media/by10m_03.vtt')
-            .then(response => response.text())
+        fetch('/media')
+            .then(response => response.json())
             .then(data => {
-                const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
-                let match;
-                while (match = regex.exec(data)) {
-                    const [_, start, end, text] = match;
-                    const div = document.createElement('div');
-                    div.className = 'subtitle';
-                    div.textContent = text.trim();
-                    div.dataset.start = start;
-                    div.dataset.end = end;
-                    div.addEventListener('click', function () {
-                        setActiveSubtitle(div);
-                        player.currentTime = parseTime(this.dataset.start);
-                        player.play();
+                const topBar = document.getElementById('top-bar');
+                data.media_files.slice(0, 5).forEach(file => {
+                    const span = document.createElement('span');
+                    span.className = 'recent-media';
+                    span.textContent = file;
+                    span.addEventListener('click', function () {
+                        const mediaType = file.split('.').pop();
+                        if (mediaType === 'mp3' || mediaType === 'mp4' || mediaType === 'mkv') {
+                            player.source = {
+                                type: mediaType === 'mp3' ? 'audio' : 'video',
+                                sources: [{ src: `/media/${file}`, type: `${mediaType === 'mp3' ? 'audio' : 'video'}/${mediaType}` }],
+                            };
+                        }
+                        // Load the corresponding VTT file
+                        loadSubtitles(file.replace(/\.[^/.]+$/, ".vtt"));
                     });
-                    subtitlesContainer.appendChild(div);
-                    subtitles.push(div);
-                }
+                    topBar.appendChild(span);
+                });
             });
+
+            function loadSubtitles(vttFileName) {
+                // Clear existing subtitles
+                subtitlesContainer.innerHTML = '';
+                subtitles = [];
+                activeSubtitleIndex = null;
+                
+                fetch(`/media/${vttFileName}`)
+                    .then(response => response.text())
+                    .then(data => {
+                        const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
+                        let match;
+                        while (match = regex.exec(data)) {
+                            const [_, start, end, text] = match;
+                            const div = document.createElement('div');
+                            div.className = 'subtitle';
+                            div.textContent = text.trim();
+                            div.dataset.start = start;
+                            div.dataset.end = end;
+                            div.addEventListener('click', function () {
+                                setActiveSubtitle(div);
+                                player.currentTime = parseTime(this.dataset.start);
+                                player.play(); // Ensure the player starts playing
+                            });
+                            subtitlesContainer.appendChild(div);
+                            subtitles.push(div);
+                        }
+                    });
+            }
 
         player.on('timeupdate', function () {
             for (let i = 0; i < subtitles.length; i++) {

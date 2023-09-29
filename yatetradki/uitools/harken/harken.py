@@ -70,7 +70,12 @@ async def fetch_media(request):
 # Handler to list media
 async def list_media(request):
     media_folder = 'media'
-    media_files = [f for f in os.listdir(media_folder) if os.path.isfile(os.path.join(media_folder, f))]
+    media_files = [
+        f for f in os.listdir(media_folder) 
+        if os.path.isfile(os.path.join(media_folder, f)) and f.rsplit('.', 1)[-1] in ['mp3', 'mp4', 'mkv']
+    ]
+    # Sort media_files by modification time, recent first
+    media_files.sort(key=lambda f: os.path.getmtime(os.path.join(media_folder, f)), reverse=True)
     return web.json_response(MediaList(media_files=media_files).dict())
 
 
