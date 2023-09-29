@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,6 +11,9 @@
         }
         #player {
             flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         #subtitles {
             flex: 1;
@@ -31,9 +33,9 @@
 <body>
 <div id="container">
     <div id="player">
-        <video controls crossorigin playsinline id="video">
-            <!-- Video file source will be added by JavaScript -->
-        </video>
+        <audio controls crossorigin playsinline id="audio">
+            <!-- Audio file source will be added by JavaScript -->
+        </audio>
     </div>
     <div id="subtitles">
         <!-- Subtitle lines will be added by JavaScript -->
@@ -44,19 +46,19 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Initialize Plyr player
-        const player = new Plyr('#video');
+        const player = new Plyr('#audio');
 
         // Fetch media and subtitles and populate the UI
-        fetch('/media/by10m_03.mp3')  // Replace with the actual API endpoint
+        fetch('/media/by10m_03.mp3')  // Updated to the specified mp3 file
             .then(response => response.json())
             .then(data => {
-                // Set video source
+                // Set audio source
                 player.source = {
-                    type: 'video',
+                    type: 'audio',
                     title: data.file_name,
                     sources: [{
                         src: data.file_path,
-                        type: 'video/mp3',
+                        type: 'audio/mp3',
                     }]
                 };
 

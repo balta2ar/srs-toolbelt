@@ -4,6 +4,7 @@ import os
 from aiohttp import web
 from typing import List, Optional
 from pydantic import BaseModel
+import mimetypes
 
 
 # Models
@@ -28,23 +29,18 @@ def parse_vtt(file_path: str) -> List[Subtitle]:
     subtitles = []
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read().splitlines()
-        # Skip the "WEBVTT" line and any blank lines that follow it
         idx = 1
         while idx < len(content) and content[idx].strip() == "":
             idx += 1
 
-        # Process the subtitle blocks
         while idx < len(content):
-            # Skip blank lines between blocks
             if content[idx].strip() == "":
                 idx += 1
                 continue
 
-            # Parse the timestamp line
             start, end = content[idx].strip().split(' --> ')
             idx += 1
             
-            # Process the text lines
             text_lines = []
             while idx < len(content) and content[idx].strip() != "":
                 text_lines.append(content[idx].strip())
@@ -76,10 +72,18 @@ async def list_media(request):
     return web.json_response(MediaList(media_files=media_files).dict())
 
 
+# Handler to serve the UI
+async def serve_index(request):
+    content = open('assets/index.html', 'r').read()
+    return web.Response(text=content, content_type='text/html')
+
+
 # aiohttp App
 app = web.Application()
+app.router.add_get('/', serve_index)
 app.router.add_get('/media/{file_name}', fetch_media)
 app.router.add_get('/media', list_media)
+app.router.add_static('/assets/', 'assets')  # Serve static files from the "assets" directory
 
 # Run aiohttp from Python Code
 if __name__ == "__main__":
