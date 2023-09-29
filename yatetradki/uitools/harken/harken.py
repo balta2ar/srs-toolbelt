@@ -5,7 +5,40 @@ from aiohttp import web
 from typing import List, Optional
 from pydantic import BaseModel
 import mimetypes
+import hashlib
 from pathlib import Path
+import milli
+from os import makedirs
+
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+def build_index():
+    # Index all *.vtt files in media folder
+    path = "./milli_index"
+    makedirs(path, exist_ok=True)
+    index = milli.Index(path, 1024*1024*1024) # 1GiB
+    media_dir = Path('./media')
+    for file in media_dir.rglob('*.vtt'):
+        with open(file, 'r') as f:
+            logging.info(f"Indexing {file}")
+            docs = []
+            for line_index, line in enumerate(f.readlines()):
+                line = line.strip()
+                if line:  # Skip empty lines
+                    # logging.info(f"Indexing {file} line {line_index}")
+                    document_id = hashlib.sha256(f"{file}{line_index}{line}".encode()).hexdigest()
+                    docs.append
+                    docs.append({
+                        "id": document_id,
+                        "title": str(file.relative_to(media_dir)),
+                        "content": line
+                    })
+            index.add_documents(docs)
+    return index
+
+index = build_index()
+
 
 # Models
 class Subtitle(BaseModel):
@@ -89,10 +122,21 @@ async def serve_index(request):
     content = open('assets/index.html', 'r').read()
     return web.Response(text=content, content_type='text/html')
 
+async def search_content(request):
+    q = request.query.get('q', '')
+    if not q:
+        return web.json_response({'error': 'q parameter is required'}, status=400)
+    
+    results = index.search(q)
+    documents = [index.get_document(result) for result in results]
+    
+    return web.json_response({'results': documents})
+
 
 # aiohttp App
 app = web.Application()
 app.router.add_get('/', serve_index)
+app.router.add_get('/search_content', search_content)
 app.router.add_get('/media/{file_name:.*}', fetch_media)
 app.router.add_get('/media', list_media)
 app.router.add_static('/assets/', 'assets')
