@@ -32,6 +32,9 @@
             overflow-y: scroll;
             padding: 10px;
         }
+        #search-input {
+            width: 300px;
+        }
         .subtitle {
             cursor: pointer;
             margin-bottom: 5px; /* Decreased margin */
@@ -57,6 +60,10 @@
 <body>
 <div id="top-bar">
     <!-- Recent Media Files will be added by JavaScript -->
+    <input type="text" id="search-input" list="search-results" placeholder="Search..." oninput="OnSearch(this.value)" onchange="OnSelect(this.value)"/>
+    <datalist id="search-results">
+        <!-- Search results will be added by JavaScript -->
+    </datalist>
 </div>
 <div id="container">
     <div id="player-container">
@@ -81,6 +88,92 @@
         });
         let subtitles = [];
         let activeSubtitleIndex = null;
+
+        function loadMedia(filename) {
+            // Clear existing subtitles
+            subtitlesContainer.innerHTML = '';
+            
+            console.log(filename);
+            // Load the new media file and associated subtitles
+            const mp3 = filename.replace(/\.[^/.]+$/, ".mp3");
+            const vtt = filename.replace(/\.[^/.]+$/, ".vtt");
+            const mediaFile = `/media/${mp3}`;
+            const subtitleFile = `/media/${vtt}`;
+            
+            // Update the player source
+            player.source = {
+                type: 'audio',  // Adjust based on your media type
+                title: filename,
+                sources: [{
+                    src: mediaFile,
+                    type: 'audio/mp3',  // Adjust based on your media type
+                }],
+                tracks: [{
+                    kind: 'captions',
+                    label: 'English',
+                    src: subtitleFile,
+                    srclang: 'en',
+                    default: true,
+                }],
+            };
+            
+            // Fetch and display the new subtitles
+            loadSubtitles(vtt);
+        }        
+
+        window.OnSearch = function (query) {
+            if (!query) return;
+            fetch(`/search_content?q=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    const dataList = document.getElementById('search-results');
+                    dataList.innerHTML = '';  // Clear existing options
+                    data.results.forEach(doc => {
+                        const option = document.createElement('option');
+                        option.value = doc.title;
+                        option.innerText = `${doc.content}`;
+                        dataList.appendChild(option);
+                    });
+                });
+        }
+
+        window.OnSelect = function (filename) {
+            if (!filename) return;
+            // Clear the search input
+            document.getElementById('search-input').value = '';
+
+            // Similar to clicking on a file in the top bar
+            loadMedia(filename);
+        }
+
+        function loadSubtitles(vttFileName) {
+            // Clear existing subtitles
+            subtitlesContainer.innerHTML = '';
+            subtitles = [];
+            activeSubtitleIndex = null;
+            
+            fetch(`/media/${vttFileName}`)
+                .then(response => response.text())
+                .then(data => {
+                    const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
+                    let match;
+                    while (match = regex.exec(data)) {
+                        const [_, start, end, text] = match;
+                        const div = document.createElement('div');
+                        div.className = 'subtitle';
+                        div.textContent = text.trim();
+                        div.dataset.start = start;
+                        div.dataset.end = end;
+                        div.addEventListener('click', function () {
+                            setActiveSubtitle(div);
+                            player.currentTime = parseTime(this.dataset.start);
+                            player.play(); // Ensure the player starts playing
+                        });
+                        subtitlesContainer.appendChild(div);
+                        subtitles.push(div);
+                    }
+                });
+        }
 
         fetch('/media')
             .then(response => response.json())
@@ -110,35 +203,6 @@
                     firstMedia.dispatchEvent(new Event('click'));
                 }
             });
-
-            function loadSubtitles(vttFileName) {
-                // Clear existing subtitles
-                subtitlesContainer.innerHTML = '';
-                subtitles = [];
-                activeSubtitleIndex = null;
-                
-                fetch(`/media/${vttFileName}`)
-                    .then(response => response.text())
-                    .then(data => {
-                        const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
-                        let match;
-                        while (match = regex.exec(data)) {
-                            const [_, start, end, text] = match;
-                            const div = document.createElement('div');
-                            div.className = 'subtitle';
-                            div.textContent = text.trim();
-                            div.dataset.start = start;
-                            div.dataset.end = end;
-                            div.addEventListener('click', function () {
-                                setActiveSubtitle(div);
-                                player.currentTime = parseTime(this.dataset.start);
-                                player.play(); // Ensure the player starts playing
-                            });
-                            subtitlesContainer.appendChild(div);
-                            subtitles.push(div);
-                        }
-                    });
-            }
 
             function binarySearch(time) {
                 let low = 0;
