@@ -19,6 +19,10 @@ class MediaDetail(BaseModel):
     subtitles: List[Subtitle]
 
 
+class MediaList(BaseModel):
+    media_files: List[str]
+
+
 # Helper Function to Parse VTT
 def parse_vtt(file_path: str) -> List[Subtitle]:
     subtitles = []
@@ -30,9 +34,12 @@ def parse_vtt(file_path: str) -> List[Subtitle]:
             lines = block.split('\n')
             if len(lines) < 2:
                 continue  # Invalid block
-            start_end, *text_lines = lines[1:]
-            start, end = start_end.split(' --> ')
-            subtitles.append(Subtitle(start_time=start, end_time=end, text=' '.join(text_lines)))
+            try:
+                start_end, *text_lines = lines[1:]
+                start, end = start_end.split(' --> ')
+                subtitles.append(Subtitle(start_time=start, end_time=end, text=' '.join(text_lines)))
+            except ValueError:  # Skip malformed subtitle blocks
+                continue
     return subtitles
 
 
@@ -50,9 +57,17 @@ async def fetch_media(request):
     return web.json_response(media_detail.dict())
 
 
+# Handler to list media
+async def list_media(request):
+    media_folder = 'media'
+    media_files = [f for f in os.listdir(media_folder) if os.path.isfile(os.path.join(media_folder, f))]
+    return web.json_response(MediaList(media_files=media_files).dict())
+
+
 # aiohttp App
 app = web.Application()
 app.router.add_get('/media/{file_name}', fetch_media)
+app.router.add_get('/media', list_media)
 
 # Run aiohttp from Python Code
 if __name__ == "__main__":
