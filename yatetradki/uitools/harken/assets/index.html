@@ -5,9 +5,20 @@
     <title>Subtitle Editor</title>
     <link rel="stylesheet" href="https://cdn.plyr.io/3.6.8/plyr.css" />
     <style>
+        html, body {
+            height: 100%;
+            margin: 0; /* Remove default margin */
+            overflow: hidden; /* Hide Overflow */
+        }
         #container {
             display: flex;
-            height: 100vh;
+            height: calc(100% - 40px); /* Adjusted height to subtract the height and padding of the top bar */
+        }
+        #top-bar {
+            display: flex;
+            background-color: #f0f0f0;
+            padding: 5px;
+            height: 30px; /* Specific height for the top bar */
         }
         #player-container {
             flex: 1;
@@ -25,11 +36,6 @@
             cursor: pointer;
             margin-bottom: 5px; /* Decreased margin */
             padding: 2px; /* Decreased padding */
-        }
-        #top-bar {
-            display: flex;
-            background-color: #f0f0f0; /* or any color of your choice */
-            padding: 5px;
         }
         .recent-media {
             margin-right: 10px;
