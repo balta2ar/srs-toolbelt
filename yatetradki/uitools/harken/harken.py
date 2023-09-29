@@ -54,15 +54,17 @@ def parse_vtt(file_path: str) -> List[Subtitle]:
 # Handler to fetch media
 async def fetch_media(request):
     file_name = request.match_info.get('file_name', '')
-    media_path = os.path.join('media', file_name)
-    subtitle_path = os.path.join('media', f"{os.path.splitext(file_name)[0]}.vtt")
+    file_path = os.path.join('media', file_name)
     
-    if not os.path.exists(media_path) or not os.path.exists(subtitle_path):
-        return web.HTTPNotFound(text="Media or Subtitle not found")
+    if not os.path.exists(file_path):
+        return web.HTTPNotFound(text="File not found")
     
-    subtitles = parse_vtt(subtitle_path)
-    media_detail = MediaDetail(file_name=file_name, file_path=media_path, subtitles=subtitles)
-    return web.json_response(media_detail.dict())
+    content_type, _ = mimetypes.guess_type(file_name)
+    if content_type is None:
+        content_type = 'application/octet-stream'
+        
+    return web.FileResponse(path=file_path, headers={'Content-Type': content_type})
+
 
 
 # Handler to list media
@@ -83,7 +85,8 @@ app = web.Application()
 app.router.add_get('/', serve_index)
 app.router.add_get('/media/{file_name}', fetch_media)
 app.router.add_get('/media', list_media)
-app.router.add_static('/assets/', 'assets')  # Serve static files from the "assets" directory
+app.router.add_static('/assets/', 'assets')
+
 
 # Run aiohttp from Python Code
 if __name__ == "__main__":

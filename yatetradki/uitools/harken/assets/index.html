@@ -9,7 +9,7 @@
             display: flex;
             height: 100vh;
         }
-        #player {
+        #player-container {
             flex: 1;
             display: flex;
             align-items: center;
@@ -32,9 +32,10 @@
 </head>
 <body>
 <div id="container">
-    <div id="player">
-        <audio controls crossorigin playsinline id="audio">
-            <!-- Audio file source will be added by JavaScript -->
+    <div id="player-container">
+        <audio id="player" playsinline controls>
+            <source src="/media/by10m_03.mp3" type="audio/mp3" />
+            <track kind="captions" label="English captions" src="/media/by10m_03.vtt" srclang="en" default />
         </audio>
     </div>
     <div id="subtitles">
@@ -46,34 +47,26 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Initialize Plyr player
-        const player = new Plyr('#audio');
+        const player = new Plyr('#player');
 
-        // Fetch media and subtitles and populate the UI
-        fetch('/media/by10m_03.mp3')  // Updated to the specified mp3 file
-            .then(response => response.json())
+        // Fetch subtitles and populate the UI
+        fetch('/media/by10m_03.vtt')
+            .then(response => response.text())
             .then(data => {
-                // Set audio source
-                player.source = {
-                    type: 'audio',
-                    title: data.file_name,
-                    sources: [{
-                        src: data.file_path,
-                        type: 'audio/mp3',
-                    }]
-                };
-
-                // Add subtitle lines to the subtitles container
                 const subtitlesContainer = document.getElementById('subtitles');
-                data.subtitles.forEach(subtitle => {
+                const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
+                let match;
+                while (match = regex.exec(data)) {
+                    const [_, start, end, text] = match;
                     const div = document.createElement('div');
                     div.className = 'subtitle';
-                    div.textContent = subtitle.text;
-                    div.dataset.start = subtitle.start_time;
+                    div.textContent = text.trim();
+                    div.dataset.start = start;
                     div.addEventListener('click', function () {
                         player.currentTime = parseTime(this.dataset.start);
                     });
                     subtitlesContainer.appendChild(div);
-                });
+                }
             });
 
         // Add event listener for Space key to toggle play/pause
@@ -86,7 +79,7 @@
     });
 
     function parseTime(timeString) {
-        const [hours, minutes, seconds] = timeString.split(':').map(Number);
+        const [hours, minutes, seconds] = timeString.split(':').map(parseFloat);
         return hours * 3600 + minutes * 60 + seconds;
     }
 </script>
