@@ -13,28 +13,43 @@ from os import makedirs
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
+def traverse(basedir):
+    basedir = Path(basedir)
+    for entry in basedir.iterdir():
+        if entry.is_symlink():
+            entry = Path(os.readlink(entry)).resolve()  # Follow the symlink if entry is a symlink
+            
+        if entry.is_dir():
+            yield from traverse(entry)  # Recursively traverse directories
+        elif entry.is_file():
+            yield entry  # Yield file paths
+
 def build_index():
     # Index all *.vtt files in media folder
     path = "./milli_index"
+    logging.info(f"Building index at {path}")
     makedirs(path, exist_ok=True)
     index = milli.Index(path, 1024*1024*1024) # 1GiB
     media_dir = Path('./media')
-    for file in media_dir.rglob('*.vtt'):
-        with open(file, 'r') as f:
-            logging.info(f"Indexing {file}")
-            docs = []
-            for line_index, line in enumerate(f.readlines()):
-                line = line.strip()
-                if line:  # Skip empty lines
-                    # logging.info(f"Indexing {file} line {line_index}")
-                    document_id = hashlib.sha256(f"{file}{line_index}{line}".encode()).hexdigest()
-                    docs.append
-                    docs.append({
-                        "id": document_id,
-                        "title": str(file.relative_to(media_dir)),
-                        "content": line
-                    })
-            index.add_documents(docs)
+    # for file in media_dir.rglob('*.vtt'):
+    docs = []
+    for file in traverse(media_dir):
+        if file.suffix == '.vtt':
+            with open(file, 'r') as f:
+                logging.info(f"Indexing {file}")
+                # docs = []
+                for line_index, line in enumerate(f.readlines()):
+                    line = line.strip()
+                    if line:  # Skip empty lines
+                        # logging.info(f"Indexing {file} line {line_index}")
+                        document_id = hashlib.sha256(f"{file}{line_index}{line}".encode()).hexdigest()
+                        docs.append({
+                            "id": document_id,
+                            "title": str(file.relative_to(media_dir)),
+                            "content": line
+                        })
+    index.add_documents(docs)
+    logging.info(f"Index built at {path}")
     return index
 
 index = build_index()
@@ -89,6 +104,7 @@ async def fetch_media(request):
     file_name = request.match_info.get('file_name', '')
     file_path = os.path.join('media', file_name)
     
+    logging.info(f"Fetching {file_path}")
     if not os.path.exists(file_path):
         return web.HTTPNotFound(text="File not found")
     
@@ -105,7 +121,8 @@ async def list_media(request):
     media_dir = Path('./media')
     media_files = []
 
-    for file in media_dir.rglob('*'):  # Recursively search for all files
+    #for file in media_dir.rglob('*'):  # Recursively search for all files
+    for file in traverse(media_dir):
         if file.is_file() and file.suffix in ['.mp3', '.mp4', '.mkv', '.avi', '.webm']:
             relative_path = file.relative_to(media_dir)  # Get the relative path to the media directory
             media_files.append(str(relative_path))  # Convert the Path object to a string
