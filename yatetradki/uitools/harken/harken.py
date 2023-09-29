@@ -5,7 +5,7 @@ from aiohttp import web
 from typing import List, Optional
 from pydantic import BaseModel
 import mimetypes
-
+from pathlib import Path
 
 # Models
 class Subtitle(BaseModel):
@@ -69,14 +69,19 @@ async def fetch_media(request):
 
 # Handler to list media
 async def list_media(request):
-    media_folder = 'media'
-    media_files = [
-        f for f in os.listdir(media_folder) 
-        if os.path.isfile(os.path.join(media_folder, f)) and f.rsplit('.', 1)[-1] in ['mp3', 'mp4', 'mkv']
-    ]
-    # Sort media_files by modification time, recent first
-    media_files.sort(key=lambda f: os.path.getmtime(os.path.join(media_folder, f)), reverse=True)
-    return web.json_response(MediaList(media_files=media_files).dict())
+    media_dir = Path('./media')
+    media_files = []
+
+    for file in media_dir.rglob('*'):  # Recursively search for all files
+        if file.is_file() and file.suffix in ['.mp3', '.mp4', '.mkv', '.avi', '.webm']:
+            relative_path = file.relative_to(media_dir)  # Get the relative path to the media directory
+            media_files.append(str(relative_path))  # Convert the Path object to a string
+    
+    # Sort media files by modification time, most recent first
+    media_files.sort(key=lambda f: (media_dir / f).stat().st_mtime, reverse=True)
+    
+    return web.json_response({'media_files': media_files})
+
 
 
 # Handler to serve the UI
@@ -88,7 +93,7 @@ async def serve_index(request):
 # aiohttp App
 app = web.Application()
 app.router.add_get('/', serve_index)
-app.router.add_get('/media/{file_name}', fetch_media)
+app.router.add_get('/media/{file_name:.*}', fetch_media)
 app.router.add_get('/media', list_media)
 app.router.add_static('/assets/', 'assets')
 
