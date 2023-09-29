@@ -43,7 +43,7 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 def expand(path):
     return expanduser(expandvars(path))
 
-HOST = 'localhost'
+HOST = '127.0.0.1'
 PORT = 7000
 BASE = expand('~/payload/video/nrkup/nordland')
 CACHE_DIR = expand('~/.cache/nrkup')
