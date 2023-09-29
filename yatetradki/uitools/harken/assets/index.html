@@ -25,8 +25,11 @@
             margin-bottom: 10px;
             padding: 5px;
         }
-        .subtitle:hover {
+        .subtitle:hover, .subtitle.active {
             background-color: #eaeaea;
+        }
+        .subtitle.active {
+            border: 1px solid #000;  /* Solid border for the active subtitle */
         }
     </style>
 </head>
@@ -46,14 +49,18 @@
 <script src="https://cdn.plyr.io/3.6.8/plyr.polyfilled.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Initialize Plyr player
         const player = new Plyr('#player');
+        const subtitlesContainer = document.getElementById('subtitles');
+        const playerContainer = document.getElementById('player-container');
+        playerContainer.addEventListener('click', function () {
+            player.togglePlay();
+        });
+        let subtitles = [];
+        let activeSubtitleIndex = null;
 
-        // Fetch subtitles and populate the UI
         fetch('/media/by10m_03.vtt')
             .then(response => response.text())
             .then(data => {
-                const subtitlesContainer = document.getElementById('subtitles');
                 const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
                 let match;
                 while (match = regex.exec(data)) {
@@ -62,26 +69,58 @@
                     div.className = 'subtitle';
                     div.textContent = text.trim();
                     div.dataset.start = start;
+                    div.dataset.end = end;
                     div.addEventListener('click', function () {
+                        setActiveSubtitle(div);
                         player.currentTime = parseTime(this.dataset.start);
+                        player.play();
                     });
                     subtitlesContainer.appendChild(div);
+                    subtitles.push(div);
                 }
             });
 
-        // Add event listener for Space key to toggle play/pause
+        player.on('timeupdate', function () {
+            for (let i = 0; i < subtitles.length; i++) {
+                const start = parseTime(subtitles[i].dataset.start);
+                const end = parseTime(subtitles[i].dataset.end);
+                if (player.currentTime >= start && player.currentTime <= end) {
+                    setActiveSubtitle(subtitles[i]);
+                    break;
+                }
+            }
+        });
+
         window.addEventListener('keydown', function (event) {
             if (event.code === 'Space') {
                 event.preventDefault();
                 player.togglePlay();
+            } else if (event.code === 'ArrowLeft' && activeSubtitleIndex > 0) {
+                event.preventDefault();
+                setActiveSubtitle(subtitles[activeSubtitleIndex - 1]);
+                player.currentTime = parseTime(subtitles[activeSubtitleIndex].dataset.start);
+            } else if (event.code === 'ArrowRight' && activeSubtitleIndex < subtitles.length - 1) {
+                event.preventDefault();
+                setActiveSubtitle(subtitles[activeSubtitleIndex + 1]);
+                player.currentTime = parseTime(subtitles[activeSubtitleIndex].dataset.start);
+            } else if (event.code === 'ArrowDown') {
+                event.preventDefault();
+                setActiveSubtitle(subtitles[activeSubtitleIndex]);
+                player.currentTime = parseTime(subtitles[activeSubtitleIndex].dataset.start);
             }
         });
-    });
 
-    function parseTime(timeString) {
-        const [hours, minutes, seconds] = timeString.split(':').map(parseFloat);
-        return hours * 3600 + minutes * 60 + seconds;
-    }
+        function setActiveSubtitle(subtitle) {
+            if (activeSubtitleIndex !== null) subtitles[activeSubtitleIndex].classList.remove('active');
+            activeSubtitleIndex = subtitles.indexOf(subtitle);
+            if (activeSubtitleIndex !== -1) subtitles[activeSubtitleIndex].classList.add('active');
+        }
+
+        function parseTime(timeString) {
+            const [hours, minutes, seconds] = timeString.split(':').map(parseFloat);
+            return hours * 3600 + minutes * 60 + seconds;
+        }
+    });
 </script>
 </body>
 </html>
