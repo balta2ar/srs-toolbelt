@@ -11,9 +11,10 @@
         }
         #player-container {
             flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 50%; /* Ensure the player-container takes 50% of the container's width */
+        }
+        #player {
+            width: 100%; /* Ensure the player takes the whole width of its container */
         }
         #subtitles {
             flex: 1;
@@ -29,7 +30,7 @@
             background-color: #eaeaea;
         }
         .subtitle.active {
-            border: 1px solid #000;  /* Solid border for the active subtitle */
+            border: 1px solid #000;
         }
     </style>
 </head>
