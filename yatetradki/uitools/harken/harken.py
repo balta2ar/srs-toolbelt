@@ -8,8 +8,8 @@ from pydantic import BaseModel
 
 # Models
 class Subtitle(BaseModel):
-    start_time: float
-    end_time: float
+    start_time: str
+    end_time: str
     text: str
 
 
@@ -27,19 +27,31 @@ class MediaList(BaseModel):
 def parse_vtt(file_path: str) -> List[Subtitle]:
     subtitles = []
     with open(file_path, 'r', encoding='utf-8') as f:
-        blocks = f.read().split('\n\n')
-        for block in blocks:
-            if block.strip() == '':
+        content = f.read().splitlines()
+        # Skip the "WEBVTT" line and any blank lines that follow it
+        idx = 1
+        while idx < len(content) and content[idx].strip() == "":
+            idx += 1
+
+        # Process the subtitle blocks
+        while idx < len(content):
+            # Skip blank lines between blocks
+            if content[idx].strip() == "":
+                idx += 1
                 continue
-            lines = block.split('\n')
-            if len(lines) < 2:
-                continue  # Invalid block
-            try:
-                start_end, *text_lines = lines[1:]
-                start, end = start_end.split(' --> ')
-                subtitles.append(Subtitle(start_time=start, end_time=end, text=' '.join(text_lines)))
-            except ValueError:  # Skip malformed subtitle blocks
-                continue
+
+            # Parse the timestamp line
+            start, end = content[idx].strip().split(' --> ')
+            idx += 1
+            
+            # Process the text lines
+            text_lines = []
+            while idx < len(content) and content[idx].strip() != "":
+                text_lines.append(content[idx].strip())
+                idx += 1
+            text = ' '.join(text_lines)
+            
+            subtitles.append(Subtitle(start_time=start, end_time=end, text=text))
     return subtitles
 
 
