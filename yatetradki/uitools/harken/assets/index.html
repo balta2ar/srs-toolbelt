@@ -42,6 +42,10 @@
             cursor: pointer;
             text-decoration: underline;
         }
+        .recent-media.active {
+            font-weight: bold; /* or any other style to indicate active state */
+            text-decoration: none;
+        }
         .subtitle:hover, .subtitle.active {
             background-color: #eaeaea;
         }
@@ -87,6 +91,8 @@
                     span.className = 'recent-media';
                     span.textContent = file;
                     span.addEventListener('click', function () {
+                        topBar.querySelectorAll('.recent-media').forEach(el => el.classList.remove('active'));
+                        span.classList.add('active');
                         const mediaType = file.split('.').pop();
                         if (mediaType === 'mp3' || mediaType === 'mp4' || mediaType === 'mkv') {
                             player.source = {
