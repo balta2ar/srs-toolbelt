@@ -105,6 +105,10 @@
                     });
                     topBar.appendChild(span);
                 });
+                const firstMedia = topBar.querySelector('.recent-media');
+                if(firstMedia) {
+                    firstMedia.dispatchEvent(new Event('click'));
+                }
             });
 
             function loadSubtitles(vttFileName) {
@@ -136,16 +140,27 @@
                     });
             }
 
-        player.on('timeupdate', function () {
-            for (let i = 0; i < subtitles.length; i++) {
-                const start = parseTime(subtitles[i].dataset.start);
-                const end = parseTime(subtitles[i].dataset.end);
-                if (player.currentTime >= start && player.currentTime <= end) {
-                    setActiveSubtitle(subtitles[i]);
-                    break;
+            function binarySearch(time) {
+                let low = 0;
+                let high = subtitles.length - 1;
+                while (low <= high) {
+                    const mid = Math.floor((low + high) / 2);
+                    const start = parseTime(subtitles[mid].dataset.start);
+                    const end = parseTime(subtitles[mid].dataset.end);
+                    if (time >= start && time <= end) return mid;
+                    if (time < start) high = mid - 1;
+                    else low = mid + 1;
                 }
+                return -1;
             }
-        });
+    
+            // Adjusting the 'timeupdate' event listener
+            player.on('timeupdate', function () {
+                const currentIndex = binarySearch(player.currentTime);
+                if (currentIndex !== -1 && currentIndex !== activeSubtitleIndex) {
+                    setActiveSubtitle(subtitles[currentIndex]);
+                }
+            });
 
         window.addEventListener('keydown', function (event) {
             if (event.code === 'Space') {
@@ -173,9 +188,11 @@
         }
 
         function parseTime(timeString) {
-            const [hours, minutes, seconds] = timeString.split(':').map(parseFloat);
-            return hours * 3600 + minutes * 60 + seconds;
-        }
+            const [hours, minutes, rest] = timeString.split(':');
+            const [seconds, milliseconds] = rest.split('.').map(Number); // Split seconds and milliseconds and convert to Number
+            return Number(hours) * 3600 + Number(minutes) * 60 + seconds + milliseconds / 1000; // Convert hours and minutes to Number and adjust to include milliseconds
+        }        
+        
     });
 </script>
 </body>
