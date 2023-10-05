@@ -162,24 +162,24 @@
             activeSubtitleIndex = null;
             
             MediaFetch(vttFileName).then(data => {
-                    const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
-                    let match;
-                    while (match = regex.exec(data)) {
-                        const [_, start, end, text] = match;
-                        const div = document.createElement('div');
-                        div.className = 'subtitle';
-                        div.textContent = text.trim();
-                        div.dataset.start = start;
-                        div.dataset.end = end;
-                        div.addEventListener('click', function () {
-                            setActiveSubtitle(div);
-                            player.currentTime = parseTime(this.dataset.start);
-                            player.play(); // Ensure the player starts playing
-                        });
-                        subtitlesContainer.appendChild(div);
-                        subtitles.push(div);
-                    }
-                });
+                const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
+                let match;
+                while (match = regex.exec(data)) {
+                    const [_, start, end, text] = match;
+                    const div = document.createElement('div');
+                    div.className = 'subtitle';
+                    div.textContent = text.trim();
+                    div.dataset.start = start;
+                    div.dataset.end = end;
+                    div.addEventListener('click', function () {
+                        setActiveSubtitle(div);
+                        player.currentTime = parseTime(this.dataset.start);
+                        player.play(); // Ensure the player starts playing
+                    });
+                    subtitlesContainer.appendChild(div);
+                    subtitles.push(div);
+                }
+            });
         }
 
         function getMediaType(file) {
