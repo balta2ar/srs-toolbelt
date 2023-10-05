@@ -121,11 +121,22 @@
             loadSubtitles(vtt);
         }        
 
+        async function SearchContent(query) {
+            const response = await fetch(`/search_content?q=${query}`);
+            return await response.json();
+        }
+        async function MediaFetch(filename) {
+            const response = await fetch(`/media/${filename}`);
+            return await response.text();
+        }
+        async function MediaRecent() {
+            const response = await fetch(`/media`);
+            return await response.json();
+        }
+
         window.OnSearch = function (query) {
             if (!query) return;
-            fetch(`/search_content?q=${query}`)
-                .then(response => response.json())
-                .then(data => {
+            SearchContent(query).then(data => {
                     const dataList = document.getElementById('search-results');
                     dataList.innerHTML = '';  // Clear existing options
                     data.results.forEach(doc => {
@@ -152,9 +163,7 @@
             subtitles = [];
             activeSubtitleIndex = null;
             
-            fetch(`/media/${vttFileName}`)
-                .then(response => response.text())
-                .then(data => {
+            MediaFetch(vttFileName).then(data => {
                     const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
                     let match;
                     while (match = regex.exec(data)) {
@@ -175,9 +184,7 @@
                 });
         }
 
-        fetch('/media')
-            .then(response => response.json())
-            .then(data => {
+        MediaRecent().then(data => {
                 const topBar = document.getElementById('top-bar');
                 data.media_files.slice(0, 5).forEach(file => {
                     const span = document.createElement('span');
