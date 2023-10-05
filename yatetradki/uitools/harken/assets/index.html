@@ -91,23 +91,22 @@
         let activeSubtitleIndex = null;
 
         function loadMedia(filename) {
-            // Clear existing subtitles
             subtitlesContainer.innerHTML = '';
             
             console.log(filename);
-            // Load the new media file and associated subtitles
             const mp3 = filename.replace(/\.[^/.]+$/, ".mp3");
             const vtt = filename.replace(/\.[^/.]+$/, ".vtt");
             const mediaFile = `/media/${mp3}`;
             const subtitleFile = `/media/${vtt}`;
+            const suffix = filename.split('.').pop()
+            const mtype = getMediaType(mp3);
             
-            // Update the player source
             player.source = {
-                type: 'audio',  // Adjust based on your media type
+                type: mtype, 
                 title: filename,
                 sources: [{
                     src: mediaFile,
-                    type: 'audio/mp3',  // Adjust based on your media type
+                    type: `${mtype}/${suffix}`,
                 }],
                 tracks: [{
                     kind: 'captions',
@@ -117,8 +116,6 @@
                     default: true,
                 }],
             };
-            
-            // Fetch and display the new subtitles
             loadSubtitles(vtt);
         }        
 
@@ -199,13 +196,7 @@
             span.addEventListener('click', function () {
                 topBar.querySelectorAll('.recent-media').forEach(el => el.classList.remove('active'));
                 span.classList.add('active');
-                const suffix = filename.split('.').pop()
-                const mtype = getMediaType(filename);
-                player.source = {
-                    type: mtype,
-                    sources: [{ src: `/media/${filename}`, type: `${mtype}/${suffix}` }],
-                };
-                loadSubtitles(filename.replace(/\.[^/.]+$/, ".vtt"));
+                loadMedia(filename);
             });
             return span;
         }
