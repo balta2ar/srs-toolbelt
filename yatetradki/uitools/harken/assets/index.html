@@ -18,7 +18,20 @@
             display: flex;
             background-color: #f0f0f0;
             padding: 5px;
-            height: 30px; /* Specific height for the top bar */
+            height: 30px;
+        }
+        .recent-media {
+            margin-right: 10px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .recent-media.active {
+            font-weight: bold; /* or any other style to indicate active state */
+            text-decoration: none;
+        }
+        #media-list {
+            overflow-y: auto;
+            max-height: calc(100% - 40px);
         }
         #player-container {
             flex: 1;
@@ -47,15 +60,6 @@
             margin-bottom: 5px;
             padding: 2px;
         }
-        .recent-media {
-            margin-right: 10px;
-            cursor: pointer;
-            text-decoration: underline;
-        }
-        .recent-media.active {
-            font-weight: bold; /* or any other style to indicate active state */
-            text-decoration: none;
-        }
         .subtitle:hover, .subtitle.active {
             background-color: #eaeaea;
         }
@@ -78,6 +82,7 @@
             <!-- <source src="/media/20230911/by10m_03.mp3" type="audio/mp3" /> -->
             <!-- <track kind="captions" label="English captions" src="/media/20230911/by10m_03.vtt" srclang="en" default /> -->
         </audio>
+        <div id="media-list"></div>
     </div>
     <div id="subtitles">
         <!-- Subtitle lines will be added by JavaScript -->
@@ -91,6 +96,7 @@
         const subtitlesContainer = document.getElementById('subtitles');
         const playerContainer = document.getElementById('player-container');
         const topBar = document.getElementById('top-bar');
+        const mediaListContainer = document.getElementById('media-list');
         playerContainer.addEventListener('click', function () {
             player.togglePlay();
         });
@@ -205,6 +211,13 @@
             });
         }
 
+        function loadMediaOnClick(file, element) {
+            topBar.querySelectorAll('.recent-media').forEach(el => el.classList.remove('active'));
+            mediaListContainer.querySelectorAll('div').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            loadMedia(file);
+        }
+
         function getMediaType(file) {
             const suffix = file.split('.').pop()
             if (['mp3'].includes(suffix)) return 'audio'
@@ -217,17 +230,21 @@
             span.className = 'recent-media';
             span.textContent = filename;
             span.addEventListener('click', function () {
-                topBar.querySelectorAll('.recent-media').forEach(el => el.classList.remove('active'));
-                span.classList.add('active');
-                loadMedia(filename);
+                loadMediaOnClick(filename, span);
             });
             return span;
         }
 
         MediaRecent().then(data => {
-            data.media_files.slice(0, 5).forEach(file => {
-                const line = createRecent(file);
+            data.media_files.slice(0, 5).forEach(filename => {
+                const line = createRecent(filename);
                 topBar.appendChild(line);
+            });
+            data.media_files.forEach(file => {
+                const div = document.createElement('div');
+                div.textContent = file;
+                div.addEventListener('click', () => loadMediaOnClick(file, div));
+                mediaListContainer.appendChild(div);
             });
             const firstMedia = topBar.querySelector('.recent-media');
             if(firstMedia) {

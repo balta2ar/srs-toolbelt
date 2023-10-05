@@ -165,7 +165,7 @@ def main():
     app.router.add_get('/media', list_media)
     app.router.add_static('/assets/', 'assets')
 
-    web.run_app(app, host="127.0.0.1", port=8000)
+    web.run_app(app, host="127.0.0.1", port=4000)
 
 if __name__ == "__main__":
     index = build_index()
