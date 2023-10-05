@@ -33,9 +33,20 @@
             overflow-y: auto;
             max-height: calc(100% - 40px);
         }
+        #media-list div, .recent-media {
+            margin-left: 20px;
+            margin-bottom: 5px;
+        }
+        #media-list div.active, .recent-media.active {
+            font-weight: bold;
+        }
+        #media-list div:hover, .recent-media:hover {
+            text-decoration: underline;
+            cursor: pointer;
+        }
         #player-container {
             flex: 1;
-            width: 50%; /* Ensure the player-container takes 50% of the container's width */
+            width: 50%;
         }
         #player {
             width: 100%; /* Ensure the player takes the whole width of its container */
@@ -94,12 +105,11 @@
     document.addEventListener('DOMContentLoaded', function () {
         const player = new Plyr('#player');
         const subtitlesContainer = document.getElementById('subtitles');
+        const searchInput = document.getElementById('search-input');
         const playerContainer = document.getElementById('player-container');
         const topBar = document.getElementById('top-bar');
         const mediaListContainer = document.getElementById('media-list');
-        playerContainer.addEventListener('click', function () {
-            player.togglePlay();
-        });
+        document.getElementById('player').addEventListener('click', () => player.togglePlay());
         let subtitles = [];
         let activeSubtitleIndex = null;
 
@@ -216,6 +226,7 @@
             mediaListContainer.querySelectorAll('div').forEach(el => el.classList.remove('active'));
             element.classList.add('active');
             loadMedia(file);
+            player.play();
         }
 
         function getMediaType(file) {
@@ -240,7 +251,7 @@
                 const line = createRecent(filename);
                 topBar.appendChild(line);
             });
-            data.media_files.forEach(file => {
+            data.media_files.sort().forEach(file => {
                 const div = document.createElement('div');
                 div.textContent = file;
                 div.addEventListener('click', () => loadMediaOnClick(file, div));
@@ -274,7 +285,11 @@
         });
 
         window.addEventListener('keydown', function (event) {
-            if (event.code === 'Space') {
+            if (event.target === searchInput) return;
+            if (event.ctrlKey && event.key === 'k') {
+                searchInput.focus();
+                event.preventDefault();
+            } else if (event.code === 'Space') {
                 event.preventDefault();
                 player.togglePlay();
             } else if (event.code === 'ArrowLeft' && activeSubtitleIndex > 0) {
