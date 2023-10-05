@@ -83,6 +83,7 @@
         const player = new Plyr('#player');
         const subtitlesContainer = document.getElementById('subtitles');
         const playerContainer = document.getElementById('player-container');
+        const topBar = document.getElementById('top-bar');
         playerContainer.addEventListener('click', function () {
             player.togglePlay();
         });
@@ -184,54 +185,63 @@
                 });
         }
 
-        MediaRecent().then(data => {
-                const topBar = document.getElementById('top-bar');
-                data.media_files.slice(0, 5).forEach(file => {
-                    const span = document.createElement('span');
-                    span.className = 'recent-media';
-                    span.textContent = file;
-                    span.addEventListener('click', function () {
-                        topBar.querySelectorAll('.recent-media').forEach(el => el.classList.remove('active'));
-                        span.classList.add('active');
-                        const mediaType = file.split('.').pop();
-                        if (mediaType === 'mp3' || mediaType === 'mp4' || mediaType === 'mkv') {
-                            player.source = {
-                                type: mediaType === 'mp3' ? 'audio' : 'video',
-                                sources: [{ src: `/media/${file}`, type: `${mediaType === 'mp3' ? 'audio' : 'video'}/${mediaType}` }],
-                            };
-                        }
-                        // Load the corresponding VTT file
-                        loadSubtitles(file.replace(/\.[^/.]+$/, ".vtt"));
-                    });
-                    topBar.appendChild(span);
-                });
-                const firstMedia = topBar.querySelector('.recent-media');
-                if(firstMedia) {
-                    firstMedia.dispatchEvent(new Event('click'));
-                }
-            });
+        function getMediaType(file) {
+            const suffix = file.split('.').pop()
+            if (['mp3'].includes(suffix)) return 'audio'
+            if (['mp4','mkv'].includes(suffix)) return 'video'
+            throw new Error(`Unknown media type for suffix ${suffix}`);
+        }
 
-            function binarySearch(time) {
-                let low = 0;
-                let high = subtitles.length - 1;
-                while (low <= high) {
-                    const mid = Math.floor((low + high) / 2);
-                    const start = parseTime(subtitles[mid].dataset.start);
-                    const end = parseTime(subtitles[mid].dataset.end);
-                    if (time >= start && time <= end) return mid;
-                    if (time < start) high = mid - 1;
-                    else low = mid + 1;
-                }
-                return -1;
-            }
-    
-            // Adjusting the 'timeupdate' event listener
-            player.on('timeupdate', function () {
-                const currentIndex = binarySearch(player.currentTime);
-                if (currentIndex !== -1 && currentIndex !== activeSubtitleIndex) {
-                    setActiveSubtitle(subtitles[currentIndex]);
-                }
+        function createSubtitleLine(file) {
+            const span = document.createElement('span');
+            span.className = 'recent-media';
+            span.textContent = file;
+            span.addEventListener('click', function () {
+                topBar.querySelectorAll('.recent-media').forEach(el => el.classList.remove('active'));
+                span.classList.add('active');
+                const suffix = file.split('.').pop()
+                const mtype = getMediaType(file);
+                player.source = {
+                    type: mtype,
+                    sources: [{ src: `/media/${file}`, type: `${mtype}/${suffix}` }],
+                };
+                loadSubtitles(file.replace(/\.[^/.]+$/, ".vtt"));
             });
+            return span;
+        }
+
+        MediaRecent().then(data => {
+            data.media_files.slice(0, 5).forEach(file => {
+                const line = createSubtitleLine(file);
+                topBar.appendChild(line);
+            });
+            const firstMedia = topBar.querySelector('.recent-media');
+            if(firstMedia) {
+                firstMedia.dispatchEvent(new Event('click'));
+            }
+        });
+
+        function binarySearch(time) {
+            let low = 0;
+            let high = subtitles.length - 1;
+            while (low <= high) {
+                const mid = Math.floor((low + high) / 2);
+                const start = parseTime(subtitles[mid].dataset.start);
+                const end = parseTime(subtitles[mid].dataset.end);
+                if (time >= start && time <= end) return mid;
+                if (time < start) high = mid - 1;
+                else low = mid + 1;
+            }
+            return -1;
+        }
+
+        // Adjusting the 'timeupdate' event listener
+        player.on('timeupdate', function () {
+            const currentIndex = binarySearch(player.currentTime);
+            if (currentIndex !== -1 && currentIndex !== activeSubtitleIndex) {
+                setActiveSubtitle(subtitles[currentIndex]);
+            }
+        });
 
         window.addEventListener('keydown', function (event) {
             if (event.code === 'Space') {
