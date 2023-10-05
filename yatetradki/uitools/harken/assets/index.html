@@ -105,7 +105,7 @@
             const vtt = filename.replace(/\.[^/.]+$/, ".vtt");
             const mediaFile = `/media/${mp3}`;
             const subtitleFile = `/media/${vtt}`;
-            const suffix = filename.split('.').pop()
+            const suffix = mp3.split('.').pop()
             const mtype = getMediaType(mp3);
             
             player.source = {
@@ -143,7 +143,7 @@
             if (!query) return;
             SearchContent(query).then(data => {
                     const dataList = document.getElementById('search-results');
-                    dataList.innerHTML = '';  // Clear existing options
+                    dataList.innerHTML = '';
                     data.results.forEach(doc => {
                         const option = document.createElement('option');
                         option.value = doc.title;
@@ -155,10 +155,8 @@
 
         window.OnSelect = function (filename) {
             if (!filename) return;
-            // Clear the search input
             document.getElementById('search-input').value = '';
-
-            // Similar to clicking on a file in the top bar
+            console.log(`selecting ${filename}`);
             loadMedia(filename);
         }
 
@@ -167,9 +165,10 @@
             playSpan.className = 'play-button';
             playSpan.innerHTML = '>';
             playSpan.dataset.start = start;
+            playSpan.dataset.index = subtitles.length;
             playSpan.addEventListener('click', function () {
-                setActiveSubtitle(this.parentElement);
-                player.currentTime = parseTime(this.dataset.start);
+                setActiveSubtitle(playSpan.dataset.index);
+                player.currentTime = parseTime(playSpan.dataset.start);
                 player.play();
             });
             return playSpan;
@@ -253,7 +252,7 @@
         player.on('timeupdate', function () {
             const currentIndex = binarySearch(player.currentTime);
             if (currentIndex !== -1 && currentIndex !== activeSubtitleIndex) {
-                setActiveSubtitle(subtitles[currentIndex]);
+                setActiveSubtitle(currentIndex);
             }
         });
 
@@ -263,22 +262,22 @@
                 player.togglePlay();
             } else if (event.code === 'ArrowLeft' && activeSubtitleIndex > 0) {
                 event.preventDefault();
-                setActiveSubtitle(subtitles[activeSubtitleIndex - 1]);
+                setActiveSubtitle(activeSubtitleIndex-1);
                 player.currentTime = parseTime(subtitles[activeSubtitleIndex].dataset.start);
             } else if (event.code === 'ArrowRight' && activeSubtitleIndex < subtitles.length - 1) {
                 event.preventDefault();
-                setActiveSubtitle(subtitles[activeSubtitleIndex + 1]);
+                setActiveSubtitle(activeSubtitleIndex+1);
                 player.currentTime = parseTime(subtitles[activeSubtitleIndex].dataset.start);
             } else if (event.code === 'ArrowDown') {
                 event.preventDefault();
-                setActiveSubtitle(subtitles[activeSubtitleIndex]);
+                setActiveSubtitle(activeSubtitleIndex);
                 player.currentTime = parseTime(subtitles[activeSubtitleIndex].dataset.start);
             }
         });
 
-        function setActiveSubtitle(subtitle) {
+        function setActiveSubtitle(index) {
             if (activeSubtitleIndex !== null) subtitles[activeSubtitleIndex].classList.remove('active');
-            activeSubtitleIndex = subtitles.indexOf(subtitle);
+            activeSubtitleIndex = index;
             if (activeSubtitleIndex !== -1) subtitles[activeSubtitleIndex].classList.add('active');
         }
 
