@@ -192,27 +192,27 @@
             throw new Error(`Unknown media type for suffix ${suffix}`);
         }
 
-        function createSubtitleLine(file) {
+        function createRecent(filename) {
             const span = document.createElement('span');
             span.className = 'recent-media';
-            span.textContent = file;
+            span.textContent = filename;
             span.addEventListener('click', function () {
                 topBar.querySelectorAll('.recent-media').forEach(el => el.classList.remove('active'));
                 span.classList.add('active');
-                const suffix = file.split('.').pop()
-                const mtype = getMediaType(file);
+                const suffix = filename.split('.').pop()
+                const mtype = getMediaType(filename);
                 player.source = {
                     type: mtype,
-                    sources: [{ src: `/media/${file}`, type: `${mtype}/${suffix}` }],
+                    sources: [{ src: `/media/${filename}`, type: `${mtype}/${suffix}` }],
                 };
-                loadSubtitles(file.replace(/\.[^/.]+$/, ".vtt"));
+                loadSubtitles(filename.replace(/\.[^/.]+$/, ".vtt"));
             });
             return span;
         }
 
         MediaRecent().then(data => {
             data.media_files.slice(0, 5).forEach(file => {
-                const line = createSubtitleLine(file);
+                const line = createRecent(file);
                 topBar.appendChild(line);
             });
             const firstMedia = topBar.querySelector('.recent-media');
