@@ -35,10 +35,17 @@
         #search-input {
             width: 300px;
         }
-        .subtitle {
+        .play-button {
             cursor: pointer;
-            margin-bottom: 5px; /* Decreased margin */
-            padding: 2px; /* Decreased padding */
+            padding-right: 10px;
+            opacity: 0.0;
+        }
+        .subtitle:hover .play-button {
+            opacity: 1;
+        }   
+        .subtitle {
+            margin-bottom: 5px;
+            padding: 2px;
         }
         .recent-media {
             margin-right: 10px;
@@ -155,8 +162,27 @@
             loadMedia(filename);
         }
 
+        function createPlayButton(start) {
+            const playSpan = document.createElement('span');
+            playSpan.className = 'play-button';
+            playSpan.innerHTML = '>';
+            playSpan.dataset.start = start;
+            playSpan.addEventListener('click', function () {
+                setActiveSubtitle(this.parentElement);
+                player.currentTime = parseTime(this.dataset.start);
+                player.play();
+            });
+            return playSpan;
+        }
+        
+        function createSubtitleText(text) {
+            const textSpan = document.createElement('span');
+            textSpan.className = 'subtitle-text';
+            textSpan.textContent = text.trim();
+            return textSpan;
+        }
+
         function loadSubtitles(vttFileName) {
-            // Clear existing subtitles
             subtitlesContainer.innerHTML = '';
             subtitles = [];
             activeSubtitleIndex = null;
@@ -166,18 +192,16 @@
                 let match;
                 while (match = regex.exec(data)) {
                     const [_, start, end, text] = match;
-                    const div = document.createElement('div');
-                    div.className = 'subtitle';
-                    div.textContent = text.trim();
-                    div.dataset.start = start;
-                    div.dataset.end = end;
-                    div.addEventListener('click', function () {
-                        setActiveSubtitle(div);
-                        player.currentTime = parseTime(this.dataset.start);
-                        player.play(); // Ensure the player starts playing
-                    });
-                    subtitlesContainer.appendChild(div);
-                    subtitles.push(div);
+                    
+                    const container = document.createElement('div');
+                    container.className = 'subtitle';
+                    container.dataset.start = start;
+                    container.dataset.end = end;
+                    container.appendChild(createPlayButton(start));
+                    container.appendChild(createSubtitleText(text));
+                    
+                    subtitlesContainer.appendChild(container);
+                    subtitles.push(container);
                 }
             });
         }
@@ -226,7 +250,6 @@
             return -1;
         }
 
-        // Adjusting the 'timeupdate' event listener
         player.on('timeupdate', function () {
             const currentIndex = binarySearch(player.currentTime);
             if (currentIndex !== -1 && currentIndex !== activeSubtitleIndex) {
