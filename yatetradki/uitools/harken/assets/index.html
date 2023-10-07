@@ -117,8 +117,10 @@
             subtitlesContainer.innerHTML = '';
             
             console.log(filename);
-            const mp3 = filename.replace(/\.[^/.]+$/, ".mp3");
+            const mp3 = filename.replace(/\.[^/.]+$/, ".ogg");
             const vtt = filename.replace(/\.[^/.]+$/, ".vtt");
+            console.log(mp3);
+            console.log(vtt);
             const mediaFile = `/media/${mp3}`;
             const subtitleFile = `/media/${vtt}`;
             const suffix = mp3.split('.').pop()
@@ -231,8 +233,8 @@
 
         function getMediaType(file) {
             const suffix = file.split('.').pop()
-            if (['mp3'].includes(suffix)) return 'audio'
-            if (['mp4','mkv'].includes(suffix)) return 'video'
+            if (['mp3', 'opus', 'ogg'].includes(suffix)) return 'audio'
+            if (['mp4','mkv', 'avi', 'webm'].includes(suffix)) return 'video'
             throw new Error(`Unknown media type for suffix ${suffix}`);
         }
 
