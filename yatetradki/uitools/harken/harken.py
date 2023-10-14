@@ -13,7 +13,6 @@ from pprint import pprint
 from typing import Iterable, List, Optional
 from collections import defaultdict, Counter
 
-import milli
 from aiohttp import web
 from pydantic import BaseModel
 
@@ -43,10 +42,6 @@ def traverse(basedir):
             yield entry
 
 def build_index():
-    path = "./milli_index"
-    logging.info(f"Building index at {path}")
-    makedirs(path, exist_ok=True)
-    index = milli.Index(path, 1024*1024*1024) # 1GiB
     docs = []
     for file in find(MEDIA_DIR, SUBS):
         logging.info(f"Indexing {file}")
@@ -59,9 +54,7 @@ def build_index():
                     "title": f'{file}',
                     "content": line
                 })
-    index.add_documents(docs)
-    logging.info(f"Index built at {path}")
-    return index
+    return Search().fit(docs)
 
 def with_extension(path: str, ext: str) -> str:
     return splitext(path)[0] + ext
@@ -116,13 +109,13 @@ def parse_vtt(file_path: str) -> List[Subtitle]:
 
             start, end = content[idx].strip().split(' --> ')
             idx += 1
-            
+
             text_lines = []
             while idx < len(content) and content[idx].strip() != "":
                 text_lines.append(content[idx].strip())
                 idx += 1
             text = ' '.join(text_lines)
-            
+
             subtitles.append(Subtitle(start_time=start, end_time=end, text=text))
     return subtitles
 
@@ -138,10 +131,10 @@ async def fetch_media(request):
     content_type, _ = mimetypes.guess_type(path)
     if content_type is None:
         content_type = 'application/octet-stream'
-        
+
     return web.FileResponse(path=path, headers={'Content-Type': content_type})
 
-async def list_media(request):    
+async def list_media(request):
     return web.json_response({'media_files': find(MEDIA_DIR, MEDIA)})
 
 async def serve_index(request):
@@ -150,12 +143,11 @@ async def serve_index(request):
 
 async def search_content(request):
     q = request.query.get('q', '')
-    if not q:
-        return web.json_response({'error': 'q parameter is required'}, status=400)
-    
+    if not q: return web.json_response({'error': 'q parameter is required'}, status=400)
+
     results = index.search(q)
     documents = [index.get_document(result) for result in results]
-    
+
     return web.json_response({'results': documents})
 
 
@@ -182,9 +174,11 @@ def equals(a, b):
     assert a == b, f"{a} != {b}"
 
 class Search:
+    def trigrams(word): return [word[i:i+3] for i in range(len(word)-2)] or [word]
     def __init__(self):
         self.docs = {} # doc_id to doc mapping
-        self.plist = defaultdict(set) 
+        self.plist = defaultdict(set) # term to doc_id mapping
+        self.trigram_index = defaultdict(set) # trigram to terms mapping
     def fit(self, documents):
         t0 = time.time()
         self.docs = {doc['id']: doc for doc in documents}
@@ -195,21 +189,42 @@ class Search:
             content = document['content']
             for term in tokenize(content):
                 self.plist[term].add(doc_id)
-        # pprint(self.plist)
-        logging.info(f"Index built in {time.time() - t0:.2f}s, {len(self.plist)} terms, {len(self.docs)} documents")
-    def transform(self, query):
+        for term in self.plist:
+            for trigram in Search.trigrams(term):
+                self.trigram_index[trigram].add(term)
+        logging.info(f"Index built in {time.time() - t0:.2f}s, {len(self.docs)} documents, {len(self.plist)} terms, {len(self.trigram_index)} trigrams")
+        return self
+    def search(self, query):
         t0 = time.time()
-        terms = query.lower().split()
-        if not terms: return []
-        result = self.plist[terms[0]]
-        for term in terms[1:]:
-            if term in self.plist:
-                result = result.intersection(self.plist[term])
-        result = sorted(list(result))
+        query_words = query.lower().split()
+        if not query_words: return []
+        sets_of_words = [list(self._trigram_words(w)) for w in query_words]
+        if not sets_of_words: return []
+
+        # trigrams(word) map to many terms, so it's union between trigrams mapped to terms
+        # but since the query itself assumes AND, we intersect between sets of terms
+        result = self._search(sets_of_words[0], set.union)
+        for words in sets_of_words[1:]:
+            result = result.intersection(self._search(words, set.union))
+
         logging.info(f"Search for '{query}' took {time.time() - t0:.2f}s, {len(result)} results")
+        return sorted(list(result))
+    def _trigram_words(self, query_word):
+        result = set()
+        for trigram in Search.trigrams(query_word):
+            for word in self.trigram_index[trigram]:
+                if query_word in word:
+                    result.add(word)
         return result
-    def show(self, doc_ids):
-        return [self.docs[doc_id] for doc_id in doc_ids]
+    def _search(self, query_words, set_combine):
+        if not query_words: return set()
+        result = self.plist[query_words[0]]
+        for word in query_words[1:]:
+            if word in self.plist:
+                result = set_combine(result, self.plist[word])
+        return result
+    def get_document(self, doc_id): return self.docs[doc_id]
+    def get_documents(self, doc_ids): return [self.get_document(doc_id) for doc_id in doc_ids]
 
 def read_corpus(filenames):
     docs = []
@@ -229,11 +244,12 @@ def read_corpus(filenames):
 
 def test_search():
     search = Search()
-    
+
     # corpus = [
     #     {"id": 0, "title": "apple", "content": "Apples are normally found in the fruit section"},
     #     {"id": 1, "title": "banana", "content": "hånd bananas are Yellow"},
     #     {"id": 2, "title": "orange", "content": "oranges are not found From another planet"},
+    #     {"id": 3, "title": "fourth", "content": "retired soldier returns"},
     # ]
     # search.fit(corpus)
     # equals([1], search.transform("hånd"))
@@ -241,11 +257,13 @@ def test_search():
     # equals([0, 1, 2], search.transform("are"))
     # equals([2], search.transform("from"))
     # equals([0, 2], search.transform("are found"))
-    
+    # equals([3], search.transform("red"))
+    # equals([3], search.transform("red ns"))
+
     corpus = read_corpus(find(MEDIA_DIR, SUBS))
     search.fit(corpus)
     # pprint(search.show(search.transform("smukke")))
-    pprint(search.show(search.transform("porten")))
+    pprint(search.get_documents(search.search("porten")))
     # equals([1], search.transform("smukke"))
 
 

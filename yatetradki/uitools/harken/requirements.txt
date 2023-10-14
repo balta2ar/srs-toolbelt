@@ -1,4 +1,2 @@
-fastapi==0.103.2
 pydantic==1.9.1
 uvicorn==0.23.2
-milli==1.1.1
