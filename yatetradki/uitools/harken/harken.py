@@ -5,7 +5,7 @@ import logging
 import mimetypes
 import os
 from os import makedirs
-from os.path import abspath, basename, dirname, exists, join
+from os.path import abspath, basename, dirname, exists, join, splitext
 from pathlib import Path
 from pprint import pprint
 from typing import Iterable, List, Optional
@@ -60,6 +60,24 @@ def build_index():
     logging.info(f"Index built at {path}")
     return index
 
+def with_extension(path: str, ext: str) -> str:
+    return splitext(path)[0] + ext
+
+def search_index(index, q):
+    results = index.search(q)
+    out = []
+    for doc in [index.get_document(result) for result in results]:
+        sub = join(MEDIA_DIR, doc['title'])
+        for ext in MEDIA:
+            path = with_extension(sub, ext)
+            if exists(sub) and exists(path):
+                out.append(SearchResult(
+                    content=doc['content'],
+                    id=doc['id'],
+                    title=with_extension(doc['title'], ext)
+                ).dict())
+    return out
+
 index = None
 
 class Subtitle(BaseModel):
@@ -76,10 +94,9 @@ class MediaList(BaseModel):
     media_files: List[str]
 
 class SearchResult(BaseModel):
-    sid: str
-    pid: str
-    title: str
     content: str
+    id: str
+    title: str
 
 def parse_vtt(file_path: str) -> List[Subtitle]:
     subtitles = []
@@ -152,9 +169,10 @@ def test_repo2():
     pprint(find(MEDIA_DIR, MEDIA))
 
 def test_index():
-    index = build_index()
-    results = index.search('bulke')
-    documents = [index.get_document(result) for result in results]
+    # index = build_index()
+    # results = index.search('bulke')
+    # documents = [index.get_document(result) for result in results]
+    documents = search_index(build_index(), 'direkte')
     pprint(documents)
 
 def main():

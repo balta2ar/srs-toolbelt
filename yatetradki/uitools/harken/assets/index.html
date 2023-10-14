@@ -117,7 +117,7 @@
             subtitlesContainer.innerHTML = '';
             
             console.log(filename);
-            const mp3 = filename.replace(/\.[^/.]+$/, ".ogg");
+            const mp3 = filename; //filename.replace(/\.[^/.]+$/, ".ogg");
             const vtt = filename.replace(/\.[^/.]+$/, ".vtt");
             console.log(mp3);
             console.log(vtt);
@@ -223,11 +223,11 @@
             });
         }
 
-        function loadMediaOnClick(file, element) {
+        function loadMediaOnClick(filename, element) {
             topBar.querySelectorAll('.recent-media').forEach(el => el.classList.remove('active'));
             mediaListContainer.querySelectorAll('div').forEach(el => el.classList.remove('active'));
             element.classList.add('active');
-            loadMedia(file);
+            loadMedia(filename);
             player.play();
         }
 
@@ -253,10 +253,10 @@
                 const line = createRecent(filename);
                 topBar.appendChild(line);
             });
-            data.media_files.sort().forEach(file => {
+            data.media_files.sort().forEach(filename => {
                 const div = document.createElement('div');
-                div.textContent = file;
-                div.addEventListener('click', () => loadMediaOnClick(file, div));
+                div.textContent = filename;
+                div.addEventListener('click', () => loadMediaOnClick(filename, div));
                 mediaListContainer.appendChild(div);
             });
             const firstMedia = topBar.querySelector('.recent-media');
