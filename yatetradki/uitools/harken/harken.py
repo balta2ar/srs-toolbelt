@@ -54,7 +54,7 @@ def build_index():
                     "title": f'{file}',
                     "content": line
                 })
-    return Search().fit(docs)
+    return Search().index(docs)
 
 def with_extension(path: str, ext: str) -> str:
     return splitext(path)[0] + ext
@@ -179,7 +179,7 @@ class Search:
         self.docs = {} # doc_id to doc mapping
         self.plist = defaultdict(set) # term to doc_id mapping
         self.trigram_index = defaultdict(set) # trigram to terms mapping
-    def fit(self, documents):
+    def index(self, documents):
         t0 = time.time()
         self.docs = {doc['id']: doc for doc in documents}
         def tokenize(text): return re.findall(r'\b[a-zA-Z0-9åøæÅØÆ]+\b', text.lower())
@@ -261,7 +261,7 @@ def test_search():
     # equals([3], search.transform("red ns"))
 
     corpus = read_corpus(find(MEDIA_DIR, SUBS))
-    search.fit(corpus)
+    search.index(corpus)
     # pprint(search.show(search.transform("smukke")))
     pprint(search.get_documents(search.search("porten")))
     # equals([1], search.transform("smukke"))
