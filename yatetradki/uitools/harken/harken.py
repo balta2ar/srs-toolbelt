@@ -3,12 +3,15 @@
 import hashlib
 import logging
 import mimetypes
+import re
 import os
+import time
 from os import makedirs
 from os.path import abspath, basename, dirname, exists, join, splitext
 from pathlib import Path
 from pprint import pprint
 from typing import Iterable, List, Optional
+from collections import defaultdict, Counter
 
 import milli
 from aiohttp import web
@@ -174,6 +177,77 @@ def test_index():
     # documents = [index.get_document(result) for result in results]
     documents = search_index(build_index(), 'direkte')
     pprint(documents)
+
+def equals(a, b):
+    assert a == b, f"{a} != {b}"
+
+class Search:
+    def __init__(self):
+        self.docs = {} # doc_id to doc mapping
+        self.plist = defaultdict(set) 
+    def fit(self, documents):
+        t0 = time.time()
+        self.docs = {doc['id']: doc for doc in documents}
+        def tokenize(text): return re.findall(r'\b[a-zA-Z0-9åøæÅØÆ]+\b', text.lower())
+        for document in documents:
+            doc_id = document['id']
+            title = document['title']
+            content = document['content']
+            for term in tokenize(content):
+                self.plist[term].add(doc_id)
+        # pprint(self.plist)
+        logging.info(f"Index built in {time.time() - t0:.2f}s, {len(self.plist)} terms, {len(self.docs)} documents")
+    def transform(self, query):
+        t0 = time.time()
+        terms = query.lower().split()
+        if not terms: return []
+        result = self.plist[terms[0]]
+        for term in terms[1:]:
+            if term in self.plist:
+                result = result.intersection(self.plist[term])
+        result = sorted(list(result))
+        logging.info(f"Search for '{query}' took {time.time() - t0:.2f}s, {len(result)} results")
+        return result
+    def show(self, doc_ids):
+        return [self.docs[doc_id] for doc_id in doc_ids]
+
+def read_corpus(filenames):
+    docs = []
+    doc_id = 0
+    for file in filenames:
+        for i, line in enumerate(slurp_lines(join(MEDIA_DIR, file))):
+            line = line.strip()
+            if line:
+                # document_id = hashlib.sha256(f"{file}{i}{line}".encode()).hexdigest()
+                docs.append({
+                    "id": doc_id,
+                    "title": f'{file}',
+                    "content": line
+                })
+                doc_id += 1
+    return docs
+
+def test_search():
+    search = Search()
+    
+    # corpus = [
+    #     {"id": 0, "title": "apple", "content": "Apples are normally found in the fruit section"},
+    #     {"id": 1, "title": "banana", "content": "hånd bananas are Yellow"},
+    #     {"id": 2, "title": "orange", "content": "oranges are not found From another planet"},
+    # ]
+    # search.fit(corpus)
+    # equals([1], search.transform("hånd"))
+    # equals([0], search.transform("apples"))
+    # equals([0, 1, 2], search.transform("are"))
+    # equals([2], search.transform("from"))
+    # equals([0, 2], search.transform("are found"))
+    
+    corpus = read_corpus(find(MEDIA_DIR, SUBS))
+    search.fit(corpus)
+    # pprint(search.show(search.transform("smukke")))
+    pprint(search.show(search.transform("porten")))
+    # equals([1], search.transform("smukke"))
+
 
 def main():
     app = web.Application()
