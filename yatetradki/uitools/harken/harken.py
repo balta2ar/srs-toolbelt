@@ -6,6 +6,7 @@ import mimetypes
 import re
 import os
 import time
+import argparse
 from os import makedirs
 from os.path import abspath, basename, dirname, exists, join, splitext
 from pathlib import Path
@@ -278,5 +279,10 @@ def main():
     web.run_app(app, host="127.0.0.1", port=4000)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('media', help='Media directory', default=MEDIA_DIR)
+    args = parser.parse_args()
+
+    MEDIA_DIR = args.media
     index = build_index()
     main()
