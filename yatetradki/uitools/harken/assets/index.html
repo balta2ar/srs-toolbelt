@@ -33,14 +33,14 @@
             overflow-y: auto;
             max-height: calc(100% - 40px);
         }
-        #media-list div, .recent-media {
+        #media-list span, .recent-media {
             margin-left: 20px;
             margin-bottom: 5px;
         }
-        #media-list div.active, .recent-media.active {
+        #media-list span.active, .recent-media.active {
             font-weight: bold;
         }
-        #media-list div:hover, .recent-media:hover {
+        #media-list span:hover, .recent-media:hover {
             text-decoration: underline;
             cursor: pointer;
         }
@@ -113,11 +113,16 @@
         let subtitles = [];
         let activeSubtitleIndex = null;
 
+        mediaListContainer.addEventListener('click', function (event) {
+            player.togglePlay();
+        });
+
         function loadMedia(filename) {
             subtitlesContainer.innerHTML = '';
             
             console.log(filename);
-            const mp3 = filename; //filename.replace(/\.[^/.]+$/, ".ogg");
+            //const mp3 = filename.replace(/\.[^/.]+$/, ".ogg");
+            const mp3 = filename.replace(/\.[^/.]+$/, ".mp3");
             const vtt = filename.replace(/\.[^/.]+$/, ".vtt");
             console.log(mp3);
             console.log(vtt);
@@ -184,7 +189,7 @@
             playSpan.innerHTML = '>';
             playSpan.dataset.start = start;
             playSpan.dataset.index = subtitles.length;
-            playSpan.addEventListener('click', function () {
+            playSpan.addEventListener('click', function (event) {
                 setActiveSubtitle(playSpan.dataset.index);
                 player.currentTime = parseTime(playSpan.dataset.start);
                 player.play();
@@ -255,8 +260,13 @@
             });
             data.media_files.sort().forEach(filename => {
                 const div = document.createElement('div');
-                div.textContent = filename;
-                div.addEventListener('click', () => loadMediaOnClick(filename, div));
+                const span = document.createElement('span');
+                span.textContent = filename;
+                span.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    loadMediaOnClick(filename, div);
+                });
+                div.appendChild(span);
                 mediaListContainer.appendChild(div);
             });
             const firstMedia = topBar.querySelector('.recent-media');
