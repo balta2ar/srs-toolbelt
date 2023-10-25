@@ -112,28 +112,25 @@
         document.getElementById('player').addEventListener('click', () => player.togglePlay());
         let subtitles = [];
         let activeSubtitleIndex = null;
+        let lastDocs = {}
 
         mediaListContainer.addEventListener('click', function (event) {
             player.togglePlay();
         });
 
-        function loadMedia(filename) {
-            subtitlesContainer.innerHTML = '';
+        function loadMedia(mp3, vtt, offset) {
+            subtitlesContainer.innerHTML = ''
             
-            console.log(filename);
-            //const mp3 = filename.replace(/\.[^/.]+$/, ".ogg");
-            const mp3 = filename.replace(/\.[^/.]+$/, ".mp3");
-            const vtt = filename.replace(/\.[^/.]+$/, ".vtt");
-            console.log(mp3);
-            console.log(vtt);
-            const mediaFile = `/media/${mp3}`;
-            const subtitleFile = `/media/${vtt}`;
+            console.log(mp3)
+            console.log(vtt)
+            const mediaFile = `/media/${mp3}`
+            const subtitleFile = `/media/${vtt}`
             const suffix = mp3.split('.').pop()
-            const mtype = getMediaType(mp3);
+            const mtype = getMediaType(mp3)
             
             player.source = {
                 type: mtype, 
-                title: filename,
+                title: mp3,
                 sources: [{
                     src: mediaFile,
                     type: `${mtype}/${suffix}`,
@@ -146,7 +143,7 @@
                     default: true,
                 }],
             };
-            loadSubtitles(vtt);
+            loadSubtitles(vtt, offset);
         }        
 
         async function SearchContent(query) {
@@ -165,22 +162,25 @@
         window.OnSearch = function (query) {
             if (!query) return;
             SearchContent(query).then(data => {
-                    const dataList = document.getElementById('search-results');
-                    dataList.innerHTML = '';
+                    const dataList = document.getElementById('search-results')
+                    dataList.innerHTML = ''
+                    lastDocs = {}
                     data.results.forEach(doc => {
-                        const option = document.createElement('option');
-                        option.value = doc.title;
-                        option.innerText = `${doc.content}`;
-                        dataList.appendChild(option);
+                        const option = document.createElement('option')
+                        option.value = doc.id
+                        option.innerText = `${doc.content}`
+                        lastDocs[doc.id] = doc
+                        dataList.appendChild(option)
                     });
                 });
         }
 
-        window.OnSelect = function (filename) {
-            if (!filename) return;
+        window.OnSelect = function (id) {
+            if (!id) return;
             document.getElementById('search-input').value = '';
-            console.log(`selecting ${filename}`);
-            loadMedia(filename);
+            const doc = lastDocs[id]
+            console.log(`selecting %o`, doc);
+            loadMedia(doc.media, doc.subtitle, doc.offset);
         }
 
         function createPlayButton(start) {
@@ -204,12 +204,12 @@
             return textSpan;
         }
 
-        function loadSubtitles(vttFileName) {
+        function loadSubtitles(vtt, offset) {
             subtitlesContainer.innerHTML = '';
             subtitles = [];
             activeSubtitleIndex = null;
             
-            MediaFetch(vttFileName).then(data => {
+            MediaFetch(vtt).then(data => {
                 const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
                 let match;
                 while (match = regex.exec(data)) {
@@ -225,14 +225,15 @@
                     subtitlesContainer.appendChild(container);
                     subtitles.push(container);
                 }
+                console.log(`loaded ${subtitles.length} subtitles`);
             });
         }
 
-        function loadMediaOnClick(filename, element) {
+        function loadMediaOnClick(media, subtitle, element) {
             topBar.querySelectorAll('.recent-media').forEach(el => el.classList.remove('active'));
             mediaListContainer.querySelectorAll('div').forEach(el => el.classList.remove('active'));
             element.classList.add('active');
-            loadMedia(filename);
+            loadMedia(media, subtitle, 0);
             player.play();
         }
 
@@ -243,28 +244,28 @@
             throw new Error(`Unknown media type for suffix ${suffix}`);
         }
 
-        function createRecent(filename) {
+        function createRecent(media, subtitle) {
             const span = document.createElement('span');
             span.className = 'recent-media';
-            span.textContent = filename;
+            span.textContent = media;
             span.addEventListener('click', function () {
-                loadMediaOnClick(filename, span);
+                loadMediaOnClick(media, subtitle, span);
             });
             return span;
         }
 
         MediaRecent().then(data => {
-            data.media_files.slice(0, 5).forEach(filename => {
-                const line = createRecent(filename);
+            data.media_files.slice(0, 5).forEach(info => {
+                const line = createRecent(info.media, info.subtitle);
                 topBar.appendChild(line);
             });
-            data.media_files.sort().forEach(filename => {
+            data.media_files.sort().forEach(info => {
                 const div = document.createElement('div');
                 const span = document.createElement('span');
-                span.textContent = filename;
+                span.textContent = info.media;
                 span.addEventListener('click', (event) => {
                     event.stopPropagation();
-                    loadMediaOnClick(filename, div);
+                    loadMediaOnClick(info.media, info.subtitle, div);
                 });
                 div.appendChild(span);
                 mediaListContainer.appendChild(div);

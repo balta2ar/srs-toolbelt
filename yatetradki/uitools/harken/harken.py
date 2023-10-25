@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 
-import hashlib
+import argparse
 import logging
 import mimetypes
-import re
 import os
+import re
 import time
-import argparse
+from collections import Counter, defaultdict
 from os import makedirs
 from os.path import abspath, basename, dirname, exists, join, splitext
 from pathlib import Path
 from pprint import pprint
 from typing import Iterable, List, Optional
-from collections import defaultdict, Counter
 
 from aiohttp import web
 from pydantic import BaseModel
@@ -43,18 +42,7 @@ def traverse(basedir):
             yield entry
 
 def build_index():
-    docs = []
-    for file in find(MEDIA_DIR, SUBS):
-        logging.info(f"Indexing {file}")
-        for i, line in enumerate(slurp_lines(join(MEDIA_DIR, file))):
-            line = line.strip()
-            if line:
-                document_id = hashlib.sha256(f"{file}{i}{line}".encode()).hexdigest()
-                docs.append({
-                    "id": document_id,
-                    "title": f'{file}',
-                    "content": line
-                })
+    docs = read_corpus(find(MEDIA_DIR, SUBS))
     return Search().index(docs)
 
 def with_extension(path: str, ext: str) -> str:
@@ -64,15 +52,18 @@ def search_index(index, q):
     results = index.search(q)
     out = []
     for doc in [index.get_document(result) for result in results]:
-        sub = join(MEDIA_DIR, doc['title'])
+        sub = join(MEDIA_DIR, doc['filename'])
         for ext in MEDIA:
             path = with_extension(sub, ext)
             if exists(sub) and exists(path):
                 out.append(SearchResult(
                     content=doc['content'],
                     id=doc['id'],
-                    title=with_extension(doc['title'], ext)
-                ).dict())
+                    title=with_extension(doc['filename'], ext),
+                    offset=doc['offset'],
+                    subtitle=doc['filename'],
+                    media=with_extension(doc['filename'], ext)
+                ).model_dump())
     return out
 
 index = None
@@ -92,8 +83,11 @@ class MediaList(BaseModel):
 
 class SearchResult(BaseModel):
     content: str
-    id: str
+    id: int
     title: str
+    offset: int
+    subtitle: str
+    media: str
 
 def parse_vtt(file_path: str) -> List[Subtitle]:
     subtitles = []
@@ -136,7 +130,17 @@ async def fetch_media(request):
     return web.FileResponse(path=path, headers={'Content-Type': content_type})
 
 async def list_media(request):
-    return web.json_response({'media_files': find(MEDIA_DIR, MEDIA)})
+    out = []
+    for media_filename in find(MEDIA_DIR, MEDIA):
+        media = join(MEDIA_DIR, media_filename)
+        for ext in SUBS:
+            path = with_extension(media, ext)
+            if exists(media) and exists(path):
+                out.append({
+                    'media': media_filename,
+                    'subtitle': with_extension(media_filename, ext),
+                })
+    return web.json_response({'media_files': out})
 
 async def serve_index(request):
     content = open('assets/index.html', 'r').read()
@@ -146,9 +150,7 @@ async def search_content(request):
     q = request.query.get('q', '')
     if not q: return web.json_response({'error': 'q parameter is required'}, status=400)
 
-    results = index.search(q)
-    documents = [index.get_document(result) for result in results]
-
+    documents = search_index(index, q)
     return web.json_response({'results': documents})
 
 
@@ -186,7 +188,7 @@ class Search:
         def tokenize(text): return re.findall(r'\b[a-zA-Z0-9åøæÅØÆ]+\b', text.lower())
         for document in documents:
             doc_id = document['id']
-            title = document['title']
+            # title = document['title']
             content = document['content']
             for term in tokenize(content):
                 self.plist[term].add(doc_id)
@@ -231,14 +233,15 @@ def read_corpus(filenames):
     docs = []
     doc_id = 0
     for file in filenames:
+        start_doc_id = doc_id
         for i, line in enumerate(slurp_lines(join(MEDIA_DIR, file))):
             line = line.strip()
             if line:
-                # document_id = hashlib.sha256(f"{file}{i}{line}".encode()).hexdigest()
                 docs.append({
                     "id": doc_id,
-                    "title": f'{file}',
-                    "content": line
+                    "filename": f'{file}',
+                    "content": line,
+                    "offset": doc_id - start_doc_id,
                 })
                 doc_id += 1
     return docs
