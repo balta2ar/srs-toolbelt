@@ -12,6 +12,7 @@ from os.path import abspath, basename, dirname, exists, join, splitext
 from pathlib import Path
 from pprint import pprint
 from typing import Iterable, List, Optional
+from inspect import isgenerator
 
 from aiohttp import web
 from pydantic import BaseModel
@@ -72,6 +73,7 @@ class Subtitle(BaseModel):
     start_time: str
     end_time: str
     text: str
+    offset: int
 
 class MediaDetail(BaseModel):
     file_name: str
@@ -170,7 +172,8 @@ def test_index():
     # index = build_index()
     # results = index.search('bulke')
     # documents = [index.get_document(result) for result in results]
-    documents = search_index(build_index(), 'direkte')
+    # documents = search_index(build_index(), 'direkte')
+    documents = search_index(build_index(), 'peive')
     pprint(documents)
 
 def equals(a, b):
@@ -201,12 +204,15 @@ class Search:
         t0 = time.time()
         query_words = query.lower().split()
         if not query_words: return []
+        logging.info(f"Searching for '{query_words}'")
         sets_of_words = [list(self._trigram_words(w)) for w in query_words]
         if not sets_of_words: return []
+        logging.info(f'Words mapped to trigrams: {sets_of_words}')
 
         # trigrams(word) map to many terms, so it's union between trigrams mapped to terms
         # but since the query itself assumes AND, we intersect between sets of terms
         result = self._search(sets_of_words[0], set.union)
+        logging.info(f'Result after first word: {result}')
         for words in sets_of_words[1:]:
             result = result.intersection(self._search(words, set.union))
 
@@ -229,6 +235,30 @@ class Search:
     def get_document(self, doc_id): return self.docs[doc_id]
     def get_documents(self, doc_ids): return [self.get_document(doc_id) for doc_id in doc_ids]
 
+def parse_timestamp(s):
+    """00:00:26,240"""
+    h, m, s_ms = s.split(':')
+    s, ms = s_ms.split(',')
+    return int(h) * 3600000 + int(m) * 60000 + int(s) * 1000 + int(ms)
+
+def consume(pattern, lines, *parsers):
+    line = next(lines)
+    matches = re.match(pattern, line)
+    if not matches: raise ValueError(f"Pattern {pattern} did not match line {line}")
+    return tuple(parser(group) for parser, group in zip(parsers, matches.groups()))
+
+def parse_srt(lines):
+    if not isgenerator(lines): lines = iter(lines)
+    while True:
+        try:
+            i = consume(r'(\d+)', lines, int)
+            start_str, end_str = consume(r'(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})', lines, str, str)
+            text = consume(r'(.*)', lines, str)[0]
+            _ = consume(r'^$', lines)
+            yield Subtitle(start_time=start_str, end_time=end_str, text=text, offset=i[0])
+        except StopIteration:
+            break
+
 def read_corpus(filenames):
     docs = []
     doc_id = 0
@@ -245,6 +275,12 @@ def read_corpus(filenames):
                 })
                 doc_id += 1
     return docs
+
+def test_parse():
+    vtt = 'w/byday/20230904/by10m/by10m_03.vtt'
+    srt = 'w/byday/20230904/by10m/by10m_03.srt'
+    lines = list(parse_srt(slurp_lines(join(MEDIA_DIR, srt))))
+    pprint(lines)
 
 def test_search():
     search = Search()
