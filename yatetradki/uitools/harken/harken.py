@@ -251,6 +251,13 @@ def consume(line, pattern, *parsers):
 
 RX_TIMESTAMP = r'(\d{2}:\d{2}:\d{2}[,.]\d{3}) --> (\d{2}:\d{2}:\d{2}[,.]\d{3})'
 
+def parse_subtitles(filename):
+    suffix = splitext(filename)[1]
+    match suffix:
+        case '.srt': return parse_srt(open(filename))
+        case '.vtt': return parse_vtt(open(filename))
+        case _: raise ValueError(f"Unknown subtitle format {suffix}")
+
 def parse_srt(lines):
     if not isgenerator(lines): lines = iter(lines)
     for line in lines:
@@ -275,24 +282,22 @@ def read_corpus(filenames):
     doc_id = 0
     for file in filenames:
         start_doc_id = doc_id
-        for i, line in enumerate(slurp_lines(join(MEDIA_DIR, file))):
-            line = line.strip()
-            if line:
-                docs.append({
-                    "id": doc_id,
-                    "filename": f'{file}',
-                    "content": line,
-                    "offset": doc_id - start_doc_id,
-                })
-                doc_id += 1
+        for line in parse_subtitles(join(MEDIA_DIR, file)):
+            docs.append({
+                "id": doc_id,
+                "filename": f'{file}',
+                "content": line.text,
+                "offset": doc_id - start_doc_id,
+            })
+            doc_id += 1
     return docs
 
 def test_parse():
     srt = 'w/byday/20230904/by10m/by10m_03.srt'
-    lines = list(parse_srt(slurp_lines(join(MEDIA_DIR, srt))))
+    lines = list(parse_subtitles(join(MEDIA_DIR, srt)))
     pprint(lines)
     vtt = 'w/byday/20230904/by10m/by10m_03.vtt'
-    lines = list(parse_vtt(slurp_lines(join(MEDIA_DIR, vtt))))
+    lines = list(parse_subtitles(join(MEDIA_DIR, vtt)))
     pprint(lines)
 
 def test_search():
