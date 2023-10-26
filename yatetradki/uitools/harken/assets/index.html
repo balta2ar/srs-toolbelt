@@ -127,6 +127,7 @@
             const subtitleFile = `/media/${vtt}`
             const suffix = mp3.split('.').pop()
             const mtype = getMediaType(mp3)
+            console.log(`loading media ${mediaFile} ${subtitleFile} ${suffix} ${mtype}`)
             
             player.source = {
                 type: mtype, 
@@ -143,7 +144,9 @@
                     default: true,
                 }],
             };
-            loadSubtitles(vtt, offset);
+            player.once('canplay', () => {
+                loadSubtitles(vtt, offset)
+            })
         }        
 
         async function SearchContent(query) {
@@ -160,14 +163,15 @@
         }
 
         window.OnSearch = function (query) {
-            if (!query) return;
+            query = query.trim()
+            if (!query) return
             SearchContent(query).then(data => {
                     const dataList = document.getElementById('search-results')
                     dataList.innerHTML = ''
                     lastDocs = {}
                     data.results.forEach(doc => {
                         const option = document.createElement('option')
-                        option.value = doc.id
+                        option.value = `${doc.id}:${doc.media}`
                         option.innerText = `${doc.content}`
                         lastDocs[doc.id] = doc
                         dataList.appendChild(option)
@@ -175,12 +179,23 @@
                 });
         }
 
-        window.OnSelect = function (id) {
-            if (!id) return;
+        window.OnSelect = function (id_media) {
+            if (!id_media) return;
+            const [id, media] = id_media.split(':')
             document.getElementById('search-input').value = '';
             const doc = lastDocs[id]
             console.log(`selecting %o`, doc);
             loadMedia(doc.media, doc.subtitle, doc.offset);
+        }
+
+        function playSubtitle(index) {
+            console.log(`playSubtitle ${index}`)
+            setActiveSubtitle(index)
+            const subtitle = subtitles[index]
+            const playSpan = subtitle.querySelector('.play-button')
+            player.currentTime = parseTime(playSpan.dataset.start)
+            player.play()
+            return subtitle
         }
 
         function createPlayButton(start) {
@@ -190,9 +205,7 @@
             playSpan.dataset.start = start;
             playSpan.dataset.index = subtitles.length;
             playSpan.addEventListener('click', function (event) {
-                setActiveSubtitle(playSpan.dataset.index);
-                player.currentTime = parseTime(playSpan.dataset.start);
-                player.play();
+                playSubtitle(playSpan.dataset.index);
             });
             return playSpan;
         }
@@ -225,7 +238,8 @@
                     subtitlesContainer.appendChild(container);
                     subtitles.push(container);
                 }
-                console.log(`loaded ${subtitles.length} subtitles`);
+                console.log(`loaded ${subtitles.length} subtitles`)
+                playSubtitle(offset).scrollIntoView({behavior: "instant", block: "center", inline: "nearest"});
             });
         }
 
@@ -234,7 +248,7 @@
             mediaListContainer.querySelectorAll('span').forEach(el => el.classList.remove('active'));
             element.classList.add('active');
             loadMedia(media, subtitle, 0);
-            player.play();
+            //player.play();
         }
 
         function getMediaType(file) {
@@ -259,7 +273,7 @@
                 const line = createRecent(info.media, info.subtitle);
                 topBar.appendChild(line);
             });
-            data.media_files.sort().forEach(info => {
+            data.media_files.forEach(info => {
                 const div = document.createElement('div');
                 const span = document.createElement('span');
                 span.textContent = info.media;
@@ -328,7 +342,7 @@
 
         function parseTime(timeString) {
             const [hours, minutes, rest] = timeString.split(':');
-            const [seconds, milliseconds] = rest.split('.').map(Number); // Split seconds and milliseconds and convert to Number
+            const [seconds, milliseconds] = rest.replace(',', '.').split('.').map(Number); // Split seconds and milliseconds and convert to Number
             return Number(hours) * 3600 + Number(minutes) * 60 + seconds + milliseconds / 1000; // Convert hours and minutes to Number and adjust to include milliseconds
         }        
         

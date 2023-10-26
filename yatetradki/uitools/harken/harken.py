@@ -20,7 +20,8 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.DEBUG)
 
 MEDIA = ['.mp3', '.mp4', '.mkv', '.avi', '.webm', '.opus', '.ogg']
-SUBS = ['.vtt', '.srt']
+SUBS = ['.vtt']
+# SUBS = ['.vtt', '.srt']
 MEDIA_DIR = './media'
 
 def slurp(path):
