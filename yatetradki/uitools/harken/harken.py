@@ -142,6 +142,8 @@ async def list_media(request):
                     'media': media_filename,
                     'subtitle': with_extension(media_filename, ext),
                 })
+    key = lambda x: (splitext(x['media'])[1], x['media'])
+    out = sorted(out, key=key)
     return web.json_response({'media_files': out})
 
 async def serve_index(request):

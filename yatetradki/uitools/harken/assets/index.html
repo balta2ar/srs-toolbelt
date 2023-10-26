@@ -210,7 +210,7 @@
             activeSubtitleIndex = null;
             
             MediaFetch(vtt).then(data => {
-                const regex = /(\d\d:\d\d:\d\d\.\d\d\d) --> (\d\d:\d\d:\d\d\.\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d\.\d\d\d --> \d\d:\d\d:\d\d\.\d\d\d|\n*$)/g;
+                const regex = /(\d\d:\d\d:\d\d[,.]\d\d\d) --> (\d\d:\d\d:\d\d[,.]\d\d\d)\n([\s\S]*?)(?=\n\d\d:\d\d:\d\d[,.]\d\d\d --> \d\d:\d\d:\d\d[,.]\d\d\d|\n*$)/g;
                 let match;
                 while (match = regex.exec(data)) {
                     const [_, start, end, text] = match;
@@ -231,7 +231,7 @@
 
         function loadMediaOnClick(media, subtitle, element) {
             topBar.querySelectorAll('.recent-media').forEach(el => el.classList.remove('active'));
-            mediaListContainer.querySelectorAll('div').forEach(el => el.classList.remove('active'));
+            mediaListContainer.querySelectorAll('span').forEach(el => el.classList.remove('active'));
             element.classList.add('active');
             loadMedia(media, subtitle, 0);
             player.play();
@@ -265,7 +265,7 @@
                 span.textContent = info.media;
                 span.addEventListener('click', (event) => {
                     event.stopPropagation();
-                    loadMediaOnClick(info.media, info.subtitle, div);
+                    loadMediaOnClick(info.media, info.subtitle, span);
                 });
                 div.appendChild(span);
                 mediaListContainer.appendChild(div);
