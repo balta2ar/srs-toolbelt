@@ -236,28 +236,39 @@ class Search:
     def get_documents(self, doc_ids): return [self.get_document(doc_id) for doc_id in doc_ids]
 
 def parse_timestamp(s):
-    """00:00:26,240"""
+    """
+    00:00:26,240
+    00:00:09.320
+    """
     h, m, s_ms = s.split(':')
-    s, ms = s_ms.split(',')
+    s, ms = s_ms.replace('.', ',').split(',')
     return int(h) * 3600000 + int(m) * 60000 + int(s) * 1000 + int(ms)
 
-def consume(pattern, lines, *parsers):
-    line = next(lines)
+def consume(line, pattern, *parsers):
     matches = re.match(pattern, line)
     if not matches: raise ValueError(f"Pattern {pattern} did not match line {line}")
     return tuple(parser(group) for parser, group in zip(parsers, matches.groups()))
 
+RX_TIMESTAMP = r'(\d{2}:\d{2}:\d{2}[,.]\d{3}) --> (\d{2}:\d{2}:\d{2}[,.]\d{3})'
+
 def parse_srt(lines):
     if not isgenerator(lines): lines = iter(lines)
-    while True:
-        try:
-            i = consume(r'(\d+)', lines, int)
-            start_str, end_str = consume(r'(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})', lines, str, str)
-            text = consume(r'(.*)', lines, str)[0]
-            _ = consume(r'^$', lines)
-            yield Subtitle(start_time=start_str, end_time=end_str, text=text, offset=i[0])
-        except StopIteration:
-            break
+    for line in lines:
+        i = consume(line, r'(\d+)', int)
+        start_str, end_str = consume(next(lines), RX_TIMESTAMP, str, str)
+        text = consume(next(lines), r'(.*)', str)[0]
+        _ = consume(next(lines), r'^$')
+        yield Subtitle(start_time=start_str, end_time=end_str, text=text, offset=i[0])
+
+def parse_vtt(lines):
+    if not isgenerator(lines): lines = iter(lines)
+    _ = consume(next(lines), r'^WEBVTT$')
+    _ = consume(next(lines), r'^$')
+    for i, line in enumerate(lines):
+        start_str, end_str = consume(line, RX_TIMESTAMP, str, str)
+        text = consume(next(lines), r'(.*)', str)[0]
+        _ = consume(next(lines), r'^$')
+        yield Subtitle(start_time=start_str, end_time=end_str, text=text, offset=i)
 
 def read_corpus(filenames):
     docs = []
@@ -277,9 +288,11 @@ def read_corpus(filenames):
     return docs
 
 def test_parse():
-    vtt = 'w/byday/20230904/by10m/by10m_03.vtt'
     srt = 'w/byday/20230904/by10m/by10m_03.srt'
     lines = list(parse_srt(slurp_lines(join(MEDIA_DIR, srt))))
+    pprint(lines)
+    vtt = 'w/byday/20230904/by10m/by10m_03.vtt'
+    lines = list(parse_vtt(slurp_lines(join(MEDIA_DIR, vtt))))
     pprint(lines)
 
 def test_search():
