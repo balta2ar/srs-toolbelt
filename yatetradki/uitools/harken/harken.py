@@ -65,7 +65,7 @@ def search_index(index, q):
                     offset=doc['offset'],
                     subtitle=doc['filename'],
                     media=with_extension(doc['filename'], ext)
-                ).model_dump())
+                ).dict())
     return out
 
 index = None
