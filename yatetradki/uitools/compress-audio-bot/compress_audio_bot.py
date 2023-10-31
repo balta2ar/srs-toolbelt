@@ -29,7 +29,7 @@ async def audio_handler(update: Update, context):
 
         cmd = ["ffmpeg", "-i", download_path,
             "-filter:a", "loudnorm,dynaudnorm,speechnorm,loudnorm",
-            "-ac", "1", "-c:a", "libopus", "-b:a", "24k",
+            "-ac", "1", "-c:a", "libopus", "-b:a", "32k",
             "-vbr", "on", "-ar", "16000", "-compression_level", "10",
             "-f", "ogg",
             compressed_path]
