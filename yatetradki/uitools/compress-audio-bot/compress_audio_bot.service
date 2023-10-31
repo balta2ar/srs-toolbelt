@@ -1,0 +1,11 @@
+[Unit]
+Description=Telegram bot that compresses dynamic range of voice messages
+After=local-fs.target network.target
+
+[Service]
+Type=simple
+ExecStart=/home/bz/dev/src/srs-toolbelt/yatetradki/uitools/compress-audio-bot/compress_audio_bot.py
+Restart=always
+
+[Install]
+WantedBy=default.target
