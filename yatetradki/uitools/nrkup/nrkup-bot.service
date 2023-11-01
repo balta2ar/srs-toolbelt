@@ -1,0 +1,11 @@
+[Unit]
+Description=Telegram bot that downloads NRK programs and sends them to a telegram chat
+After=local-fs.target network.target
+
+[Service]
+Type=simple
+ExecStart=/home/bz/dev/src/srs-toolbelt/yatetradki/uitools/nrkup/nrkup_bot.py
+Restart=always
+
+[Install]
+WantedBy=default.target
