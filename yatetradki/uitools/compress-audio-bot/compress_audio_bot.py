@@ -42,22 +42,33 @@ def compress(original, result: str):
     logging.info('Running command: %s', ' '.join(cmd))
     return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
 
+def append(base, extra): return base if extra.strip() in base else base + extra
+def buffer(base, extra): return '' if extra.strip() in base else extra
+
 async def audio_handler(update: Update, context):
     logging.info('Message: %s', update.effective_message)
     ts = update.effective_message.date.strftime('%Y%m%d-%H%M%S')
     yyyymm = update.effective_message.date.strftime('d%Y%m')
     with TemporaryDirectory() as tmpdir:
-        file = await update.effective_message.voice.get_file()
+        sound = update.effective_message.audio or update.effective_message.voice
+        file = await sound.get_file()
         base = tmpdir + "/" + ts #update.effective_message.voice.file_unique_id
         await file.download_to_drive(base)
         compressed = base + ".mp3"
         compress(base, compressed)
         with open(compressed, 'rb') as audio:
+            caption_entities = update.effective_message.caption_entities or []
             caption = update.effective_message.caption or ''
-            caption = f'#compressed #card #{yyyymm}\n{caption}'.strip()
+            b = [buffer(caption, '#compressed'),
+                 buffer(caption, '#card'),
+                 buffer(caption, f'#{yyyymm}'),
+            ]
+            b = ' '.join(b)
+            caption = append(caption, f'\n{b}').strip()
             logging.info('Sending audio: %s', caption)
-            await context.bot.send_audio(chat_id=update.effective_message.chat_id, audio=audio,
-                                         title=ts, caption=caption)
+            await context.bot.send_audio(chat_id=update.effective_message.chat_id,
+                                         audio=audio, title=ts,
+                                         caption=caption, caption_entities=caption_entities)
 
 def main():
     load_env('~/.telegram')
