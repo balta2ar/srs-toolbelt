@@ -1,4 +1,4 @@
-requests==2.24.0
+requests==2.31.0
 beautifulsoup4==4.8.2
 #pyppeteer==1.0.2
 playwright==1.35.0
