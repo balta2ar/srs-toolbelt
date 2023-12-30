@@ -738,6 +738,7 @@ def stateful_page(url, init_read):
     input = AQueue()
     output = AQueue()
     async def worker():
+        logging.info('AQueue stateful_page starting worker')
         async with async_playwright() as p:
             browser = await async_launch(p)
             page = await browser.new_page()
@@ -745,9 +746,12 @@ def stateful_page(url, init_read):
             async def wait(read, pred, v0):
                 timeout = NETWORK_TIMEOUT/1000
                 t0 = time.time()
+                logging.debug('stateful_page waiting for "%s", timeout: %s', v0, timeout)
                 while time.time() - t0 < timeout:
+                    logging.debug('stateful_page evaluating "%s"', read)
                     v1 = await page.evaluate(read)
                     v1 = v1.strip()
+                    logging.debug('stateful_page read: "%s"', v1)
                     if pred(v1, v0): return v1
                     logging.debug('stateful_page waiting, total: %s', time.time() - t0)
                     await asleep(0.1)
@@ -759,13 +763,18 @@ def stateful_page(url, init_read):
             d.dispatchEvent( new Event("input", { bubbles: true, cancelable: true }) );
             """
 
+            logging.info('AQueue stateful_page going to "%s"', url)
             await page.goto(url, wait_until='load')
+            logging.info('AQueue stateful_page went to "%s"', url)
             await wait(init_read, ne, '')
+            logging.info('AQueue stateful_page waited for "%s"', init_read)
 
             last_update = None
             last_read = None
             while True:
+                logging.info('AQueue stateful_page waiting for input')
                 req: Modify = await input.get()
+                logging.info('AQueue stateful_page got input: %s', req)
                 if req is None:
                     logging.info('AQueue stateful_page got None, exiting')
                     break
@@ -787,6 +796,7 @@ def stateful_page(url, init_read):
         logging.info('AQueue stateful_page exited, putting final message')
         await output.put(None)
     async def drop_old() -> Output:
+        logging.info('AQueue drop_old waiting for result')
         timeout = 5.0 # NETWORK_TIMEOUT/1000
         while True:
             result: Output = await output.get()
@@ -812,7 +822,9 @@ class Singleton(type):
 class DeeplWordStateful(metaclass=Singleton):
     URl = ''
     UPDATE = lambda x: """var d=document.querySelector('section.lmt__side_container--source div.lmt__textarea_container d-textarea').firstChild; d.innerText = '%s'; setTimeout(() => { d.dispatchEvent(new Event("input", { bubbles: true, cancelable: true })) }, 50);""" % (x,)
-    READ = "document.querySelector('section.lmt__side_container--target div.lmt__textarea_container').innerText"
+    # READ = "document.querySelector('section.lmt__side_container--target div.lmt__textarea_container').innerText"
+    UPDATE = lambda x: """var d=document.querySelector('d-textarea').firstChild; d.innerText = '%s'; setTimeout(() => { d.dispatchEvent(new Event("input", { bubbles: true, cancelable: true })) }, 50);""" % (x,)
+    READ = "document.querySelectorAll('d-textarea')[1].innerText"
     def __init__(self):
         url = self.get_url('init')
         self.page = stateful_page(url, self.READ)
