@@ -18,12 +18,10 @@ from collections import namedtuple
 from bisect import bisect_left
 
 from aiohttp import web
-# from py import log
 from pydantic import BaseModel
 
 from nicegui import ui, app
 from nicegui.events import KeyEventArguments
-# from sympy import N
 
 
 ASSETS = './assets'
@@ -162,19 +160,19 @@ async def fetch_media(request):
 
     return web.FileResponse(path=path, headers={'Content-Type': content_type})
 
-async def list_media(request):
-    out = []
-    for media_filename in find(MEDIA_DIR, MEDIA):
-        media = join(MEDIA_DIR, media_filename)
-        for ext in SUBS:
-            path = with_extension(media, ext)
-            if exists(media) and exists(path):
-                out.append({
-                    'media': media_filename,
-                    'subtitle': with_extension(media_filename, ext),
-                })
-    key = lambda x: (splitext(x['media'])[1], x['media'])
-    out = sorted(out, key=key)
+# async def list_media(request):
+#     out = []
+#     for media_filename in find(MEDIA_DIR, MEDIA):
+#         media = join(MEDIA_DIR, media_filename)
+#         for ext in SUBS:
+#             path = with_extension(media, ext)
+#             if exists(media) and exists(path):
+#                 out.append({
+#                     'media': media_filename,
+#                     'subtitle': with_extension(media_filename, ext),
+#                 })
+#     key = lambda x: (splitext(x['media'])[1], x['media'])
+#     out = sorted(out, key=key)
     return web.json_response({'media_files': out})
 
 async def serve_index(request):
@@ -427,8 +425,10 @@ class SubtitleLines:
         self.lines = []
         self.starts = []
         self.current_line = 0
-    def activate(self, at):
-        index = max(0, bisect_left(self.starts, at)-1)
+    def activate(self, at): # float (time in seconds) or int (index, # of the line)
+        if isinstance(at, int): index = at
+        elif isinstance(at, float): index = max(0, bisect_left(self.starts, at)-1)
+        else: raise ValueError(f"Invalid type {type(at)}: {at}")
         self.lines[self.current_line].classes(remove='active')
         self.lines[index].classes(add='active')
         self.current_line = index
@@ -454,21 +454,27 @@ def main():
         app.add_media_files(media_dir, Path(media_dir))
 
     files = sorted(list(set(files)), key=lambda x: x.media)
-    media2sub = {m.media: m for m in files}
+    media2file = {m.media: m for m in files}
     current_file = files[0]
     subtitles: [Subtitle] = list(parse_subtitles(current_file.sub))
     sub_lines = SubtitleLines()
     player = MyPlayer(None)
+    search_query = ''
     commands = []
     logging.info(f"Media files: {len(files)}")
 
-    def load_media(file: str):
+    def load_media(media: str, offset: int = -1):
+        file = media2file[media]
         subtitles.clear()
-        subtitles.extend(list(parse_subtitles(media2sub[file.media].sub)))
+        subtitles.extend(list(parse_subtitles(file.sub)))
         nonlocal current_file
         current_file = file
         commands.clear()
-        commands.append(lambda: player.play())
+        if offset >= 0:
+            at = subtitles[offset].start
+            commands.append(lambda: player.seek_and_play(at))
+        else:
+            commands.append(lambda: player.play())
         draw.refresh()
         # player.play
 
@@ -487,17 +493,39 @@ def main():
             player.toggle()
 
     @ui.refreshable
+    def redraw_search(query=None):
+        if not query: return
+        ids = search.search(query)[0:10]
+        docs = search.get_documents(ids) # content, id, media, offset, sub
+        pprint(docs)
+        with ui.column().classes('border w-full'):
+            for doc in docs:
+                print('doc', doc)
+                # ui.label(doc['media']).classes('pl-4')
+                on_click = lambda doc=doc: load_media(doc['media'], doc['offset'])
+                ui.label(doc['content']).classes('pl-4').on('click', on_click)
+            # ui.label('Search results')
+    def on_search(e):
+        nonlocal search_query
+        search_query = e.value
+        redraw_search.refresh(e.value)
+
+    @ui.refreshable
     def draw():
         keyboard = ui.keyboard(on_key=on_key)
         nonlocal player
         with ui.row().classes('w-full'):
-            ui.input(label='Search by word', placeholder='Type something to search').classes('w-2/12')
+            p = ui.input(label='Search by word', 
+                         value=search_query,
+                         placeholder='Type something to search',
+                         on_change=on_search).classes('w-2/12')
             player.player = ui.audio(current_file.media).classes('w-9/12')
             player.player.on('timeupdate', player_update)
         with ui.row().classes('w-full'):
             with ui.column().classes('border w-5/12'):
+                redraw_search(search_query)
                 for f in files:
-                    on_click = lambda f=f: load_media(f)
+                    on_click = lambda f=f: load_media(f.media)
                     classes = 'pl-4 hover:underline cursor-pointer'
                     if f == current_file: ui.label(f.media).on('click', on_click).classes(classes + ' active')
                     else: ui.label(f.media).on('click', on_click).classes(classes)
