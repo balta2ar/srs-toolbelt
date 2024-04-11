@@ -8,19 +8,21 @@ import os
 import re
 import time
 from collections import Counter, defaultdict
-from os import makedirs
+from os import makedirs, remove
 from os.path import abspath, basename, dirname, exists, join, splitext
 from pathlib import Path
 from pprint import pprint
 from typing import Iterable, List, Optional
 from inspect import isgenerator
 from collections import namedtuple
+from bisect import bisect_left
 
 from aiohttp import web
 # from py import log
 from pydantic import BaseModel
 
 from nicegui import ui, app
+from nicegui.events import KeyEventArguments
 # from sympy import N
 
 
@@ -95,13 +97,11 @@ def parse_timestamp_seconds(s):
 
 class Subtitle(BaseModel):
     start_time: str
+    start: float
     end_time: str
+    end: float
     text: str
     offset: int
-    @property
-    def start(self) -> float: return parse_timestamp_seconds(self.start_time)
-    @property
-    def end(self) -> float: return parse_timestamp_seconds(self.end_time)
 
 class MediaDetail(BaseModel):
     file_name: str
@@ -141,7 +141,9 @@ def parse_vtt(file_path: str) -> List[Subtitle]:
                 idx += 1
             text = ' '.join(text_lines)
 
-            subtitles.append(Subtitle(start_time=start, end_time=end, text=text))
+            s = parse_timestamp_seconds(start)
+            e = parse_timestamp_seconds(end)
+            subtitles.append(Subtitle(start_time=start, start=s, end_time=end, end=e, text=text))
     return subtitles
 
 
@@ -281,7 +283,9 @@ def parse_srt(lines) -> Iterable[Subtitle]:
         start_str, end_str = consume(next(lines), RX_TIMESTAMP, str, str)
         text = consume(next(lines), r'(.*)', str)[0]
         _ = consume(next(lines), r'^$')
-        yield Subtitle(start_time=start_str, end_time=end_str, text=text, offset=i[0])
+        s = parse_timestamp_seconds(start_str)
+        e = parse_timestamp_seconds(end_str)
+        yield Subtitle(start_time=start_str, start=s, end_time=end_str, end=e, text=text, offset=i[0])
 
 def parse_vtt(lines) -> Iterable[Subtitle]:
     if not isgenerator(lines): lines = iter(lines)
@@ -291,7 +295,9 @@ def parse_vtt(lines) -> Iterable[Subtitle]:
         start_str, end_str = consume(line, RX_TIMESTAMP, str, str)
         text = consume(next(lines), r'(.*)', str)[0]
         _ = consume(next(lines), r'^$')
-        yield Subtitle(start_time=start_str, end_time=end_str, text=text, offset=i)
+        s = parse_timestamp_seconds(start_str)
+        e = parse_timestamp_seconds(end_str)
+        yield Subtitle(start_time=start_str, start=s, end_time=end_str, end=e, text=text, offset=i)
 
 def find(where: str, subs: Iterable[str], medias: Iterable[str]) -> List[NamedPair]:
     result = []
@@ -399,6 +405,37 @@ ui.add_css('''
 def on_click():
     ui.notify('Button clicked!')
 
+class MyPlayer:
+    def __init__(self, player):
+        self.player = player
+        self.playing = False
+    def play(self):
+        self.player.play()
+        self.playing = True
+    def toggle(self):
+        if self.playing: self.player.pause()
+        else: self.player.play()
+        self.playing = not self.playing
+    def seek_and_play(self, at):
+        self.player.seek(at)
+        self.play()
+
+class SubtitleLines:
+    def __init__(self):
+        self.reset()
+    def reset(self):
+        self.lines = []
+        self.starts = []
+        self.current_line = 0
+    def activate(self, at):
+        index = max(0, bisect_left(self.starts, at)-1)
+        self.lines[self.current_line].classes(remove='active')
+        self.lines[index].classes(add='active')
+        self.current_line = index
+    def add(self, line, start):
+        self.lines.append(line)
+        self.starts.append(start)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dirs', nargs='+', help='Media directories, can be several')
@@ -420,7 +457,8 @@ def main():
     media2sub = {m.media: m for m in files}
     current_file = files[0]
     subtitles: [Subtitle] = list(parse_subtitles(current_file.sub))
-    player = None
+    sub_lines = SubtitleLines()
+    player = MyPlayer(None)
     commands = []
     logging.info(f"Media files: {len(files)}")
 
@@ -435,25 +473,27 @@ def main():
         # player.play
 
     def play_line(sub: Subtitle):
-        player.seek(sub.start)
-        player.play()
+        player.seek_and_play(sub.start)
         # player.currentTime = parse_timestamp(sub.start_time
 
     async def player_position():
         return await ui.run_javascript("document.querySelector('audio').currentTime")
     async def player_update(ev):
-        # print(ev)
         at = await player_position()
-        # print(at)
-        # ui.notification(f'Player time: {ts}')
+        sub_lines.activate(at)
+
+    def on_key(ev: KeyEventArguments):
+        if ev.key == 'v' and ev.action.keydown:
+            player.toggle()
 
     @ui.refreshable
     def draw():
+        keyboard = ui.keyboard(on_key=on_key)
         nonlocal player
         with ui.row().classes('w-full'):
             ui.input(label='Search by word', placeholder='Type something to search').classes('w-2/12')
-            player = ui.audio(current_file.media).classes('w-9/12')
-            player.on('timeupdate', player_update)
+            player.player = ui.audio(current_file.media).classes('w-9/12')
+            player.player.on('timeupdate', player_update)
         with ui.row().classes('w-full'):
             with ui.column().classes('border w-5/12'):
                 for f in files:
@@ -462,11 +502,13 @@ def main():
                     if f == current_file: ui.label(f.media).on('click', on_click).classes(classes + ' active')
                     else: ui.label(f.media).on('click', on_click).classes(classes)
             with ui.column().classes('border w-5/12'):
+                sub_lines.reset()
                 for s in subtitles:
                     on_click = lambda s=s: play_line(s)
                     with ui.row().classes('pl-4 hover:ring-1'):
                         # ui.label('>').on('click', on_click).classes('cursor-pointer')
-                        ui.label(f'{s.text}').on('dblclick', on_click)
+                        l = ui.label(f'{s.text}').on('dblclick', on_click)
+                        sub_lines.add(l, s.start)
         for c in commands: c()
         commands.clear()
     # ui.button('Click me', on_click=on_click)
