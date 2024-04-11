@@ -20,7 +20,7 @@ from aiohttp import web
 # from py import log
 from pydantic import BaseModel
 
-from nicegui import ui
+from nicegui import ui, app
 # from sympy import N
 
 
@@ -407,6 +407,7 @@ def main():
         files.extend(batch)
         corpus = corp.read(batch)
         search.content(corpus)
+        app.add_media_files(media_dir, Path(media_dir))
 
     files = sorted(list(set(files)), key=lambda x: x.media)
     media2sub = {m.media: m for m in files}
@@ -416,7 +417,7 @@ def main():
     # media_files = media_files[:10]
     logging.info(f"Media files: {len(files)}")
 
-    def reload(file: str):
+    def load_media(file: str):
         subtitles.clear()
         subtitles.extend(list(parse_subtitles(media2sub[file.media].sub)))
         nonlocal current_file
@@ -427,11 +428,11 @@ def main():
     def draw():
         with ui.row().classes('w-full'):
             ui.input(label='Search by word', placeholder='Type something to search').classes('w-2/12')
-            a = ui.audio('https://cdn.pixabay.com/download/audio/2022/02/22/audio_d1718ab41b.mp3').classes('w-9/12')
+            a = ui.audio(current_file.media).classes('w-9/12')
         with ui.row().classes('w-full'):
             with ui.column().classes('border w-5/12'):
                 for f in files:
-                    on_click = lambda f=f: reload(f)
+                    on_click = lambda f=f: load_media(f)
                     classes = 'pl-4 hover:underline cursor-pointer'
                     if f == current_file: ui.label(f.media).on('click', on_click).classes(classes + ' active')
                     else: ui.label(f.media).on('click', on_click).classes(classes)
