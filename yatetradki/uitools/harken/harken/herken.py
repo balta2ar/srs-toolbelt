@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 
+# ideas
+# - display part of speech, color code (especially adjectives and verbs)
+# - copy audio to clipboard (extract with ffmpeg + pyperclip/xclip)
+
 import argparse
 from ast import Sub
+from importlib.metadata import files
 import logging
 import mimetypes
 import os
@@ -12,15 +17,17 @@ from os import makedirs, remove
 from os.path import abspath, basename, dirname, exists, join, splitext
 from pathlib import Path
 from pprint import pprint
-from typing import Iterable, List, Optional
+from typing import Callable, Iterable, List, Optional
 from inspect import isgenerator
 from collections import namedtuple
 from bisect import bisect_left
+from dataclasses import dataclass, field
 
 from aiohttp import web
 from pydantic import BaseModel
 
 from nicegui import ui, app
+from nicegui.elements.button import Button
 from nicegui.events import KeyEventArguments
 
 
@@ -345,6 +352,19 @@ class SubtitleLines:
         self.lines.append(line)
         self.starts.append(start)
 
+@dataclass
+class UiState:
+    files: List[NamedPair]
+    media2file: dict
+    current_file: NamedPair
+    subtitles: [Subtitle]
+    sub_lines: SubtitleLines
+    player: MyPlayer
+    button_record: Button
+    button_play: Button
+    search_query: str
+    commands: [Callable]
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dirs', nargs='+', help='Media directories, can be several')
@@ -362,37 +382,44 @@ def main():
         search.content(corpus)
         app.add_media_files(media_dir, Path(media_dir))
 
-    files = sorted(list(set(files)), key=lambda x: x.media)
-    media2file = {m.media: m for m in files}
-    current_file = files[0]
-    subtitles: [Subtitle] = list(parse_subtitles(current_file.sub))
-    sub_lines = SubtitleLines()
-    player = MyPlayer(None)
-    search_query = ''
-    commands = []
+    state = UiState(
+        files=sorted(list(set(files)), key=lambda x: x.media),
+        media2file={m.media: m for m in files},
+        current_file=files[0],
+        subtitles=list(parse_subtitles(files[0].sub)),
+        sub_lines=SubtitleLines(),
+        player=MyPlayer(None),
+        button_record=None,
+        button_play=None,
+        search_query='',
+        commands=[]
+    )
     logging.info(f"Media files: {len(files)}")
 
     def load_media(media: str, offset: int = -1):
-        file = media2file[media]
-        subtitles.clear()
-        subtitles.extend(list(parse_subtitles(file.sub)))
-        nonlocal current_file
-        current_file = file
-        commands.clear()
-        at = 0.0 if offset < 0 else subtitles[offset].start
-        commands.append(lambda: player.seek_and_play(at))
+        file = state.media2file[media]
+        state.subtitles.clear()
+        state.subtitles.extend(list(parse_subtitles(file.sub)))
+        state.current_file = file
+        state.commands.clear()
+        at = 0.0 if offset < 0 else state.subtitles[offset].start
+        state.commands.append(lambda: state.player.seek_and_play(at))
         draw.refresh()
 
-    def play_line(sub: Subtitle): player.seek_and_play(sub.start)
+    def play_line(sub: Subtitle): state.player.seek_and_play(sub.start)
     async def player_position():
         return await ui.run_javascript("document.querySelector('audio').currentTime")
     async def player_update(ev):
         at = await player_position()
-        sub_lines.activate(at)
+        state.sub_lines.activate(at)
 
     def on_key(ev: KeyEventArguments):
         if ev.key == 'v' and ev.action.keydown:
-            player.toggle()
+            state.player.toggle()
+        elif ev.key == 'r' and ev.action.keydown:
+            state.button_record.run_method('click')
+        elif ev.key == 'p' and ev.action.keydown:
+            state.button_play.run_method('click')
 
     @ui.refreshable
     def redraw_search(query=None):
@@ -408,41 +435,67 @@ def main():
                 content = re.sub(rf'({query})', r'<b>\1</b>', content, flags=re.IGNORECASE)
                 ui.html(content).classes('pl-4 hover:outline-1 hover:outline-dashed').on('click', on_click)
     def on_search(e):
-        nonlocal search_query
-        search_query = e.value
+        nonlocal state
+        state.search_query = e.value
         redraw_search.refresh(e.value)
+    async def on_record_toggle(self):
+        print(self)
+        recording = await ui.run_javascript('''
+if (window.recorder && window.recorder.state === 'recording') {
+    window.recorder.stop()
+    return false
+} else {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        window.chunks = []
+        window.recorder = new MediaRecorder(stream)
+        window.recorder.addEventListener('dataavailable', e => { window.chunks.push(e.data) })
+        window.recorder.addEventListener('stop', e => {
+            const blob = new Blob(window.chunks, { type: 'audio/ogg; codecs=opus' })
+            const url = URL.createObjectURL(blob)
+            window.audio = new Audio(url)  
+        })
+        window.recorder.start()
+    })
+    return true
+}
+''')
+        self.sender.props(f'color={"red" if recording else "green"}')
+    def on_record_play():
+        ui.run_javascript('window.audio.play()')
 
     @ui.refreshable
     def draw():
         keyboard = ui.keyboard(on_key=on_key)
-        nonlocal player
+        nonlocal state
         with ui.row().classes('w-full'):
             p = ui.input(label='Search by word', 
-                         value=search_query,
+                         value=state.search_query,
                          placeholder='Type something to search',
-                         on_change=on_search).classes('w-2/12')
-            player.player = ui.audio(current_file.media).classes('w-9/12')
-            player.player.on('timeupdate', player_update)
+                         on_change=on_search).classes('w-2/12 pl-1')
+            state.button_record = ui.button('R').on('click', on_record_toggle).classes('outline-3')
+            state.button_play = ui.button('P').on('click', on_record_play)
+            state.player.player = ui.audio(state.current_file.media).classes('w-9/12')
+            state.player.player.on('timeupdate', player_update)
         with ui.row().classes('w-full'):
             with ui.column().classes('border w-4/12'):
                 with ui.scroll_area().classes('border w-full h-80'):
                     for f in files:
                         on_click = lambda f=f: load_media(f.media)
                         classes = 'hover:underline cursor-pointer'
-                        if f == current_file: ui.label(f.media).on('click', on_click).classes(classes + ' active')
+                        if f == state.current_file: ui.label(f.media).on('click', on_click).classes(classes + ' active')
                         else: ui.label(f.media).on('click', on_click).classes(classes)
-                redraw_search(search_query)
+                redraw_search(state.search_query)
             # with ui.column().classes('border w-5/12'):
             with ui.scroll_area().classes('border w-7/12 h-[90vh]'):
                 with ui.row():
-                    sub_lines.reset()
-                    for s in subtitles:
+                    state.sub_lines.reset()
+                    for s in state.subtitles:
                         on_click = lambda s=s: play_line(s)
                         with ui.row().classes('hover:ring-1'):
                             l = ui.label(f'{s.text}').on('dblclick', on_click)
-                            sub_lines.add(l, s.start)
-        for c in commands: c()
-        commands.clear()
+                            state.sub_lines.add(l, s.start)
+        for c in state.commands: c()
+        state.commands.clear()
     draw()
     ui.run(title='herken', show=False)
 
