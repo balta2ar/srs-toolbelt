@@ -442,11 +442,9 @@ def main():
                             sub_lines.add(l, s.start)
         for c in commands: c()
         commands.clear()
-    # ui.button('Click me', on_click=on_click)
-    # draw(current_file.media, subtitles)
     draw()
     ui.run(title='herken', show=False)
-    
+
 
 if __name__ in {'__main__', '__mp_main__'}:
     main()
