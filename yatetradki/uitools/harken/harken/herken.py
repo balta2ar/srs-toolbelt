@@ -432,13 +432,14 @@ def main():
                     if f == current_file: ui.label(f.media).on('click', on_click).classes(classes + ' active')
                     else: ui.label(f.media).on('click', on_click).classes(classes)
             with ui.column().classes('border w-5/12'):
-                sub_lines.reset()
-                for s in subtitles:
-                    on_click = lambda s=s: play_line(s)
-                    with ui.row().classes('pl-4 hover:ring-1'):
-                        # ui.label('>').on('click', on_click).classes('cursor-pointer')
-                        l = ui.label(f'{s.text}').on('dblclick', on_click)
-                        sub_lines.add(l, s.start)
+                with ui.row():
+                    sub_lines.reset()
+                    for s in subtitles:
+                        on_click = lambda s=s: play_line(s)
+                        with ui.row().classes('hover:ring-1'):
+                            # ui.label('>').on('click', on_click).classes('cursor-pointer')
+                            l = ui.label(f'{s.text}').on('dblclick', on_click)
+                            sub_lines.add(l, s.start)
         for c in commands: c()
         commands.clear()
     # ui.button('Click me', on_click=on_click)
