@@ -384,6 +384,9 @@ ui.add_css('''
     --nicegui-default-padding: 1.0rem;
     --nicegui-default-gap: 0.1rem;
 }
+.active {
+    font-weight: bold;
+}
 ''')
 
 def on_click():
@@ -429,8 +432,9 @@ def main():
             with ui.column().classes('border w-5/12'):
                 for f in files:
                     on_click = lambda f=f: reload(f)
-                    if f == current_file: ui.label(f.media).on('click', on_click).classes('bg-gray-200')
-                    else: ui.label(f.media).on('click', on_click)
+                    classes = 'pl-4 hover:underline cursor-pointer'
+                    if f == current_file: ui.label(f.media).on('click', on_click).classes(classes + ' active')
+                    else: ui.label(f.media).on('click', on_click).classes(classes)
             with ui.column().classes('border w-5/12'):
                 for s in subtitles:
                     with ui.row().classes('pl-4 hover:ring-1'):
