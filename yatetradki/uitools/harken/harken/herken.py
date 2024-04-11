@@ -399,14 +399,14 @@ def main():
         if not query: return
         ids = search.search(query)[0:10]
         docs = search.get_documents(ids) # content, id, media, offset, sub
-        pprint(docs)
+        # with ui.scroll_area().classes('border w-full h-80'):
         with ui.column().classes('border w-full'):
             for doc in docs:
                 print('doc', doc)
-                # ui.label(doc['media']).classes('pl-4')
                 on_click = lambda doc=doc: load_media(doc['media'], doc['offset'])
-                ui.label(doc['content']).classes('pl-4').on('click', on_click)
-            # ui.label('Search results')
+                content = doc['content']
+                content = re.sub(rf'({query})', r'<b>\1</b>', content, flags=re.IGNORECASE)
+                ui.html(content).classes('pl-4 hover:outline-1 hover:outline-dashed').on('click', on_click)
     def on_search(e):
         nonlocal search_query
         search_query = e.value
@@ -424,20 +424,21 @@ def main():
             player.player = ui.audio(current_file.media).classes('w-9/12')
             player.player.on('timeupdate', player_update)
         with ui.row().classes('w-full'):
-            with ui.column().classes('border w-5/12'):
+            with ui.column().classes('border w-4/12'):
+                with ui.scroll_area().classes('border w-full h-80'):
+                    for f in files:
+                        on_click = lambda f=f: load_media(f.media)
+                        classes = 'hover:underline cursor-pointer'
+                        if f == current_file: ui.label(f.media).on('click', on_click).classes(classes + ' active')
+                        else: ui.label(f.media).on('click', on_click).classes(classes)
                 redraw_search(search_query)
-                for f in files:
-                    on_click = lambda f=f: load_media(f.media)
-                    classes = 'pl-4 hover:underline cursor-pointer'
-                    if f == current_file: ui.label(f.media).on('click', on_click).classes(classes + ' active')
-                    else: ui.label(f.media).on('click', on_click).classes(classes)
-            with ui.column().classes('border w-5/12'):
+            # with ui.column().classes('border w-5/12'):
+            with ui.scroll_area().classes('border w-7/12 h-[90vh]'):
                 with ui.row():
                     sub_lines.reset()
                     for s in subtitles:
                         on_click = lambda s=s: play_line(s)
                         with ui.row().classes('hover:ring-1'):
-                            # ui.label('>').on('click', on_click).classes('cursor-pointer')
                             l = ui.label(f'{s.text}').on('dblclick', on_click)
                             sub_lines.add(l, s.start)
         for c in commands: c()
