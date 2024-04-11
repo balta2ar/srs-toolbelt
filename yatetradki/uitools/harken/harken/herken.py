@@ -438,12 +438,19 @@ def main():
         player.play()
         # player.currentTime = parse_timestamp(sub.start_time
 
+    def player_update(ev):
+        print(ev)
+        at = ev.args['timeStamp']
+        print(at)
+        # ui.notification(f'Player time: {ts}')
+
     @ui.refreshable
     def draw():
         nonlocal player
         with ui.row().classes('w-full'):
             ui.input(label='Search by word', placeholder='Type something to search').classes('w-2/12')
             player = ui.audio(current_file.media).classes('w-9/12')
+            player.on('timeupdate', player_update)
         with ui.row().classes('w-full'):
             with ui.column().classes('border w-5/12'):
                 for f in files:
