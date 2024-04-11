@@ -5,33 +5,25 @@
 # - copy audio to clipboard (extract with ffmpeg + pyperclip/xclip)
 
 import argparse
-from ast import Sub
-from importlib.metadata import files
 import logging
-import mimetypes
 import os
 import re
 import time
-from collections import Counter, defaultdict
-from os import makedirs, remove
-from os.path import abspath, basename, dirname, exists, join, splitext
+from bisect import bisect_left
+from collections import defaultdict, namedtuple
+from dataclasses import dataclass
+from inspect import isgenerator
+from os.path import exists, join, splitext
 from pathlib import Path
 from pprint import pprint
-from typing import Callable, Iterable, List, Optional
-from inspect import isgenerator
-from collections import namedtuple
-from bisect import bisect_left
-from dataclasses import dataclass, field
+from typing import Callable, Iterable, List
 
-from aiohttp import web
-from pydantic import BaseModel
-
-from nicegui import ui, app
+from nicegui import app, ui
+from nicegui.elements.audio import Audio
 from nicegui.elements.button import Button
 from nicegui.elements.input import Input
-from nicegui.elements.audio import Audio
 from nicegui.events import KeyEventArguments
-
+from pydantic import BaseModel
 
 ASSETS = './assets'
 logging.basicConfig(level=logging.DEBUG)
@@ -84,7 +76,7 @@ def search_index(index, q):
 
 index = None
 
-def parse_timestamp(s):
+def parse_ts_int(s):
     """
     00:00:26,240
     00:00:09.320
@@ -93,8 +85,8 @@ def parse_timestamp(s):
     s, ms = s_ms.replace('.', ',').split(',')
     return int(h) * 3600000 + int(m) * 60000 + int(s) * 1000 + int(ms)
 
-def parse_timestamp_seconds(s):
-    return parse_timestamp(s) / 1000.0
+def parse_ts(s):
+    return parse_ts_int(s) / 1000.0
 
 class Subtitle(BaseModel):
     start_time: str
@@ -111,33 +103,6 @@ class SearchResult(BaseModel):
     offset: int
     subtitle: str
     media: str
-
-def parse_vtt(file_path: str) -> List[Subtitle]:
-    subtitles = []
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read().splitlines()
-        idx = 1
-        while idx < len(content) and content[idx].strip() == "":
-            idx += 1
-
-        while idx < len(content):
-            if content[idx].strip() == "":
-                idx += 1
-                continue
-
-            start, end = content[idx].strip().split(' --> ')
-            idx += 1
-
-            text_lines = []
-            while idx < len(content) and content[idx].strip() != "":
-                text_lines.append(content[idx].strip())
-                idx += 1
-            text = ' '.join(text_lines)
-
-            s = parse_timestamp_seconds(start)
-            e = parse_timestamp_seconds(end)
-            subtitles.append(Subtitle(start_time=start, start=s, end_time=end, end=e, text=text))
-    return subtitles
 
 def equals(a, b): assert a == b, f"{a} != {b}"
 
@@ -220,8 +185,8 @@ def parse_srt(lines) -> Iterable[Subtitle]:
         start_str, end_str = consume(next(lines), RX_TIMESTAMP, str, str)
         text = consume(next(lines), r'(.*)', str)[0]
         _ = consume(next(lines), r'^$')
-        s = parse_timestamp_seconds(start_str)
-        e = parse_timestamp_seconds(end_str)
+        s = parse_ts(start_str)
+        e = parse_ts(end_str)
         yield Subtitle(start_time=start_str, start=s, end_time=end_str, end=e, text=text, offset=i[0])
 
 def parse_vtt(lines) -> Iterable[Subtitle]:
@@ -232,8 +197,8 @@ def parse_vtt(lines) -> Iterable[Subtitle]:
         start_str, end_str = consume(line, RX_TIMESTAMP, str, str)
         text = consume(next(lines), r'(.*)', str)[0]
         _ = consume(next(lines), r'^$')
-        s = parse_timestamp_seconds(start_str)
-        e = parse_timestamp_seconds(end_str)
+        s = parse_ts(start_str)
+        e = parse_ts(end_str)
         yield Subtitle(start_time=start_str, start=s, end_time=end_str, end=e, text=text, offset=i)
 
 def find(where: str, subs: Iterable[str], medias: Iterable[str]) -> List[NamedPair]:
@@ -282,7 +247,6 @@ def test_vtt():
     lines = list(parse_subtitles(vtt))
     pprint(lines)
 
-
 def test_search():
     search = Search()
 
@@ -317,9 +281,6 @@ ui.add_css('''
     font-weight: bold;
 }
 ''')
-
-def on_click():
-    ui.notify('Button clicked!')
 
 class MyPlayer:
     def __init__(self, player: Audio):
