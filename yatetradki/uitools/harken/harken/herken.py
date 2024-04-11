@@ -30,8 +30,6 @@ logging.info(f"Starting harken. ASSETS={ASSETS}")
 
 MEDIA = set(['.mp3', '.mp4', '.mkv', '.avi', '.webm', '.opus', '.ogg'])
 SUBS = set(['.vtt'])
-# SUBS = ['.vtt', '.srt']
-# MEDIA_DIR = './media'
 
 NamedPair = namedtuple('NamedPair', ['sub', 'media'])
 
@@ -53,10 +51,6 @@ def traverse(basedir):
             yield from traverse(entry)  # Recursively traverse directories
         elif entry.is_file():
             yield entry
-
-# def build_index():
-#     docs = read_corpus(find(MEDIA_DIR, SUBS))
-#     return Search().index(docs)
 
 def with_extension(path: str, ext: str) -> str:
     return splitext(path)[0] + ext
@@ -101,14 +95,6 @@ class Subtitle(BaseModel):
     text: str
     offset: int
 
-class MediaDetail(BaseModel):
-    file_name: str
-    file_path: str
-    subtitles: List[Subtitle]
-
-class MediaList(BaseModel):
-    media_files: List[str]
-
 class SearchResult(BaseModel):
     content: str
     id: int
@@ -144,63 +130,7 @@ def parse_vtt(file_path: str) -> List[Subtitle]:
             subtitles.append(Subtitle(start_time=start, start=s, end_time=end, end=e, text=text))
     return subtitles
 
-
-async def fetch_media(request):
-    name = request.match_info.get('file_name', '')
-    # path = join(MEDIA_DIR, name)
-    path = name
-
-    logging.info(f"Fetching {path}")
-    if not exists(path):
-        return web.HTTPNotFound(text="Requested file not found")
-
-    content_type, _ = mimetypes.guess_type(path)
-    if content_type is None:
-        content_type = 'application/octet-stream'
-
-    return web.FileResponse(path=path, headers={'Content-Type': content_type})
-
-# async def list_media(request):
-#     out = []
-#     for media_filename in find(MEDIA_DIR, MEDIA):
-#         media = join(MEDIA_DIR, media_filename)
-#         for ext in SUBS:
-#             path = with_extension(media, ext)
-#             if exists(media) and exists(path):
-#                 out.append({
-#                     'media': media_filename,
-#                     'subtitle': with_extension(media_filename, ext),
-#                 })
-#     key = lambda x: (splitext(x['media'])[1], x['media'])
-#     out = sorted(out, key=key)
-    return web.json_response({'media_files': out})
-
-async def serve_index(request):
-    content = open(join(ASSETS, 'index.html'), 'r').read()
-    return web.Response(text=content, content_type='text/html')
-
-async def search_content(request):
-    q = request.query.get('q', '')
-    if not q: return web.json_response({'error': 'q parameter is required'}, status=400)
-
-    documents = search_index(index, q)
-    return web.json_response({'results': documents})
-
-
-# def test_repo2():
-    # pprint(find(MEDIA_DIR, MEDIA))
-
-def test_index():
-    # index = build_index()
-    # results = index.search('bulke')
-    # documents = [index.get_document(result) for result in results]
-    # documents = search_index(build_index(), 'direkte')
-    # documents = search_index(build_index(), 'peive')
-    # pprint(documents)
-    print(1)
-
-def equals(a, b):
-    assert a == b, f"{a} != {b}"
+def equals(a, b): assert a == b, f"{a} != {b}"
 
 class Search:
     def trigrams(word): return [word[i:i+3] for i in range(len(word)-2)] or [word]
@@ -369,27 +299,6 @@ def test_search():
     pprint(search.get_documents(search.search("porten")))
     # equals([1], search.transform("smukke"))
 
-
-# def main():
-#     global index
-#     global MEDIA_DIR
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('media', nargs='+', help='Media directories', default=[MEDIA_DIR])
-#     args = parser.parse_args()
-#     logging.info(f"Args: {args}")
-
-#     MEDIA_DIR = args.media
-#     index = build_index()
-
-#     app = web.Application()
-#     app.router.add_get('/', serve_index)
-#     app.router.add_get('/search_content', search_content)
-#     app.router.add_get('/media/{file_name:.*}', fetch_media)
-#     app.router.add_get('/media', list_media)
-#     app.router.add_static('/assets/', path=ASSETS, name='assets')
-
-#     web.run_app(app, host="127.0.0.1", port=4000)
-
 ui.add_css('''
 :root {
     --nicegui-default-padding: 1.0rem;
@@ -470,18 +379,11 @@ def main():
         nonlocal current_file
         current_file = file
         commands.clear()
-        if offset >= 0:
-            at = subtitles[offset].start
-            commands.append(lambda: player.seek_and_play(at))
-        else:
-            commands.append(lambda: player.play())
+        at = 0.0 if offset < 0 else subtitles[offset].start
+        commands.append(lambda: player.seek_and_play(at))
         draw.refresh()
-        # player.play
 
-    def play_line(sub: Subtitle):
-        player.seek_and_play(sub.start)
-        # player.currentTime = parse_timestamp(sub.start_time
-
+    def play_line(sub: Subtitle): player.seek_and_play(sub.start)
     async def player_position():
         return await ui.run_javascript("document.querySelector('audio').currentTime")
     async def player_update(ev):
