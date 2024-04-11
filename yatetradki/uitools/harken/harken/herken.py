@@ -28,6 +28,7 @@ from pydantic import BaseModel
 
 from nicegui import ui, app
 from nicegui.elements.button import Button
+from nicegui.elements.input import Input
 from nicegui.events import KeyEventArguments
 
 
@@ -362,6 +363,7 @@ class UiState:
     player: MyPlayer
     button_record: Button
     button_play: Button
+    search_field: Input
     search_query: str
     commands: [Callable]
 
@@ -391,6 +393,7 @@ def main():
         player=MyPlayer(None),
         button_record=None,
         button_play=None,
+        search_field=None,
         search_query='',
         commands=[]
     )
@@ -420,6 +423,8 @@ def main():
             state.button_record.run_method('click')
         elif ev.key == 'p' and ev.action.keydown:
             state.button_play.run_method('click')
+        elif ev.key == 'k' and ev.action.keydown:
+            state.search_field.run_method('focus')
 
     @ui.refreshable
     def redraw_search(query=None):
@@ -468,10 +473,10 @@ if (window.recorder && window.recorder.state === 'recording') {
         keyboard = ui.keyboard(on_key=on_key)
         nonlocal state
         with ui.row().classes('w-full'):
-            p = ui.input(label='Search by word', 
-                         value=state.search_query,
-                         placeholder='Type something to search',
-                         on_change=on_search).classes('w-2/12 pl-1')
+            state.search_field = ui.input(label='Search by word',
+                                          value=state.search_query,
+                                          placeholder='Type something to search',
+                                          on_change=on_search).classes('w-2/12 pl-1')
             state.button_record = ui.button('R').on('click', on_record_toggle).classes('outline-3')
             state.button_play = ui.button('P').on('click', on_record_play)
             state.player.player = ui.audio(state.current_file.media).classes('w-9/12')
