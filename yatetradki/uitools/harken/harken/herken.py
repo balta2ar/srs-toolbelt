@@ -451,8 +451,24 @@ if (window.recorder && window.recorder.state === 'recording') {
     return false
 } else {
     navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        const context = new AudioContext()
+        const source = context.createMediaStreamSource(stream)
+        const compressor = context.createDynamicsCompressor()
+
+        compressor.threshold.setValueAtTime(-50, context.currentTime) // dB
+        compressor.knee.setValueAtTime(40, context.currentTime) // dB
+        compressor.ratio.setValueAtTime(12, context.currentTime)
+        compressor.attack.setValueAtTime(0, context.currentTime) // seconds
+        compressor.release.setValueAtTime(0.25, context.currentTime) // seconds
+
+        source.connect(compressor)
+        //compressor.connect(context.destination)
+        const destination = context.createMediaStreamDestination()
+        compressor.connect(destination)
+
         window.chunks = []
-        window.recorder = new MediaRecorder(stream)
+        //window.recorder = new MediaRecorder(stream)
+        window.recorder = new MediaRecorder(destination.stream)
         window.recorder.addEventListener('dataavailable', e => { window.chunks.push(e.data) })
         window.recorder.addEventListener('stop', e => {
             const blob = new Blob(window.chunks, { type: 'audio/ogg; codecs=opus' })
@@ -477,7 +493,7 @@ if (window.recorder && window.recorder.state === 'recording') {
                                           value=state.search_query,
                                           placeholder='Type something to search',
                                           on_change=on_search).classes('w-2/12 pl-1')
-            state.button_record = ui.button('R').on('click', on_record_toggle).classes('outline-3')
+            state.button_record = ui.button('R').on('click', on_record_toggle)
             state.button_play = ui.button('P').on('click', on_record_play)
             state.player.player = ui.audio(state.current_file.media).classes('w-9/12')
             state.player.player.on('timeupdate', player_update)
