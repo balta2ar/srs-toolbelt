@@ -18,7 +18,8 @@ setup(
             # and `your_package.module:function` with the actual callable you want to run.
             # Example:
             # 'your_script = your_package.module:function',
-            'srst-harken=harken.harken:main'
+            'srst-harken=harken.harken:main',
+            'srst-herken=harken.herken:main'
         ],
     },
     author='Yuri Bochkarev',

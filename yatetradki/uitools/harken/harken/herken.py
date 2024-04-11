@@ -330,7 +330,7 @@ class UiState:
     search_query: str
     commands: [Callable]
 
-def main():
+def main(reload=False):
     parser = argparse.ArgumentParser()
     parser.add_argument('dirs', nargs='+', help='Media directories, can be several')
     args = parser.parse_args()
@@ -517,8 +517,8 @@ console.log('Dynamic compression added')
         for c in state.commands: c()
         state.commands.clear()
     draw()
-    ui.run(title='herken', show=False)
+    ui.run(title='herken', show=False, reload=reload)
 
 
 if __name__ in {'__main__', '__mp_main__'}:
-    main()
+    main(reload=True)
