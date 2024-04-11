@@ -520,7 +520,7 @@ console.log('Dynamic compression added')
             state.button_record = ui.button('R').on('click', on_record_toggle).tooltip('Record audio')
             state.button_play = ui.button('P').on('click', on_record_play).tooltip('Play recorded audio')
             state.button_compress = ui.button('C').on('click', on_add_dynamic_compression).tooltip('Add dynamic compression')
-            state.player.player = ui.audio(state.current_file.media).classes('w-9/12')
+            state.player.player = ui.audio(state.current_file.media).classes('w-8/12')
             state.player.player.on('timeupdate', player_update)
         with ui.row().classes('w-full'):
             with ui.column().classes('border w-4/12'):
