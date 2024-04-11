@@ -131,7 +131,7 @@ from html2text import HTML2Text
 
 from yatetradki.reader.dsl import lookup as dsl_lookup
 from yatetradki.uitools.index.search import search as index_search
-from yatetradki.tools.telega import TdlibClient, WordLogger
+#from yatetradki.tools.telega import TdlibClient, WordLogger
 from yatetradki.utils import must_env
 
 FORMAT = '%(asctime)-15s %(levelname)s %(message)s'
@@ -142,7 +142,8 @@ WINDOW_TITLE = 'Ordbok'
 WINDOW_WIDTH = 1300
 WINDOW_HEIGHT = 800
 UPDATE_DELAY = 1000
-DIR = Path(dirname(__file__))
+DIR = Path(expanduser(expandvars('$HOME/share/btsync/prg/srs-toolbelt/yatetradki/uitools/ordbok')))
+#DIR = Path(dirname(__file__))
 ICON_FILENAME = str(DIR / 'ordbok.png')
 TEMPLATE_DIR = DIR / 'static' / 'html'
 STATIC_DIR = DIR / 'static'
@@ -1438,7 +1439,7 @@ class MainWindow(QWidget):
 
     def activate(self):
         self.grab_clipboard()
-        self.center()
+        # self.center()
         self.unminimize()
         self.raise_()
         self.show()
@@ -1886,7 +1887,7 @@ def main():
     tray.show()
 
     dog.observe(lambda: window.myActivate.emit())
-    track_history(window.myTranslate)
+    #track_history(window.myTranslate)
 
     result = qtApp.exec()
 

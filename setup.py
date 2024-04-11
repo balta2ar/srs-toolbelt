@@ -144,6 +144,7 @@ setup(
             'srst-anki-sync-notion=yatetradki.tools.anki_notion:main',
             'srst-add-audio=yatetradki.tools.add_audio:main',
             'srst-ordbok=yatetradki.uitools.ordbok.ordbok:main',
+            #'srst-harken=yatetradki.uitools.harken.harken:main',
             'srst-dehyphen=yatetradki.uitools.dehyphen.dehyphen:main',
             'srst-sayit=yatetradki.uitools.sayit.sayit:main',
             'srst-textmarksman=yatetradki.uitools.textmarksman.textmarksman:main',

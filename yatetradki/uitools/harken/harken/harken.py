@@ -17,7 +17,11 @@ from inspect import isgenerator
 from aiohttp import web
 from pydantic import BaseModel
 
+import pkg_resources
+ASSETS = pkg_resources.resource_filename('harken', 'assets')
+
 logging.basicConfig(level=logging.DEBUG)
+logging.info(f"Starting harken. ASSETS={ASSETS}")
 
 MEDIA = ['.mp3', '.mp4', '.mkv', '.avi', '.webm', '.opus', '.ogg']
 SUBS = ['.vtt']
@@ -148,7 +152,7 @@ async def list_media(request):
     return web.json_response({'media_files': out})
 
 async def serve_index(request):
-    content = open('assets/index.html', 'r').read()
+    content = open(join(ASSETS, 'index.html'), 'r').read()
     return web.Response(text=content, content_type='text/html')
 
 async def search_content(request):
@@ -329,20 +333,23 @@ def test_search():
 
 
 def main():
-    app = web.Application()
-    app.router.add_get('/', serve_index)
-    app.router.add_get('/search_content', search_content)
-    app.router.add_get('/media/{file_name:.*}', fetch_media)
-    app.router.add_get('/media', list_media)
-    app.router.add_static('/assets/', 'assets')
-
-    web.run_app(app, host="127.0.0.1", port=4000)
-
-if __name__ == "__main__":
+    global index
+    global MEDIA_DIR
     parser = argparse.ArgumentParser()
     parser.add_argument('media', help='Media directory', default=MEDIA_DIR)
     args = parser.parse_args()
 
     MEDIA_DIR = args.media
     index = build_index()
+
+    app = web.Application()
+    app.router.add_get('/', serve_index)
+    app.router.add_get('/search_content', search_content)
+    app.router.add_get('/media/{file_name:.*}', fetch_media)
+    app.router.add_get('/media', list_media)
+    app.router.add_static('/assets/', path=ASSETS, name='assets')
+
+    web.run_app(app, host="127.0.0.1", port=4000)
+
+if __name__ == "__main__":
     main()

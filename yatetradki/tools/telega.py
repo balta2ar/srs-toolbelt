@@ -204,6 +204,7 @@ class WordLogger:
         self.tg = tg
         self.chat_id = chat_id
     def add(self, word):
+        return
         logging.info('Telegram: adding word: %s', word)
         word = word.strip().lower()
         latest = self.tg.get_latest_message(chat_id=self.chat_id)
