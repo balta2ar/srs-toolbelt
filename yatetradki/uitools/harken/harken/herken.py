@@ -213,6 +213,7 @@ def find(where: str, subs: Iterable[str], medias: Iterable[str]) -> List[NamedPa
                     # relative_path = os.path.relpath(os.path.join(root, filename), where)
                     result.append(NamedPair(sub=sub, media=media))
     logging.info(f"Found {len(result)} pairs at {where}")
+    result.sort(key=lambda x: x.media)
     return result
 
 class Corpus:
@@ -289,6 +290,9 @@ class MyPlayer:
     def play(self):
         self.player.play()
         self.playing = True
+    def pause(self):
+        self.player.pause()
+        self.playing = False
     def toggle(self):
         if self.playing: self.player.pause()
         else: self.player.play()
@@ -309,8 +313,10 @@ class SubtitleLines:
         elif isinstance(at, float): index = max(0, bisect_left(self.starts, at)-1)
         else: raise ValueError(f"Invalid type {type(at)}: {at}")
         self.lines[self.current_line].classes(remove='active')
-        self.lines[index].classes(add='active')
-        self.current_line = index
+        valid = 0 <= index < len(self.lines)
+        if valid:
+            self.lines[index].classes(add='active')
+            self.current_line = index
     def add(self, line, start):
         self.lines.append(line)
         self.starts.append(start)
@@ -390,6 +396,8 @@ def main(reload=False):
     def on_key(ev: KeyEventArguments):
         if ev.key == 'v' and ev.action.keydown:
             state.player.toggle()
+        elif ev.key == 't' and ev.action.keydown:
+            state.player.toggle()
         elif ev.key == 'w' and ev.action.keydown:
             replay_current_line()
         elif ev.key == 'q' and ev.action.keydown:
@@ -399,6 +407,8 @@ def main(reload=False):
         elif ev.key == 'r' and ev.action.keydown:
             state.button_record.run_method('click')
         elif ev.key == 'p' and ev.action.keydown:
+            state.button_play.run_method('click')
+        elif ev.key == 's' and ev.action.keydown:
             state.button_play.run_method('click')
         elif ev.key == 'c' and ev.action.keydown:
             state.button_compress.run_method('click')
@@ -459,9 +469,20 @@ if (window.recorder && window.recorder.state === 'recording') {
     return true
 }
 ''')
-        self.sender.props(f'color={"red" if recording else "green"}')
-    def on_record_play():
-        ui.run_javascript('window.audio.play()')
+        state.button_record.props(f'color={"red" if recording else "green"}')
+    async def on_record_play():
+        await ui.run_javascript('''
+if (window.recorder && window.recorder.state === 'recording') {
+    window.recorder.addEventListener('stop', e => {
+        window.audio.play()
+    })
+    window.recorder.stop()
+    return true    
+}
+window.audio.play()
+return true
+''')
+        state.button_record.props(f'color={"green"}')
     def on_add_dynamic_compression(self):
         ui.run_javascript('''
 const context = new AudioContext()
