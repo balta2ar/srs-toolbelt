@@ -95,9 +95,7 @@ def parse_timestamp_seconds(s):
 
 class Subtitle(BaseModel):
     start_time: str
-    start: float
     end_time: str
-    end: float
     text: str
     offset: int
     @property
@@ -444,9 +442,9 @@ def main():
     async def player_position():
         return await ui.run_javascript("document.querySelector('audio').currentTime")
     async def player_update(ev):
-        print(ev)
+        # print(ev)
         at = await player_position()
-        print(at)
+        # print(at)
         # ui.notification(f'Player time: {ts}')
 
     @ui.refreshable
@@ -467,8 +465,8 @@ def main():
                 for s in subtitles:
                     on_click = lambda s=s: play_line(s)
                     with ui.row().classes('pl-4 hover:ring-1'):
-                        ui.label('>').on('click', on_click).classes('cursor-pointer')
-                        ui.label(f'{s.text}')
+                        # ui.label('>').on('click', on_click).classes('cursor-pointer')
+                        ui.label(f'{s.text}').on('dblclick', on_click)
         for c in commands: c()
         commands.clear()
     # ui.button('Click me', on_click=on_click)
