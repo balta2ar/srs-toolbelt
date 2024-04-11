@@ -374,6 +374,13 @@ def main():
         draw.refresh()
 
     def play_line(sub: Subtitle): state.player.seek_and_play(sub.start)
+    def play_line_by_index(index: int):
+        index = max(0, min(index, len(state.subtitles)-1))
+        state.sub_lines.activate(index)
+        play_line(state.subtitles[index])
+    def replay_current_line(): play_line_by_index(state.sub_lines.current_line)
+    def play_previous_line(): play_line_by_index(state.sub_lines.current_line - 1)
+    def play_next_line(): play_line_by_index(state.sub_lines.current_line + 1)
     async def player_position():
         return await ui.run_javascript("document.querySelector('audio').currentTime")
     async def player_update(ev):
@@ -383,6 +390,12 @@ def main():
     def on_key(ev: KeyEventArguments):
         if ev.key == 'v' and ev.action.keydown:
             state.player.toggle()
+        elif ev.key == 'w' and ev.action.keydown:
+            replay_current_line()
+        elif ev.key == 'q' and ev.action.keydown:
+            play_previous_line()
+        elif ev.key == 'f' and ev.action.keydown:
+            play_next_line()
         elif ev.key == 'r' and ev.action.keydown:
             state.button_record.run_method('click')
         elif ev.key == 'p' and ev.action.keydown:
