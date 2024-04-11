@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from nicegui import ui, app
 from nicegui.elements.button import Button
 from nicegui.elements.input import Input
+from nicegui.elements.audio import Audio
 from nicegui.events import KeyEventArguments
 
 
@@ -321,8 +322,8 @@ def on_click():
     ui.notify('Button clicked!')
 
 class MyPlayer:
-    def __init__(self, player):
-        self.player = player
+    def __init__(self, player: Audio):
+        self.player: Audio = player
         self.playing = False
     def play(self):
         self.player.play()
@@ -363,6 +364,7 @@ class UiState:
     player: MyPlayer
     button_record: Button
     button_play: Button
+    button_compress: Button
     search_field: Input
     search_query: str
     commands: [Callable]
@@ -393,6 +395,7 @@ def main():
         player=MyPlayer(None),
         button_record=None,
         button_play=None,
+        button_compress=None,
         search_field=None,
         search_query='',
         commands=[]
@@ -423,6 +426,8 @@ def main():
             state.button_record.run_method('click')
         elif ev.key == 'p' and ev.action.keydown:
             state.button_play.run_method('click')
+        elif ev.key == 'c' and ev.action.keydown:
+            state.button_compress.run_method('click')
         elif ev.key == 'k' and ev.action.keydown:
             state.search_field.run_method('focus')
 
@@ -483,6 +488,25 @@ if (window.recorder && window.recorder.state === 'recording') {
         self.sender.props(f'color={"red" if recording else "green"}')
     def on_record_play():
         ui.run_javascript('window.audio.play()')
+    def on_add_dynamic_compression(self):
+        ui.run_javascript('''
+const context = new AudioContext()
+const audioElement = document.querySelector('audio')
+const source = context.createMediaElementSource(audioElement)
+const compressor = context.createDynamicsCompressor()
+
+compressor.threshold.setValueAtTime(-50, context.currentTime) // dB
+compressor.knee.setValueAtTime(40, context.currentTime) // dB
+compressor.ratio.setValueAtTime(12, context.currentTime)
+compressor.attack.setValueAtTime(0, context.currentTime) // seconds
+compressor.release.setValueAtTime(0.25, context.currentTime) // seconds
+
+source.connect(compressor)
+compressor.connect(context.destination)
+console.log('Dynamic compression added')
+''')
+        self.sender.props(f'color={"green"}')
+        self.sender.disable()
 
     @ui.refreshable
     def draw():
@@ -493,8 +517,9 @@ if (window.recorder && window.recorder.state === 'recording') {
                                           value=state.search_query,
                                           placeholder='Type something to search',
                                           on_change=on_search).classes('w-2/12 pl-1')
-            state.button_record = ui.button('R').on('click', on_record_toggle)
-            state.button_play = ui.button('P').on('click', on_record_play)
+            state.button_record = ui.button('R').on('click', on_record_toggle).tooltip('Record audio')
+            state.button_play = ui.button('P').on('click', on_record_play).tooltip('Play recorded audio')
+            state.button_compress = ui.button('C').on('click', on_add_dynamic_compression).tooltip('Add dynamic compression')
             state.player.player = ui.audio(state.current_file.media).classes('w-9/12')
             state.player.player.on('timeupdate', player_update)
         with ui.row().classes('w-full'):
