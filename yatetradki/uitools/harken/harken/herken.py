@@ -423,6 +423,7 @@ def main():
     current_file = files[0]
     subtitles: [Subtitle] = list(parse_subtitles(current_file.sub))
     player = None
+    commands = []
     logging.info(f"Media files: {len(files)}")
 
     def load_media(file: str):
@@ -430,6 +431,8 @@ def main():
         subtitles.extend(list(parse_subtitles(media2sub[file.media].sub)))
         nonlocal current_file
         current_file = file
+        commands.clear()
+        commands.append(lambda: player.play())
         draw.refresh()
         # player.play
 
@@ -438,9 +441,11 @@ def main():
         player.play()
         # player.currentTime = parse_timestamp(sub.start_time
 
-    def player_update(ev):
+    async def player_position():
+        return await ui.run_javascript("document.querySelector('audio').currentTime")
+    async def player_update(ev):
         print(ev)
-        at = ev.args['timeStamp']
+        at = await player_position()
         print(at)
         # ui.notification(f'Player time: {ts}')
 
@@ -464,6 +469,8 @@ def main():
                     with ui.row().classes('pl-4 hover:ring-1'):
                         ui.label('>').on('click', on_click).classes('cursor-pointer')
                         ui.label(f'{s.text}')
+        for c in commands: c()
+        commands.clear()
     # ui.button('Click me', on_click=on_click)
     # draw(current_file.media, subtitles)
     draw()
