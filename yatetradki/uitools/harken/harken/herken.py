@@ -81,11 +81,29 @@ def search_index(index, q):
 
 index = None
 
+def parse_timestamp(s):
+    """
+    00:00:26,240
+    00:00:09.320
+    """
+    h, m, s_ms = s.split(':')
+    s, ms = s_ms.replace('.', ',').split(',')
+    return int(h) * 3600000 + int(m) * 60000 + int(s) * 1000 + int(ms)
+
+def parse_timestamp_seconds(s):
+    return parse_timestamp(s) / 1000.0
+
 class Subtitle(BaseModel):
     start_time: str
+    start: float
     end_time: str
+    end: float
     text: str
     offset: int
+    @property
+    def start(self) -> float: return parse_timestamp_seconds(self.start_time)
+    @property
+    def end(self) -> float: return parse_timestamp_seconds(self.end_time)
 
 class MediaDetail(BaseModel):
     file_name: str
@@ -243,15 +261,6 @@ class Search:
         return result
     def get_document(self, doc_id): return self.docs[doc_id]
     def get_documents(self, doc_ids): return [self.get_document(doc_id) for doc_id in doc_ids]
-
-def parse_timestamp(s):
-    """
-    00:00:26,240
-    00:00:09.320
-    """
-    h, m, s_ms = s.split(':')
-    s, ms = s_ms.replace('.', ',').split(',')
-    return int(h) * 3600000 + int(m) * 60000 + int(s) * 1000 + int(ms)
 
 def consume(line, pattern, *parsers):
     matches = re.match(pattern, line)
@@ -413,8 +422,7 @@ def main():
     media2sub = {m.media: m for m in files}
     current_file = files[0]
     subtitles: [Subtitle] = list(parse_subtitles(current_file.sub))
-    # logging.info(f"Media files: {len(media_files)}")
-    # media_files = media_files[:10]
+    player = None
     logging.info(f"Media files: {len(files)}")
 
     def load_media(file: str):
@@ -423,12 +431,19 @@ def main():
         nonlocal current_file
         current_file = file
         draw.refresh()
+        # player.play
+
+    def play_line(sub: Subtitle):
+        player.seek(sub.start)
+        player.play()
+        # player.currentTime = parse_timestamp(sub.start_time
 
     @ui.refreshable
     def draw():
+        nonlocal player
         with ui.row().classes('w-full'):
             ui.input(label='Search by word', placeholder='Type something to search').classes('w-2/12')
-            a = ui.audio(current_file.media).classes('w-9/12')
+            player = ui.audio(current_file.media).classes('w-9/12')
         with ui.row().classes('w-full'):
             with ui.column().classes('border w-5/12'):
                 for f in files:
@@ -438,8 +453,9 @@ def main():
                     else: ui.label(f.media).on('click', on_click).classes(classes)
             with ui.column().classes('border w-5/12'):
                 for s in subtitles:
+                    on_click = lambda s=s: play_line(s)
                     with ui.row().classes('pl-4 hover:ring-1'):
-                        ui.label('>')
+                        ui.label('>').on('click', on_click).classes('cursor-pointer')
                         ui.label(f'{s.text}')
     # ui.button('Click me', on_click=on_click)
     # draw(current_file.media, subtitles)
