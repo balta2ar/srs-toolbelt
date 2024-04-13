@@ -937,7 +937,7 @@ class NaobWord(WordGetter):
         words = self.words(soup)[:5] # can be a lot of candidates here
         if words:
             soups = await gather(*[self.get_soup(w) for w in words])
-            self.html = ''.join(self.parse(s) for s in soups)
+            self.html = '<hr>'.join(self.parse(s) for s in soups)
         return self.styled()
     async def get_soup(self, word):
         return parse(await self.client.get_async(self.get_url(word), selector='main > div.container', wait_until='domcontentloaded'))
