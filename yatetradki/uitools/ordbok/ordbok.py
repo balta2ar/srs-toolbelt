@@ -92,7 +92,7 @@ from itertools import groupby
 from pathlib import Path
 from contextvars import ContextVar
 from operator import ne
-from typing import NamedTuple, Iterable
+from typing import NamedTuple, Iterable, List
 from asyncio import new_event_loop
 from asyncio import set_event_loop
 from asyncio import get_event_loop
@@ -932,9 +932,15 @@ class TrExMeEnNoWord(TrExMe):
 
 class NaobWord(WordGetter):
     async def get_async(self):
-        soup = parse(await self.client.get_async(self.get_url(self.word), selector='main > div.container', wait_until='domcontentloaded'))
-        self.parse(soup)
+        soup = await self.get_soup(self.word)
+        self.html = self.parse(soup)
+        words = self.words(soup)[:5] # can be a lot of candidates here
+        if words:
+            soups = await gather(*[self.get_soup(w) for w in words])
+            self.html = ''.join(self.parse(s) for s in soups)
         return self.styled()
+    async def get_soup(self, word):
+        return parse(await self.client.get_async(self.get_url(word), selector='main > div.container', wait_until='domcontentloaded'))
     def parse(self, soup):
         article = soup.select_one('div.article')
         container = soup.select_one('main > div.container')
@@ -942,11 +948,14 @@ class NaobWord(WordGetter):
         main = remove_one(main, '.vipps-box')
         main = remove_one(main, '.prompt')
         if article:
-            self.html = extract('NaobWord', main, 'div', {'class': 'article'})
+            return extract('NaobWord', main, 'div', {'class': 'article'})
         elif container.select_one('div.list-item'):
-            self.html = extract('NoabWord', main, 'div', {'class': 'container'})
+            return extract('NoabWord', main, 'div', {'class': 'container'})
         else:
             raise NoContent('NaobWord: word="{0}"'.format(self.word))
+    def words(self, soup) -> List[str]:
+        headwords = soup.find_all('a', {'class': 'article-headword'})
+        return [a['href'].split('/')[-1] for a in headwords]
     def styled(self):
         return self.style() + self.html
     def style(self):
@@ -1892,8 +1901,10 @@ def main():
     result = qtApp.exec()
 
 def testnaob(word):
-    client = CachedHttpClient(DynamicHttpClient(), 'cache')
-    print(NaobWord(client, word).html)
+    # client = CachedHttpClient(DynamicHttpClient(), 'cache')
+    client = DynamicHttpClient()
+    out = async_run(NaobWord(client, word).get_async())
+    print(out)
 
 def testdeepl1(word1, word2):
     async def fetch():
