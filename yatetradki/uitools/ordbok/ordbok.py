@@ -967,7 +967,8 @@ class OrdbokeneWord(WordGetter):
     # https://ordbokene.no/bm/search?q=mor&scope=ei
     async def get_async(self):
         action = "for (let x of document.querySelectorAll('button.show-inflection')) x.click()"
-        selector = 'div.hits, div.no_results'
+        # selector = 'div.hits, div.no_results'
+        selector = 'div.article-column'
         soup = parse(await self.client.get_async(self.get_url(self.word), selector=selector, action=action))
         self.parse(soup)
         return self.styled()
@@ -975,10 +976,11 @@ class OrdbokeneWord(WordGetter):
         no_results = soup.select_one('div.no_results')
         if no_results:
             raise NoContent('OrdbokeneWord: word="{0}"\n\n{1}'.format(self.word, no_results.prettify()))
+        soup = remove_all(soup, 'div.items-end')
         soup = remove_all(soup, 'div.dict-label-top')
         soup = remove_all(soup, 'div.article_footer')
         soup = remove_all(soup, 'span.inflection-wrapper')
-        main = extract('OrdbokeneWord', soup, 'div', {'class': 'hits'})
+        main = extract('OrdbokeneWord', soup, 'div', {'class': 'article-column'})
         self.html = main
     def styled(self):
         return self.style() + self.html
@@ -1903,7 +1905,8 @@ def main():
 def testnaob(word):
     # client = CachedHttpClient(DynamicHttpClient(), 'cache')
     client = DynamicHttpClient()
-    out = async_run(NaobWord(client, word).get_async())
+    # out = async_run(NaobWord(client, word).get_async())
+    out = async_run(OrdbokeneWord(client, word).get_async())
     print(out)
 
 def testdeepl1(word1, word2):
