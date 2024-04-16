@@ -966,20 +966,24 @@ class NaobWord(WordGetter):
 class OrdbokeneWord(WordGetter):
     # https://ordbokene.no/bm/search?q=mor&scope=ei
     async def get_async(self):
-        action = "for (let x of document.querySelectorAll('button.show-inflection')) x.click()"
+        # action = "for (let x of document.querySelectorAll('button.show-inflection')) x.click()"
+        action = "for (let x of document.querySelectorAll('button.btn-primary')) x.click()"
         # selector = 'div.hits, div.no_results'
-        selector = 'div.article-column'
+        # selector = 'div.article-column'
+        selector = 'h2#bm_heading'
         soup = parse(await self.client.get_async(self.get_url(self.word), selector=selector, action=action))
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
-        no_results = soup.select_one('div.no_results')
-        if no_results:
+        no_results = soup.select_one('span.result-count-text')
+        if no_results and no_results.text.strip() == '0':
             raise NoContent('OrdbokeneWord: word="{0}"\n\n{1}'.format(self.word, no_results.prettify()))
+        soup = remove_all(soup, 'button.btn-primary')
         soup = remove_all(soup, 'div.items-end')
         soup = remove_all(soup, 'div.dict-label-top')
         soup = remove_all(soup, 'div.article_footer')
-        soup = remove_all(soup, 'span.inflection-wrapper')
+        soup = remove_all(soup, 'table.infl-table')
+        # soup = remove_all(soup, 'span.inflection-wrapper')
         main = extract('OrdbokeneWord', soup, 'div', {'class': 'article-column'})
         self.html = main
     def styled(self):
@@ -987,16 +991,19 @@ class OrdbokeneWord(WordGetter):
     def style(self):
         return css('ordbokene-word.css')
     def get_url(self, word):
-        return 'https://ordbokene.no/bm/search?q={0}&scope=ei'.format(word)
+        # return 'https://ordbokene.no/nno/bm,nn/trone?orig=tronet{0}'.format(word)
+        return 'https://ordbokene.no/bm/search?q={0}'.format(word)
+        # return 'https://ordbokene.no/bm/search?q={0}&scope=ei'.format(word)
 
 class OrdbokeneInflect(OrdbokeneWord):
     def parse(self, soup):
-        no_results = soup.select_one('div.no_results')
-        if no_results:
+        no_results = soup.select_one('span.result-count-text')
+        if no_results and no_results.text.strip() == '0':
             raise NoContent('OrdbokeneWord: word="{0}"\n\n{1}'.format(self.word, no_results.prettify()))
-        soup = remove_all(soup, 'button')
+        # soup = remove_all(soup, 'button.btn-primary')
         parts = []
-        for tag in soup.select('span.inflection-wrapper'):
+        # for tag in soup.select('span.inflection-wrapper'):
+        for tag in soup.select('table.infl-table'):
             parts.append(tag.prettify())
         self.html = '\n'.join(parts)
 
@@ -1507,7 +1514,7 @@ class MainWindow(QWidget):
         return word == self.text()
 
     def text(self):
-        return self.comboBox.currentText()
+        return self.comboBox.currentText().lower()
 
     # def eventFilter(self, obj, e):
     #     if isinstance(e, QKeyEvent):
@@ -1906,7 +1913,8 @@ def testnaob(word):
     # client = CachedHttpClient(DynamicHttpClient(), 'cache')
     client = DynamicHttpClient()
     # out = async_run(NaobWord(client, word).get_async())
-    out = async_run(OrdbokeneWord(client, word).get_async())
+    # out = async_run(OrdbokeneWord(client, word).get_async())
+    out = async_run(OrdbokeneInflect(client, word).get_async())
     print(out)
 
 def testdeepl1(word1, word2):
