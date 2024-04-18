@@ -967,11 +967,14 @@ class OrdbokeneWord(WordGetter):
     # https://ordbokene.no/bm/search?q=mor&scope=ei
     async def get_async(self):
         # action = "for (let x of document.querySelectorAll('button.show-inflection')) x.click()"
+        # action = "document.querySelector('form').submit(); for (let x of document.querySelectorAll('button.btn-primary')) x.click();"
         action = "for (let x of document.querySelectorAll('button.btn-primary')) x.click()"
         # selector = 'div.hits, div.no_results'
         # selector = 'div.article-column'
         selector = 'h2#bm_heading'
-        soup = parse(await self.client.get_async(self.get_url(self.word), selector=selector, action=action))
+        word = await self.suggest1(self.word)
+        if not word: raise NoContent(f'OrdbokeneWord: word="{self.word}"')
+        soup = parse(await self.client.get_async(self.get_url(word), selector=selector, action=action))
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
@@ -986,13 +989,28 @@ class OrdbokeneWord(WordGetter):
         # soup = remove_all(soup, 'span.inflection-wrapper')
         main = extract('OrdbokeneWord', soup, 'div', {'class': 'article-column'})
         self.html = main
+    async def suggest1(self, word):
+        # {"q": "tronet", "cnt": 1, "cmatch": 0, "a": {"inflect": [["trone", 1]]}}
+        # {"q": "trone", "cnt": 5, "cmatch": 1, "a": {"exact": [["trone", 3], ["tronerving", 2], ["å trone", 3], ["bestige tronen", 1], ["sitte på tronen", 1]]}}
+        url = f'https://oda.uib.no/opal/prod/api/suggest?&q={word}&dict=bm,nn&n=20&dform=int&meta=n&include=ei'
+        data = await self.client.get_async(url)
+        logging.info('OrdbokeneWord.suggest1: %s', data)
+        resp = loads(data[data.find('{'):data.rfind('}')+1])
+        logging.info('OrdbokeneWord.suggest1 resp: %s', resp)
+        a = resp.get('a', {})
+        out = [None]
+        if 'exact' in a: out.append(a['exact'][0][0])
+        if 'inflect' in a: out.append(a['inflect'][0][0])
+        logging.info('OrdbokeneWord.suggest1 out: %s', out)
+        return out[-1]
     def styled(self):
         return self.style() + self.html
     def style(self):
         return css('ordbokene-word.css')
     def get_url(self, word):
         # return 'https://ordbokene.no/nno/bm,nn/trone?orig=tronet{0}'.format(word)
-        return 'https://ordbokene.no/bm/search?q={0}'.format(word)
+        return 'https://ordbokene.no/nno/bm,nn/{0}'.format(word)
+        # return 'https://ordbokene.no/bm/search?q={0}'.format(word)
         # return 'https://ordbokene.no/bm/search?q={0}&scope=ei'.format(word)
 
 class OrdbokeneInflect(OrdbokeneWord):
@@ -1912,6 +1930,7 @@ def main():
 def testnaob(word):
     # client = CachedHttpClient(DynamicHttpClient(), 'cache')
     client = DynamicHttpClient()
+    # client = StaticHttpClient()
     # out = async_run(NaobWord(client, word).get_async())
     # out = async_run(OrdbokeneWord(client, word).get_async())
     out = async_run(OrdbokeneInflect(client, word).get_async())
