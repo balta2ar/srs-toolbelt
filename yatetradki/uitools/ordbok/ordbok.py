@@ -306,17 +306,17 @@ class PlaywrightClientAsync(DynamicClient):
         disable_logging()
     def launch(self, p):
         return async_launch(p)
-    async def get_async(self, url, selector=None, extractor=None, action=None, wait_until='load'):
+    async def get_async(self, url, selector=None, extractor=None, action=None, action_selector=None, wait_until='load'):
         # if self.browser is None: await self.init()
         async with async_playwright() as p:
             browser = await self.launch(p)
             #browser = await p.firefox.launch(headless=True)
             page = await browser.new_page()
-            content = await self.get_async_page(page, url, selector, extractor, action, wait_until)
+            content = await self.get_async_page(page, url, selector, extractor, action, action_selector, wait_until)
             await page.close()
             await browser.close()
             return content
-    async def get_async_page(self, page, url, selector=None, extractor=None, action=None, wait_until='load'):
+    async def get_async_page(self, page, url, selector=None, extractor=None, action=None, action_selector=None, wait_until='load'):
         # if self.browser is None: await self.init()
         logging.info('dynamic client GOTO "%s", wait_until="%s"', url, wait_until)
         #url = 'https://www.deepl.com/translator#nb/en/brostein'
@@ -328,8 +328,12 @@ class PlaywrightClientAsync(DynamicClient):
             logging.debug('dynamic client done waiting for selector "%s"', selector)
         if action is not None:
             logging.debug('dynamic client running action "%s"', action)
-            await page.evaluate(action)
+            action_result = await page.evaluate(action)
             logging.debug('dynamic client done running action "%s"', action)
+            if action_selector is not None and action_result:
+                logging.debug('dynamic client waiting for action_selector "%s"', action_selector)
+                await page.wait_for_selector(action_selector, timeout=100)
+                logging.debug('dynamic client done waiting for action_selector "%s"', action_selector)
         ev = 'document.body.innerHTML'
         if extractor is not None:
             ev = 'document.querySelector("%s").innerHTML' % (extractor,)
@@ -339,12 +343,13 @@ class PlaywrightClientAsync(DynamicClient):
         return content
 
 class DynamicHttpClient:
-    async def get_async(self, url, selector=None, extractor=None, action=None, wait_until=None):
+    async def get_async(self, url, selector=None, extractor=None, action=None, action_selector=None, wait_until=None):
         return await PlaywrightClientAsync().get_async(
             url,
             selector=selector,
             extractor=extractor,
             action=action,
+            action_selector=action_selector,
             wait_until=wait_until)
 
 def get_dynamic(url):
@@ -968,13 +973,14 @@ class OrdbokeneWord(WordGetter):
     async def get_async(self):
         # action = "for (let x of document.querySelectorAll('button.show-inflection')) x.click()"
         # action = "document.querySelector('form').submit(); for (let x of document.querySelectorAll('button.btn-primary')) x.click();"
-        action = "for (let x of document.querySelectorAll('button.btn-primary')) x.click()"
+        action = "for (let x of document.querySelectorAll('button.btn-primary')) x.click(); document.querySelectorAll('button.btn-primary').length"
         # selector = 'div.hits, div.no_results'
-        # selector = 'div.article-column'
-        selector = 'h2#bm_heading'
+        selector = 'div.article-column'
+        action_selector = 'button.btn-primary'
+        # selector = 'h2#bm_heading'
         word = await self.suggest1(self.word)
         if not word: raise NoContent(f'OrdbokeneWord: word="{self.word}"')
-        soup = parse(await self.client.get_async(self.get_url(word), selector=selector, action=action))
+        soup = parse(await self.client.get_async(self.get_url(word), selector=selector, action=action, action_selector=action_selector, wait_until='networkidle'))
         self.parse(soup)
         return self.styled()
     def parse(self, soup):
@@ -1008,8 +1014,8 @@ class OrdbokeneWord(WordGetter):
     def style(self):
         return css('ordbokene-word.css')
     def get_url(self, word):
-        # return 'https://ordbokene.no/nno/bm,nn/trone?orig=tronet{0}'.format(word)
         return 'https://ordbokene.no/nno/bm,nn/{0}'.format(word)
+        # return 'https://ordbokene.no/nno/bm,nn/trone?orig=tronet{0}'.format(word)
         # return 'https://ordbokene.no/bm/search?q={0}'.format(word)
         # return 'https://ordbokene.no/bm/search?q={0}&scope=ei'.format(word)
 
@@ -1020,8 +1026,8 @@ class OrdbokeneInflect(OrdbokeneWord):
             raise NoContent('OrdbokeneWord: word="{0}"\n\n{1}'.format(self.word, no_results.prettify()))
         # soup = remove_all(soup, 'button.btn-primary')
         parts = []
-        # for tag in soup.select('span.inflection-wrapper'):
         for tag in soup.select('table.infl-table'):
+        # for tag in soup.select('div.infl-wrapper'):
             parts.append(tag.prettify())
         self.html = '\n'.join(parts)
 
