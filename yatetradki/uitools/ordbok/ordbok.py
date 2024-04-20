@@ -332,7 +332,7 @@ class PlaywrightClientAsync(DynamicClient):
             logging.debug('dynamic client done running action "%s"', action)
             if action_selector is not None and action_result:
                 logging.debug('dynamic client waiting for action_selector "%s"', action_selector)
-                await page.wait_for_selector(action_selector, timeout=100)
+                await page.wait_for_selector(action_selector, timeout=1000)
                 logging.debug('dynamic client done waiting for action_selector "%s"', action_selector)
         ev = 'document.body.innerHTML'
         if extractor is not None:
