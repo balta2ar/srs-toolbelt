@@ -62,6 +62,7 @@ async def audio_handler(update: Update, context):
             b = [buffer(caption, '#compressed'),
                  buffer(caption, '#card'),
                  buffer(caption, f'#{yyyymm}'),
+                 buffer(caption, '#rep0'),
             ]
             b = ' '.join(b)
             caption = append(caption, f'\n{b}').strip()
