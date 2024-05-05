@@ -38,6 +38,7 @@ def compress(original, result: str):
     cmd = ["ffmpeg", "-i", original,
         "-filter:a", "loudnorm,dynaudnorm,speechnorm,loudnorm",
         "-ac", "1", "-c:a", "libmp3lame",
+        # "-q:a", "9",
         result]
     logging.info('Running command: %s', ' '.join(cmd))
     return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
