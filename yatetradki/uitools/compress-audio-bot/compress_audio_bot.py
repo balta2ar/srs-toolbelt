@@ -49,7 +49,9 @@ def buffer(base, extra): return '' if extra.strip() in base else extra
 async def audio_handler(update: Update, context):
     logging.info('Message: %s', update.effective_message)
     ts = update.effective_message.date.strftime('%Y%m%d-%H%M%S')
-    yyyymm = update.effective_message.date.strftime('d%Y%m')
+    yyyy = update.effective_message.date.strftime('%Y')
+    yyyymm = update.effective_message.date.strftime('%Y%m')
+    yyyymmdd = update.effective_message.date.strftime('%Y%m%d')
     with TemporaryDirectory() as tmpdir:
         sound = update.effective_message.audio or update.effective_message.voice
         file = await sound.get_file()
@@ -62,7 +64,9 @@ async def audio_handler(update: Update, context):
             caption = update.effective_message.caption or ''
             b = [buffer(caption, '#compressed'),
                  buffer(caption, '#card'),
-                 buffer(caption, f'#{yyyymm}'),
+                 buffer(caption, f'y#{yyyy}'),
+                 buffer(caption, f'm#{yyyymm}'),
+                 buffer(caption, f'd#{yyyymmdd}'),
                  buffer(caption, '#rep0'),
             ]
             b = ' '.join(b)
