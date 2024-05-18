@@ -64,9 +64,9 @@ async def audio_handler(update: Update, context):
             caption = update.effective_message.caption or ''
             b = [buffer(caption, '#compressed'),
                  buffer(caption, '#card'),
-                 buffer(caption, f'y#{yyyy}'),
-                 buffer(caption, f'm#{yyyymm}'),
-                 buffer(caption, f'd#{yyyymmdd}'),
+                 buffer(caption, f'#y{yyyy}'),
+                 buffer(caption, f'#m{yyyymm}'),
+                 buffer(caption, f'#d{yyyymmdd}'),
                  buffer(caption, '#rep0'),
             ]
             b = ' '.join(b)
