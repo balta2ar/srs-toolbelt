@@ -507,11 +507,21 @@ console.log('Dynamic compression added')
     def draw():
         keyboard = ui.keyboard(on_key=on_key)
         nonlocal state
+        shortcuts = '''
+v / t -- Toggle player | 
+w -- Replay current line |
+q -- Play previous line |
+f -- Play next line |
+r -- Record |
+p / s -- Play |
+c -- Compress |
+k -- Focus on search field
+'''
         with ui.row().classes('w-full'):
             state.search_field = ui.input(label='Search by word',
                                           value=state.search_query,
                                           placeholder='Type something to search',
-                                          on_change=on_search).classes('w-2/12 pl-1')
+                                          on_change=on_search).classes('w-2/12 pl-1').tooltip(shortcuts)
             state.button_record = ui.button('R').on('click', on_record_toggle).tooltip('Record audio')
             state.button_play = ui.button('P').on('click', on_record_play).tooltip('Play recorded audio')
             state.button_compress = ui.button('C').on('click', on_add_dynamic_compression).tooltip('Add dynamic compression')
