@@ -97,6 +97,9 @@ from asyncio import new_event_loop
 from asyncio import set_event_loop
 from asyncio import get_event_loop
 from asyncio import gather
+from asyncio import wait
+from asyncio import create_task
+from asyncio import FIRST_COMPLETED
 from asyncio import ensure_future
 from asyncio import TimeoutError as AsyncioTimeoutError
 from asyncio import run_coroutine_threadsafe
@@ -301,6 +304,12 @@ def async_launch(p):
     logging.warning('browser: unknown hostname "%s", using chromium by default', hostname)
     return p.chromium.launch(headless=True)
 
+async def wait_for_either(page, selectors, timeout):
+    tasks = [create_task(page.wait_for_selector(s, timeout=timeout)) for s in selectors]
+    done, pending = await wait(tasks, return_when=FIRST_COMPLETED)
+    for task in pending: task.cancel()
+    return done.pop().result()
+
 class PlaywrightClientAsync(DynamicClient):
     def __init__(self):
         disable_logging()
@@ -323,8 +332,12 @@ class PlaywrightClientAsync(DynamicClient):
         await page.goto(url, wait_until=wait_until)
         logging.debug('dynamic client done GOTO "%s"', url)
         if selector is not None:
-            logging.debug('dynamic client waiting for selector "%s"', selector)
-            await page.wait_for_selector(selector, timeout=self.TIMEOUT)
+            if isinstance(selector, list):
+                logging.debug('dynamic client waiting for the first of multiple selectors "%s"', selector)
+                await wait_for_either(page, selector, timeout=self.TIMEOUT)
+            else:
+                logging.debug('dynamic client waiting for selector "%s"', selector)
+                await page.wait_for_selector(selector, timeout=self.TIMEOUT)
             logging.debug('dynamic client done waiting for selector "%s"', selector)
         if action is not None:
             logging.debug('dynamic client running action "%s"', action)
@@ -945,21 +958,35 @@ class NaobWord(WordGetter):
             self.html = '<hr>'.join(self.parse(s) for s in soups)
         return self.styled()
     async def get_soup(self, word):
-        return parse(await self.client.get_async(self.get_url(word), selector='main > div.container', wait_until='domcontentloaded'))
+        # return parse(await self.client.get_async(self.get_url(word), selector='main > div.container', wait_until='domcontentloaded'))
+        # return parse(await self.client.get_async(self.get_url(word), selector='main div.article', wait_until='domcontentloaded'))
+        selector = ['div.l-main', 'ul[class^="page_list"]', 'div[class^="page_feedback"]']
+        return parse(await self.client.get_async(self.get_url(word), selector=selector, wait_until='domcontentloaded'))
     def parse(self, soup):
         article = soup.select_one('div.article')
-        container = soup.select_one('main > div.container')
-        main = container.parent
-        main = remove_one(main, '.vipps-box')
-        main = remove_one(main, '.prompt')
+        container = soup.select_one('ul', class_=re.compile(r'^page_list')) #soup.select_one('div.l-main')
+        # import ipdb; ipdb.set_trace()
+        # no_content = '0 treff i artikler som inneholder' in soup.text
+        no_content = 'NEXT_NOT_FOUND' in soup.text
+        # main = container.parent
+        # main = remove_one(main, '.vipps-box')
+        # main = remove_one(main, '.prompt')
+        # open('naob.html', 'w').write(soup.prettify())
+        # import ipdb; ipdb.set_trace()
         if article:
-            return extract('NaobWord', main, 'div', {'class': 'article'})
-        elif container.select_one('div.list-item'):
-            return extract('NoabWord', main, 'div', {'class': 'container'})
-        else:
+            logging.info('NaobWord: article')
+            return extract('NaobWord', soup, 'div', {'class': 'article'})
+        elif no_content:
+            logging.info('NaobWord: NoContent')
             raise NoContent('NaobWord: word="{0}"'.format(self.word))
+        else:
+            logging.info('NaobWord: container: page_list')
+            return container.prettify()
+            # return extract('NoabWord', container, 'div', {'class': 'container'})
     def words(self, soup) -> List[str]:
-        headwords = soup.find_all('a', {'class': 'article-headword'})
+        # import ipdb; ipdb.set_trace()
+        # headwords = soup.find_all('a', {'class': 'article-headword'})
+        headwords = soup.find_all('a', class_=re.compile(r'^page_wordLink'))
         return [a['href'].split('/')[-1] for a in headwords]
     def styled(self):
         return self.style() + self.html
@@ -1937,9 +1964,9 @@ def testnaob(word):
     # client = CachedHttpClient(DynamicHttpClient(), 'cache')
     client = DynamicHttpClient()
     # client = StaticHttpClient()
-    # out = async_run(NaobWord(client, word).get_async())
+    out = async_run(NaobWord(client, word).get_async())
     # out = async_run(OrdbokeneWord(client, word).get_async())
-    out = async_run(OrdbokeneInflect(client, word).get_async())
+    # out = async_run(OrdbokeneInflect(client, word).get_async())
     print(out)
 
 def testdeepl1(word1, word2):
