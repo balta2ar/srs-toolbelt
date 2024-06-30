@@ -275,8 +275,14 @@ class NrkUrl:
     def from_url(url):
         # https://tv.nrk.no/serie/distriktsnyheter-nordland/202206/DKNO98061322/avspiller
         m = re.search(r'^https?://tv.nrk.no/(?P<type>\w+)/(?P<name>[^/]+)/(?P<ym>\d+)/(?P<dkno>DKNO\d+)(.+)?', url)
-        if not m: raise ValueError('Invalid url: %s' % url)
-        return NrkUrl(m.group('type'), m.group('name'), m.group('ym'), m.group('dkno'))
+        if m: return NrkUrl(m.group('type'), m.group('name'), m.group('ym'), m.group('dkno'))
+        # https://tv.nrk.no/serie/distriktsnyheter-nordland/sesong/202406/episode/DKNO98060624
+        m = re.search(r'^https?://tv.nrk.no/serie/(?P<name>[^/]+)/sesong/(?P<ym>\d+)/episode/(?P<dkno>DKNO\d+)', url)
+        if m: return NrkUrl('serie', m.group('name'), m.group('ym'), m.group('dkno'))
+        # https://tv.nrk.no/se?v=DKNO98060624
+        m = re.search(r'^https?://tv.nrk.no/se\?v=(?P<dkno>\w+)', url)
+        if m: return NrkUrl('type_NA', 'name_NA', 'ym_NA', m.group('dkno'))
+        raise ValueError('Invalid url: %s' % url)
 
 
 async def fetch_nrk_metadata(dkno):
@@ -392,10 +398,23 @@ class Episode:
     async def make(url):
         soup = BeautifulSoup(await async_http_get(url), 'html.parser')
         title = soup.find('title').text
-        date = soup.find('meta', property='video:release_date').get('content')
+        data = PageData(json.loads(soup.find('script', {'id': 'pageData'}).string))
+        date = data.release_date
+        #date = soup.find('meta', property='video:release_date').get('content')
         # 2022-06-01T22:55:00+02:00
-        date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S%z')
+        #date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S%z')
         return Episode(title, url, date)
 
     def __repr__(self):
         return f'<Episode title="{self.title}" url="{self.url}" date="{self.date}">'
+
+class PageData:
+    def __init__(self, data):
+        self.data = data
+    @property
+    def release_date(self):
+        id = self.data['initialState']['selectedEpisodePrfId']
+        for season in self.data['initialState']['seasons']:
+            for episode in season['episodes']:
+                if episode['prfId'] == id:
+                    return datetime.fromisoformat(episode['releaseDateOnDemand'].replace('[Date]', ''))

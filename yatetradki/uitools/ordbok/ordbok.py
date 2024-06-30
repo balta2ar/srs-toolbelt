@@ -1025,7 +1025,8 @@ class OrdbokeneWord(WordGetter):
     async def suggest1(self, word):
         # {"q": "tronet", "cnt": 1, "cmatch": 0, "a": {"inflect": [["trone", 1]]}}
         # {"q": "trone", "cnt": 5, "cmatch": 1, "a": {"exact": [["trone", 3], ["tronerving", 2], ["å trone", 3], ["bestige tronen", 1], ["sitte på tronen", 1]]}}
-        url = f'https://oda.uib.no/opal/prod/api/suggest?&q={word}&dict=bm,nn&n=20&dform=int&meta=n&include=ei'
+        # url = f'https://oda.uib.no/opal/prod/api/suggest?&q={word}&dict=bm,nn&n=20&dform=int&meta=n&include=ei'
+        url = f'https://oda.uib.no/opal/prod/api/suggest?&q={word}&dict=bm&n=20&dform=int&meta=n&include=ei'
         data = await self.client.get_async(url)
         logging.info('OrdbokeneWord.suggest1: %s', data)
         resp = loads(data[data.find('{'):data.rfind('}')+1])
@@ -1966,6 +1967,14 @@ def testnaob(word):
     # client = StaticHttpClient()
     out = async_run(NaobWord(client, word).get_async())
     # out = async_run(OrdbokeneWord(client, word).get_async())
+    # out = async_run(OrdbokeneInflect(client, word).get_async())
+    print(out)
+
+def testordbok(word):
+    # client = CachedHttpClient(DynamicHttpClient(), 'cache')
+    client = DynamicHttpClient()
+    # client = StaticHttpClient()
+    out = async_run(OrdbokeneWord(client, word).get_async())
     # out = async_run(OrdbokeneInflect(client, word).get_async())
     print(out)
 
