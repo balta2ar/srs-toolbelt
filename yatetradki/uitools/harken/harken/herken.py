@@ -273,13 +273,14 @@ def test_search():
     pprint(search.get_documents(search.search("porten")))
     # equals([1], search.transform("smukke"))
 
-ui.add_css('''
+def overwrite_style():
+    ui.add_css('''
 :root {
-    --nicegui-default-padding: 1.0rem;
+    --nicegui-default-padding: 0.1rem;
     --nicegui-default-gap: 0.1rem;
 }
 .active {
-    font-weight: bold;
+    background-color: #dfffd6;
 }
 ''')
 
@@ -336,12 +337,7 @@ class UiState:
     search_query: str
     commands: [Callable]
 
-def main(reload=False):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('dirs', nargs='+', help='Media directories, can be several')
-    args = parser.parse_args()
-    logging.info(f"Args: {args}")
-
+def create_ui(args):
     search = Search()
     corp = Corpus()
     files: List[NamedPair] = []
@@ -533,8 +529,8 @@ k -- Focus on search field
                     for f in files:
                         on_click = lambda f=f: load_media(f.media)
                         classes = 'hover:underline cursor-pointer'
-                        if f == state.current_file: ui.label(f.media).on('click', on_click).classes(classes + ' active')
-                        else: ui.label(f.media).on('click', on_click).classes(classes)
+                        if f == state.current_file: classes += ' active'
+                        ui.label(f.media).on('click', on_click).classes(classes)
                 redraw_search(state.search_query)
             # with ui.column().classes('border w-5/12'):
             with ui.scroll_area().classes('border w-7/12 h-[90vh]'):
@@ -543,13 +539,25 @@ k -- Focus on search field
                     for s in state.subtitles:
                         on_click = lambda s=s: play_line(s)
                         with ui.row().classes('hover:ring-1'):
-                            l = ui.label(f'{s.text}').on('dblclick', on_click)
+                            # l = ui.label(f'{s.text}').on('dblclick', on_click)
+                            l = ui.label(f'{s.text}').on('click', on_click)
                             state.sub_lines.add(l, s.start)
         for c in state.commands: c()
         state.commands.clear()
-    draw()
-    ui.run(title='herken', show=False, reload=reload)
+    @ui.page('/')
+    def main_page():
+        overwrite_style()
+        draw()
 
+def main(reload=False):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dirs', nargs='+', help='Media directories, can be several')
+    args = parser.parse_args()
+    logging.info(f"Args: {args}")
+    # app.on_startup(lambda: create_ui(args,))
+    create_ui(args)
+    ui.run(title='herken', native=False, show=False, reload=reload)
+    
 
 if __name__ in {'__main__', '__mp_main__'}:
     main(reload=True)
