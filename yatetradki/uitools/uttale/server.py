@@ -1,4 +1,4 @@
-import argparse, subprocess, webvtt, uvicorn, duckdb, xapian, multiprocessing as mp, threading, time, os, tempfile
+import argparse, subprocess, webvtt, uvicorn, duckdb, multiprocessing as mp, threading, time, os, tempfile
 from fastapi import FastAPI, HTTPException, Response, BackgroundTasks
 from typing import List, Dict
 from os.path import join, relpath, exists, splitext
@@ -7,7 +7,6 @@ import polars as pl
 
 app = FastAPI()
 db_duckdb = None
-xapian_index_path = 'xapian_index'
 
 def parse_time(t: str) -> float:
     h, m, s = t.split(':')
@@ -36,15 +35,6 @@ def reindex_worker_duckdb(vtt_files: List[str], root: str, return_dict, idx: int
             counter.value +=1
     return_dict[idx] = rows
 
-def reindex_worker_xapian(vtt_files: List[str], root: str, return_dict, idx: int, counter, lock: mp.Lock):
-    rows = []
-    for vtt in vtt_files:
-        captions = process_vtt(vtt, root)
-        rows.extend(captions)
-        with lock:
-            counter.value +=1
-    return_dict[idx] = rows
-
 def update_progress(total: int, counter, lock: mp.Lock, stop_event: threading.Event, description: str):
     with tqdm(total=total, desc=description) as pbar:
         while not stop_event.is_set():
@@ -58,7 +48,7 @@ def update_progress(total: int, counter, lock: mp.Lock, stop_event: threading.Ev
         pbar.n = total
         pbar.refresh()
 
-def reindex_duckdb(root: str):
+def reindex(root: str):
     global db_duckdb
     db_duckdb.execute("DROP TABLE IF EXISTS lines")
     db_duckdb.execute("CREATE TABLE lines (filename VARCHAR, start VARCHAR, end_time VARCHAR, text VARCHAR)")
@@ -99,57 +89,6 @@ def reindex_duckdb(root: str):
         db_duckdb.unregister("df")
     db_duckdb.commit()
 
-def reindex_xapian(root: str):
-    try:
-        db_xapian = xapian.WritableDatabase(xapian_index_path, xapian.DB_CREATE_OR_OPEN)
-    except xapian.DatabaseLockError:
-        return
-    except:
-        return
-    try:
-        fd = subprocess.run(['fd', '--type', 'f', '--extension', 'vtt', '--base-directory', root], capture_output=True, text=True, check=True)
-        vtt_files = fd.stdout.splitlines()
-    except:
-        vtt_files = []
-    total_files = len(vtt_files)
-    if not vtt_files:
-        db_xapian.close()
-        return
-    manager = mp.Manager()
-    return_dict = manager.dict()
-    counter = manager.Value('i',0)
-    lock = manager.Lock()
-    num_processes = min(mp.cpu_count(),8)
-    chunk_size = (total_files + num_processes -1)//num_processes
-    chunks = [vtt_files[i:i+chunk_size] for i in range(0, total_files, chunk_size)]
-    jobs = []
-    for idx, chunk in enumerate(chunks):
-        p = mp.Process(target=reindex_worker_xapian, args=(chunk, root, return_dict, idx, counter, lock))
-        jobs.append(p)
-        p.start()
-    stop_event = threading.Event()
-    progress_thread = threading.Thread(target=update_progress, args=(total_files, counter, lock, stop_event, "Reindexing Xapian"))
-    progress_thread.start()
-    for p in jobs:
-        p.join()
-    stop_event.set()
-    progress_thread.join()
-    all_rows = []
-    for idx in range(len(chunks)):
-        all_rows.extend(return_dict.get(idx, []))
-    if all_rows:
-        for row in tqdm(all_rows, desc="Indexing into Xapian"):
-            doc = xapian.Document()
-            doc.set_data(f"{row[0]}|{row[1]}|{row[2]}|{row[3]}")
-            tg = xapian.TermGenerator()
-            tg.set_document(doc)
-            tg.set_stemmer(xapian.Stem("norwegian"))
-            tg.index_text(row[3])
-            doc.add_boolean_term(f"filename:{row[0]}")
-            db_xapian.add_document(doc)
-    db_xapian.commit()
-    db_xapian.close()
-
 @app.get("/uttale/Scopes")
 def scopes(q: str = "") -> List[str]:
     try:
@@ -170,33 +109,9 @@ def search(scope: str, q: str, method: str = "duckdb") -> List[Dict]:
         except:
             raise HTTPException(status_code=500, detail="DuckDB search query failed")
         return [{"filename": row[0], "text": row[3], "start": row[1], "end": row[2]} for row in cursor]
-    elif method.lower() == "xapian":
-        try:
-            db_xapian_search = xapian.Database(xapian_index_path)
-            enquire = xapian.Enquire(db_xapian_search)
-            qp = xapian.QueryParser()
-            qp.set_database(db_xapian_search)
-            qp.set_stemmer(xapian.Stem("norwegian"))
-            qp.set_stemming_strategy(xapian.QueryParser.STEM_SOME)
-            user_query = f'"{q}" AND filename:{scope_prefix}'
-            query = qp.parse_query(user_query)
-            enquire.set_query(query)
-            matches = enquire.get_mset(0,50)
-        except:
-            raise HTTPException(status_code=500, detail="Xapian search query failed")
-        results = []
-        for match in matches:
-            data = match.document.get_data()
-            try:
-                filename, start, end_time, text = data.split('|',3)
-                results.append({"filename": filename, "text": text, "start": start, "end": end_time})
-            except:
-                continue
-        db_xapian_search.close()
-        return results
     else:
-        raise HTTPException(status_code=400, detail="Invalid search method. Use 'duckdb' or 'xapian'.")
-
+        raise HTTPException(status_code=400, detail="Invalid search method. Use 'duckdb'.")
+    
 def get_audio_segment(filename: str, start: str, end: str) -> bytes:
     o = splitext(join(args.root, filename))[0] + '.ogg'
     if not exists(o):
@@ -247,15 +162,10 @@ def audio_endpoint(filename: str, start: str, end: str):
     headers = {"Cache-Control": "max-age=86400"}
     return Response(content=audio_data, media_type="application/octet-stream", headers=headers)
 
-@app.post("/uttale/ReindexDuckDB")
-def trigger_reindex_duckdb(background_tasks: BackgroundTasks):
-    background_tasks.add_task(reindex_duckdb, args.root)
-    return {"status": "DuckDB Reindexing started in background"}
-
-@app.post("/uttale/ReindexXapian")
-def trigger_reindex_xapian(background_tasks: BackgroundTasks):
-    background_tasks.add_task(reindex_xapian, args.root)
-    return {"status": "Xapian Reindexing started in background"}
+@app.post("/uttale/Reindex")
+def trigger_reindex(background_tasks: BackgroundTasks):
+    background_tasks.add_task(reindex, args.root)
+    return {"status": "Reindexing started in background"}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -263,8 +173,7 @@ if __name__ == "__main__":
     parser.add_argument('--iface', default='0.0.0.0:7010')
     args = parser.parse_args()
     db_duckdb = duckdb.connect('lines_duckdb.db')
-    # reindex_duckdb(args.root)
-    reindex_xapian(args.root)
+    reindex(args.root)
     try:
         iface, port = args.iface.split(':')
     except:
