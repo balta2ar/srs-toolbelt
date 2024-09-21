@@ -2,7 +2,6 @@ from os.path import join, relpath, exists, splitext
 from fastapi import FastAPI, HTTPException, Response
 from typing import List, Dict
 import argparse, subprocess, webvtt, uvicorn, duckdb
-from io import BytesIO
 from tqdm import tqdm
 import tempfile
 
@@ -21,6 +20,8 @@ def reindex():
     fd = subprocess.run(['fd', '--type', 'f', '--extension', 'vtt', '--base-directory', args.root], capture_output=True, text=True)
     vtt_files = fd.stdout.splitlines()
     print(f"Found {len(vtt_files)} VTT files.")
+    batch_size = 10000
+    rows = []
     for vtt in tqdm(vtt_files, desc="Reindexing VTT files"):
         abs_vtt = join(args.root, vtt)
         rel_vtt = relpath(abs_vtt, args.root)
@@ -29,10 +30,20 @@ def reindex():
             continue
         try:
             for c in webvtt.read(abs_vtt):
-                db.execute("INSERT INTO lines VALUES (?, ?, ?, ?)", (rel_vtt, c.start, c.end, c.text))
+                # Uncomment the next line for debugging, but it may slow down the process
+                # print(rel_vtt, c.start, c.end, c.text)
+                rows.append((rel_vtt, c.start, c.end, c.text))
+                if len(rows) >= batch_size:
+                    print(f"Inserting {batch_size} rows...")
+                    db.executemany("INSERT INTO lines VALUES (?, ?, ?, ?)", rows)
+                    rows.clear()
+                    print(f"Inserted {batch_size} rows.")
         except Exception as e:
             print(f"Error reading {abs_vtt}: {e}")
+    if rows:
+        db.executemany("INSERT INTO lines VALUES (?, ?, ?, ?)", rows)
     db.commit()
+    print("Reindexing completed.")
 
 @app.get("/uttale/Scopes")
 def scopes(q: str = "") -> List[str]:
