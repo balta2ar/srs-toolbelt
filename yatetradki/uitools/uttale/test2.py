@@ -1,98 +1,73 @@
-from PySide6.QtWidgets import QApplication, QTextEdit, QWidget, QVBoxLayout
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QTextCursor
+from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import Signal, Qt
 
-class ClickableTextEdit(QTextEdit):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setReadOnly(True)
-        self.setMouseTracking(True)  # Enable mouse tracking
+# Step 1: Create a custom QLabel that emits a signal when clicked
+class ClickableLabel(QLabel):
+    clicked = Signal()  # Custom signal to emit on mouse click
 
-    # Overriding mousePressEvent to capture clicks inside the QTextEdit
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setStyleSheet("font-size: 16px; padding: 10px;")  # Initial styling
+
+    # Overriding the mousePressEvent to emit a signal when clicked
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            cursor = self.cursorForPosition(event.pos())
-            # Emit signal or call the parent function to handle the click
-            parent = self.parentWidget()
-            if parent:
-                parent.handle_sentence_click(cursor)
-        super().mousePressEvent(event)
+            self.clicked.emit()  # Emit the custom signal when clicked
 
 
+# Step 2: Main window to manage the layout and labels
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
         self.layout = QVBoxLayout(self)
 
-        # Use the custom ClickableTextEdit
-        self.text_edit = ClickableTextEdit(self)
-
-        # Step 1: Add sentences in a flowing paragraph with spans
+        # List of sentences to display
         self.sentences = [
-            "Sentence 1: Hello world! ",
-            "Sentence 2: This is another sentence. ",
-            "Sentence 3: PySide6 is awesome! ",
+            "Sentence 1: Hello world!",
+            "Sentence 2: This is another sentence.",
+            "Sentence 3: PySide6 is awesome!",
             "Sentence 4: Click any sentence to highlight it."
         ]
-        self.highlighted_style = "background-color: yellow; font-weight: bold;"
-        self.normal_style = ""
 
-        # Create HTML string with spans for each sentence
-        self.html_text = ''.join([f'<span id="sentence-{i}" style="{self.normal_style}">{sentence}</span>'
-                                  for i, sentence in enumerate(self.sentences)])
-        self.text_edit.setHtml(self.html_text)
+        # Store labels for easy access
+        self.labels = []
 
-        # Add the QTextEdit to the layout
-        self.layout.addWidget(self.text_edit)
+        # Set up each sentence as a clickable label
+        for sentence in self.sentences:
+            label = ClickableLabel(sentence)
+            label.clicked.connect(self.on_label_clicked)  # Connect the clicked signal to a handler
+            self.labels.append(label)
+            self.layout.addWidget(label)
 
-        self.current_sentence_idx = -1
+        # Keep track of the currently highlighted label
+        self.active_label = None
 
-    # Step 2: Handle mouse clicks to highlight a sentence
-    def handle_sentence_click(self, cursor):
-        sentence_idx = self.get_clicked_sentence_index(cursor)
+        self.setLayout(self.layout)
 
-        if sentence_idx is not None:
-            # Reset previous sentence style if any
-            if self.current_sentence_idx >= 0:
-                self.set_sentence_style(self.current_sentence_idx, self.normal_style)
+    # Step 3: Handle label click
+    def on_label_clicked(self):
+        # Reset the previous label's style if any
+        if self.active_label:
+            self.active_label.setStyleSheet("font-size: 16px; padding: 10px;")
 
-            # Highlight the clicked sentence
-            self.set_sentence_style(sentence_idx, self.highlighted_style)
-            self.current_sentence_idx = sentence_idx
+        # Highlight the clicked label
+        clicked_label = self.sender()  # The sender is the clicked label
+        clicked_label.setStyleSheet("font-size: 16px; padding: 10px; background-color: yellow;")
+        self.active_label = clicked_label
 
-    # Step 3: Find which sentence was clicked by comparing cursor position
-    def get_clicked_sentence_index(self, cursor):
-        cursor.select(QTextCursor.WordUnderCursor)
-        clicked_word = cursor.selectedText()
-
-        if clicked_word:
-            # Find the sentence that contains the clicked word
-            for i, sentence in enumerate(self.sentences):
-                if clicked_word in sentence:
-                    return i
-        return None
-
-    # Step 4: Update the sentence style
-    def set_sentence_style(self, index, style):
-        sentence_id = f"sentence-{index}"
-        self.html_text = self.html_text.replace(f'<span id="{sentence_id}" style="{self.normal_style}">', 
-                                                f'<span id="{sentence_id}" style="{style}">')
-        self.html_text = self.html_text.replace(f'<span id="{sentence_id}" style="{self.highlighted_style}">', 
-                                                f'<span id="{sentence_id}" style="{style}">')
-        self.text_edit.setHtml(self.html_text)
-
-    # Step 5: Exit on Escape key
+    # Step 4: Exit the application when Escape is pressed
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.close()
 
-# Step 6: Run the application
+
+# Step 5: Run the application
 if __name__ == "__main__":
     app = QApplication([])
 
     window = MainWindow()
-    window.setWindowTitle("Clickable Flowing Text Sentences")
+    window.setWindowTitle("Clickable Labels with Highlight")
     window.show()
 
     app.exec()
