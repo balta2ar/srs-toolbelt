@@ -1,26 +1,38 @@
 from os.path import join, relpath, exists, splitext
 from fastapi import FastAPI, HTTPException, Response
 from typing import List, Dict
-import argparse, subprocess, webvtt, uvicorn
+import argparse, subprocess, webvtt, uvicorn, duckdb
 from io import BytesIO
+from tqdm import tqdm
 import tempfile
 
 app = FastAPI()
+db = None
 
 def parse_time(t):
     h, m, s = t.split(':')
     s, ms = s.split('.')
-    return f"{h}:{m}:{s}.{ms}"
+    return int(h)*3600 + int(m)*60 + int(s) + int(ms)/1000
 
-def get_audio_segment(filename, start, end):
-    o = splitext(join(args.root, filename))[0] + '.ogg'
-    if not exists(o):
-        raise HTTPException(status_code=404, detail="File not found")
-    start_ff, end_ff = parse_time(start), parse_time(end)
-    proc = subprocess.run(['ffmpeg', '-ss', start_ff, '-to', end_ff, '-i', o, '-f', 'ogg', 'pipe:1'], capture_output=True)
-    if proc.returncode != 0:
-        raise HTTPException(status_code=500, detail="Audio processing failed")
-    return proc.stdout
+def reindex():
+    global db
+    db.execute("DROP TABLE IF EXISTS lines")
+    db.execute("CREATE TABLE lines (filename VARCHAR, start VARCHAR, end_time VARCHAR, text VARCHAR)")
+    fd = subprocess.run(['fd', '--type', 'f', '--extension', 'vtt', '--base-directory', args.root], capture_output=True, text=True)
+    vtt_files = fd.stdout.splitlines()
+    print(f"Found {len(vtt_files)} VTT files.")
+    for vtt in tqdm(vtt_files, desc="Reindexing VTT files"):
+        abs_vtt = join(args.root, vtt)
+        rel_vtt = relpath(abs_vtt, args.root)
+        if not exists(abs_vtt):
+            print(f"File does not exist: {abs_vtt}")
+            continue
+        try:
+            for c in webvtt.read(abs_vtt):
+                db.execute("INSERT INTO lines VALUES (?, ?, ?, ?)", (rel_vtt, c.start, c.end, c.text))
+        except Exception as e:
+            print(f"Error reading {abs_vtt}: {e}")
+    db.commit()
 
 @app.get("/uttale/Scopes")
 def scopes(q: str = "") -> List[str]:
@@ -33,16 +45,20 @@ def search(scope: str, q: str) -> List[Dict]:
     s = join(args.root, scope)
     if not exists(s):
         raise HTTPException(status_code=404, detail="Scope not found")
-    rg = subprocess.run(['rg', q, '-g', '*.txt', s], capture_output=True, text=True).stdout.splitlines()
-    m = []
-    for line in rg:
-        f, _, _ = line.partition(':')
-        v = splitext(f)[0] + '.vtt'
-        if exists(v):
-            for c in webvtt.read(v):
-                if q.lower() in c.text.lower():
-                    m.append({"filename": relpath(v, args.root), "text": c.text, "start": c.start, "end": c.end})
-    return m
+    cursor = db.execute("SELECT filename, start, end_time, text FROM lines WHERE text LIKE ?", (f"%{q}%",)).fetchall()
+    return [{"filename": row[0], "text": row[3], "start": row[1], "end": row[2]} for row in cursor]
+
+def get_audio_segment(filename, start, end):
+    o = splitext(join(args.root, filename))[0] + '.ogg'
+    if not exists(o):
+        raise HTTPException(status_code=404, detail="File not found")
+    start_sec = parse_time(start)
+    end_sec = parse_time(end)
+    duration = end_sec - start_sec
+    proc = subprocess.run(['ffmpeg', '-ss', str(start_sec), '-t', str(duration), '-i', o, '-f', 'ogg', 'pipe:1'], capture_output=True)
+    if proc.returncode != 0:
+        raise HTTPException(status_code=500, detail="Audio processing failed")
+    return proc.stdout
 
 @app.get("/uttale/Play")
 def play(filename: str, start: str, end: str):
@@ -68,5 +84,7 @@ if __name__ == "__main__":
     parser.add_argument('--iface', default='0.0.0.0:7010')
     args = parser.parse_args()
     print(f"Arguments: root={args.root}, iface={args.iface}")
+    db = duckdb.connect('lines.duckdb')
+    reindex()
     iface, port = args.iface.split(':')
     uvicorn.run(app, host=iface, port=int(port))
