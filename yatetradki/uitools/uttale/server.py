@@ -1,9 +1,11 @@
 from os.path import join, relpath, exists, splitext
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, BackgroundTasks
 from typing import List, Dict
 import argparse, subprocess, webvtt, uvicorn, duckdb
 from tqdm import tqdm
+import polars as pl
 import tempfile
+import multiprocessing as mp
 
 app = FastAPI()
 db = None
@@ -11,7 +13,29 @@ db = None
 def parse_time(t):
     h, m, s = t.split(':')
     s, ms = s.split('.')
-    return int(h)*3600 + int(m)*60 + int(s) + int(ms)/1000
+    return int(h)*3600 + int(m)*60 + float(s) + int(ms)/1000
+
+def process_vtt(vtt, root):
+    abs_vtt = join(root, vtt)
+    rel_vtt = relpath(abs_vtt, root)
+    if not exists(abs_vtt):
+        print(f"File does not exist: {abs_vtt}")
+        return []
+    try:
+        captions = []
+        for c in webvtt.read(abs_vtt):
+            captions.append((rel_vtt, c.start, c.end, c.text))
+        return captions
+    except Exception as e:
+        print(f"Error reading {abs_vtt}: {e}")
+        return []
+
+def reindex_worker(vtt_files, root, return_dict, idx):
+    rows = []
+    for vtt in vtt_files:
+        captions = process_vtt(vtt, root)
+        rows.extend(captions)
+    return_dict[idx] = rows
 
 def reindex():
     global db
@@ -20,28 +44,43 @@ def reindex():
     fd = subprocess.run(['fd', '--type', 'f', '--extension', 'vtt', '--base-directory', args.root], capture_output=True, text=True)
     vtt_files = fd.stdout.splitlines()
     print(f"Found {len(vtt_files)} VTT files.")
-    batch_size = 10000
-    rows = []
-    for vtt in tqdm(vtt_files, desc="Reindexing VTT files"):
-        abs_vtt = join(args.root, vtt)
-        rel_vtt = relpath(abs_vtt, args.root)
-        if not exists(abs_vtt):
-            print(f"File does not exist: {abs_vtt}")
-            continue
-        try:
-            for c in webvtt.read(abs_vtt):
-                # Uncomment the next line for debugging, but it may slow down the process
-                # print(rel_vtt, c.start, c.end, c.text)
-                rows.append((rel_vtt, c.start, c.end, c.text))
-                if len(rows) >= batch_size:
-                    print(f"Inserting {batch_size} rows...")
-                    db.executemany("INSERT INTO lines VALUES (?, ?, ?, ?)", rows)
-                    rows.clear()
-                    print(f"Inserted {batch_size} rows.")
-        except Exception as e:
-            print(f"Error reading {abs_vtt}: {e}")
-    if rows:
-        db.executemany("INSERT INTO lines VALUES (?, ?, ?, ?)", rows)
+    
+    if not vtt_files:
+        print("No VTT files found. Reindexing skipped.")
+        return
+    
+    # Determine number of processes
+    num_processes = min(mp.cpu_count(), 8)  # Limit to 8 to prevent excessive usage
+    chunk_size = (len(vtt_files) + num_processes - 1) // num_processes
+    chunks = [vtt_files[i:i + chunk_size] for i in range(0, len(vtt_files), chunk_size)]
+    
+    manager = mp.Manager()
+    return_dict = manager.dict()
+    jobs = []
+    
+    for idx, chunk in enumerate(chunks):
+        p = mp.Process(target=reindex_worker, args=(chunk, args.root, return_dict, idx))
+        jobs.append(p)
+        p.start()
+    
+    for p in jobs:
+        p.join()
+    
+    # Collect all rows
+    all_rows = []
+    for idx in range(len(chunks)):
+        all_rows.extend(return_dict[idx])
+    
+    print(f"Total captions collected: {len(all_rows)}")
+    
+    if all_rows:
+        # Convert to Polars DataFrame
+        df = pl.DataFrame(all_rows, schema=["filename", "start", "end_time", "text"])
+        # Insert into DuckDB using DuckDB's Polars integration
+        db.register("df", df)
+        db.execute("INSERT INTO lines SELECT filename, start, end_time, text FROM df")
+        db.unregister("df")
+    
     db.commit()
     print("Reindexing completed.")
 
@@ -72,7 +111,7 @@ def get_audio_segment(filename, start, end):
     return proc.stdout
 
 @app.get("/uttale/Play")
-def play(filename: str, start: str, end: str):
+def play(filename: str, start: str, end: str, background_tasks: BackgroundTasks):
     try:
         audio_data = get_audio_segment(filename, start, end)
     except HTTPException as e:
@@ -81,6 +120,8 @@ def play(filename: str, start: str, end: str):
         tmp.write(audio_data)
         tmp_path = tmp.name
     subprocess.Popen(['play', tmp_path])
+    # Schedule deletion of the temporary file
+    background_tasks.add_task(tempfile.os.remove, tmp_path)
     return {"status": "playing"}
 
 @app.get("/uttale/Audio")
@@ -88,6 +129,11 @@ def audio(filename: str, start: str, end: str):
     audio_data = get_audio_segment(filename, start, end)
     headers = {"Cache-Control": "max-age=86400"}
     return Response(content=audio_data, media_type="application/octet-stream", headers=headers)
+
+@app.post("/uttale/Reindex")
+def trigger_reindex(background_tasks: BackgroundTasks):
+    background_tasks.add_task(reindex)
+    return {"status": "Reindexing started in background"}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
