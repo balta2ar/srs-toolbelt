@@ -1,8 +1,13 @@
-requests==2.24.0
-beautifulsoup4==4.8.2
-#pyppeteer==1.0.2
-playwright==1.35.0
-Flask==1.1.2
+#requests==2.24.0
+#beautifulsoup4==4.8.2
+##pyppeteer==1.0.2
+#playwright==1.35.0
+#Flask==1.1.2
+
+requests
+beautifulsoup4
+playwright
+Flask
 
 PyQt6
 PyQt6-Qt6
@@ -10,10 +15,19 @@ PyQt6-sip
 PyQt6-WebEngine
 PyQt6-WebEngine-Qt6
 
-cchardet==2.1.7
-lxml==4.9.1
-aiohttp-jinja2==1.5
-Jinja2==3.0.3
+#cchardet==2.1.7
+#lxml==4.9.1
+#lxml
+#aiohttp-jinja2==1.5
+#Jinja2==3.0.3
+#
+#Telethon==1.24.0
+#PyICU==2.11
 
-Telethon==1.24.0
-PyICU==2.11
+faust-cchardet
+lxml
+aiohttp-jinja2
+Jinja2
+
+Telethon
+PyICU
