@@ -99,19 +99,14 @@ def scopes(q: str = "") -> List[str]:
         return []
 
 @app.get("/uttale/Search")
-def search(scope: str, q: str, method: str = "duckdb") -> List[Dict]:
-    if not scope:
-        raise HTTPException(status_code=400, detail="Scope parameter is required")
-    scope_prefix = scope if scope.endswith('/') else scope + '/'
-    if method.lower() == "duckdb":
-        try:
-            cursor = db_duckdb.execute("SELECT filename, start, end_time, text FROM lines WHERE filename LIKE ? AND text LIKE ?", (f"{scope_prefix}%", f"%{q}%",)).fetchall()
-        except:
-            raise HTTPException(status_code=500, detail="DuckDB search query failed")
-        return [{"filename": row[0], "text": row[3], "start": row[1], "end": row[2]} for row in cursor]
-    else:
-        raise HTTPException(status_code=400, detail="Invalid search method. Use 'duckdb'.")
-    
+def search(q: str, scope: str = "") -> List[Dict]:
+    scope_prefix = scope #if scope.endswith('/') else scope + '/'
+    try:
+        cursor = db_duckdb.execute("SELECT filename, start, end_time, text FROM lines WHERE filename LIKE ? AND text LIKE ?", (f"{scope_prefix}%", f"%{q}%",)).fetchall()
+    except:
+        raise HTTPException(status_code=500, detail="DuckDB search query failed")
+    return [{"filename": row[0], "text": row[3], "start": row[1], "end": row[2]} for row in cursor]
+
 def get_audio_segment(filename: str, start: str, end: str) -> bytes:
     o = splitext(join(args.root, filename))[0] + '.ogg'
     if not exists(o):
@@ -173,7 +168,7 @@ if __name__ == "__main__":
     parser.add_argument('--iface', default='0.0.0.0:7010')
     args = parser.parse_args()
     db_duckdb = duckdb.connect('lines_duckdb.db')
-    reindex(args.root)
+    # reindex(args.root)
     try:
         iface, port = args.iface.split(':')
     except:
