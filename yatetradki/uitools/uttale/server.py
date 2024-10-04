@@ -89,12 +89,20 @@ def reindex(root: str):
         db_duckdb.unregister("df")
     db_duckdb.commit()
 
+# @app.get("/uttale/Scopes")
+# def scopes(q: str = "") -> List[str]:
+#     try:
+#         r = subprocess.run(['fd', '--type', 'd', '--max-depth', '2', '--base-directory', args.root], capture_output=True, text=True, check=True)
+#         dirs = sorted([relpath(d, args.root) for d in r.stdout.splitlines()])
+#         return [d for d in dirs if q.lower() in d.lower()]
+#     except:
+#         return []
+
 @app.get("/uttale/Scopes")
-def scopes(q: str = "") -> List[str]:
+def scopes(q: str = "", limit: int = 100) -> List[str]:
     try:
-        r = subprocess.run(['fd', '--type', 'd', '--max-depth', '2', '--base-directory', args.root], capture_output=True, text=True, check=True)
-        dirs = sorted([relpath(d, args.root) for d in r.stdout.splitlines()])
-        return [d for d in dirs if q.lower() in d.lower()]
+        cursor = db_duckdb.execute("SELECT DISTINCT SPLIT_PART(filename, '/', 1) || '/' || SPLIT_PART(filename, '/', 2) AS scope FROM lines WHERE scope LIKE ? ORDER BY scope DESC LIMIT ?", (f"%{q}%", limit)).fetchall()
+        return [row[0] for row in cursor]
     except:
         return []
 
