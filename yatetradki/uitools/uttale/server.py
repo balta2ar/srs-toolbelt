@@ -99,10 +99,11 @@ def scopes(q: str = "") -> List[str]:
         return []
 
 @app.get("/uttale/Search")
-def search(q: str, scope: str = "") -> List[Dict]:
-    scope_prefix = scope #if scope.endswith('/') else scope + '/'
+def search(q: str, scope: str = "", limit: int = 100) -> List[Dict]:
     try:
-        cursor = db_duckdb.execute("SELECT filename, start, end_time, text FROM lines WHERE filename LIKE ? AND text LIKE ?", (f"{scope_prefix}%", f"%{q}%",)).fetchall()
+        cursor = db_duckdb.execute(
+            "SELECT filename, start, end_time, text FROM lines WHERE filename LIKE ? AND text LIKE ? LIMIT ?",
+            (f"{scope}%", f"%{q}%", limit)).fetchall()
     except:
         raise HTTPException(status_code=500, detail="DuckDB search query failed")
     return [{"filename": row[0], "text": row[3], "start": row[1], "end": row[2]} for row in cursor]
@@ -166,9 +167,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', default='.')
     parser.add_argument('--iface', default='0.0.0.0:7010')
+    parser.add_argument('--reindex', action='store_true', default=False)
     args = parser.parse_args()
     db_duckdb = duckdb.connect('lines_duckdb.db')
-    # reindex(args.root)
+    if args.reindex:
+        reindex(args.root)
     try:
         iface, port = args.iface.split(':')
     except:
