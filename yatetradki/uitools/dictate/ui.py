@@ -21,22 +21,12 @@ def spit(filename, data):
         f.write(data)
 
 def state(): return slurp_lines("state")[0]
-
-class Models:
-    @staticmethod
-    def all(): return slurp_lines("models")
-    @staticmethod
-    def current(): return slurp_lines("model")[0] or Models.all()[0]
-    @staticmethod
-    def save(model): spit("model", model)
-
-class Langs:
-    @staticmethod
-    def all(): return slurp_lines("langs")
-    @staticmethod
-    def current(): return slurp_lines("lang")[0] or Langs.all()[0]
-    @staticmethod
-    def save(lang): spit("lang", lang)
+def models(): return slurp_lines("models")
+def model_current(): return slurp_lines("model")[0] or models()[0]
+def model_save(model): spit("model", model)
+def langs(): return slurp_lines("langs")
+def lang_current(): return slurp_lines("lang")[0] or langs()[0]
+def lang_save(lang): spit("lang", lang)
 
 class OneFile(FileSystemEventHandler):
     def __init__(self, target, update_callback):
@@ -59,10 +49,10 @@ class App:
         self.tray.setToolTip("dictate")
 
         menu = QMenu()
-        self.model = Models.current()
+        self.model = model_current()
         print(f"Current model: {self.model}")
         model_group = QActionGroup(menu)
-        for m in Models.all():
+        for m in models():
             act = model_group.addAction(m)
             act.setCheckable(True)
             act.setChecked(m == self.model)
@@ -71,10 +61,10 @@ class App:
 
         menu.addSeparator()
 
-        self.language = Langs.current()
+        self.language = lang_current()
         print(f"Current language: {self.language}")
         lang_group = QActionGroup(menu)
-        for l in Langs.all():
+        for l in langs():
             act = lang_group.addAction(l)
             act.setCheckable(True)
             act.setChecked(l == self.language)
@@ -101,11 +91,11 @@ class App:
         print(f"Updated icon to {s}")
 
     def set_model(self, model):
-        Models.save(model)
+        model_save(model)
         self.model = model
 
     def set_language(self, lang):
-        Langs.save(lang)
+        lang_save(lang)
         self.language = lang
 
     def exit(self):
