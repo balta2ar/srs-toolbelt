@@ -7,14 +7,9 @@ import pyautogui
 import pyperclip
 from groq import Groq
 
-# Set up Groq client
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-
 def record_audio(sample_rate=16000, channels=1, chunk=1024):
-    """
-    Record audio from the microphone while the PAUSE button is held down.
-    """
     p = pyaudio.PyAudio()
     stream = p.open(
         format=pyaudio.paInt16,
@@ -43,9 +38,6 @@ def record_audio(sample_rate=16000, channels=1, chunk=1024):
 
 
 def save_audio(frames, sample_rate):
-    """
-    Save recorded audio to a temporary WAV file.
-    """
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio:
         wf = wave.open(temp_audio.name, "wb")
         wf.setnchannels(1)
@@ -57,9 +49,6 @@ def save_audio(frames, sample_rate):
 
 
 def transcribe_audio(audio_file_path):
-    """
-    Transcribe audio using Groq's Whisper implementation.
-    """
     try:
         with open(audio_file_path, "rb") as file:
             transcription = client.audio.transcriptions.create(
@@ -78,26 +67,17 @@ def transcribe_audio(audio_file_path):
 
 
 def copy_transcription_to_clipboard(text):
-    """
-    Copy the transcribed text to clipboard using pyperclip.
-    """
     pyperclip.copy(text)
     pyautogui.hotkey("ctrl", "v")
 
 
 def main():
     while True:
-        # Record audio
         frames, sample_rate = record_audio()
-
-        # Save audio to temporary file
         temp_audio_file = save_audio(frames, sample_rate)
-
-        # Transcribe audio
         print("Transcribing...")
         transcription = transcribe_audio(temp_audio_file)
 
-        # Copy transcription to clipboard
         if transcription:
             print("\nTranscription:")
             print(transcription)
@@ -107,9 +87,7 @@ def main():
         else:
             print("Transcription failed.")
 
-        # Clean up temporary file
         os.unlink(temp_audio_file)
-
         print("\nReady for next recording. Press PAUSE to start.")
 
 
