@@ -1,0 +1,5 @@
+# Install
+
+```bash
+pipx install .
+```

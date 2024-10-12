@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+srst-groq-whisper-ui &
+sudo -E srst-groq-whisper-backend
