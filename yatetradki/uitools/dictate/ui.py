@@ -1,7 +1,7 @@
 import sys, os, tempfile, threading
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PySide6 import QtGui
-from PySide6.QtGui import QIcon, QPixmap, QAction, QPainter, QColor, QBrush
+from PySide6.QtGui import QIcon, QPixmap, QAction, QPainter, QColor, QBrush, QActionGroup
 
 
 class App:
@@ -11,25 +11,32 @@ class App:
         self.blue_icon = QIcon("letter-d.png")
         self.red_icon = QIcon("letter-r.png")
         self.tray.setIcon(self.blue_icon)
+        self.tray.setToolTip("dictate")
+
         menu = QMenu()
         self.model = "whisper-large-v3-turbo"
         models = ["whisper-large-v3-turbo", "whisper-large-v3"]
-        model_menu = menu.addMenu("Model")
+        model_group = QActionGroup(menu)
         for m in models:
-            act = QAction(m, checkable=True)
+            act = model_group.addAction(m)
+            act.setCheckable(True)
             act.setChecked(m == self.model)
             act.triggered.connect(lambda checked, m=m: self.set_model(m))
-            model_menu.addAction(act)
+            menu.addAction(act)
         menu.addSeparator()
         self.language = "en"
         languages = ["en", "no", "nn", "ru"]
-        lang_menu = menu.addMenu("Language")
+        lang_group = QActionGroup(menu)
+        lang_group.setExclusive(True)
         for l in languages:
-            act = QAction(l, checkable=True)
+            act = lang_group.addAction(l)
+            act.setCheckable(True)
             act.setChecked(l == self.language)
             act.triggered.connect(lambda checked, l=l: self.set_language(l))
-            lang_menu.addAction(act)
-        menu.addAction("Exit", self.exit)
+            menu.addAction(act)
+        menu.addSeparator()
+        exit = menu.addAction("Exit")
+        exit.triggered.connect(self.exit)
         self.tray.setContextMenu(menu)
         self.tray.show()
 
@@ -45,8 +52,7 @@ class App:
 
     def exit(self):
         self.tray.hide()
-        sys.exit()
-
+        self.app.quit()
 
     def run(self):
         sys.exit(self.app.exec())
