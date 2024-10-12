@@ -458,7 +458,7 @@ if (window.recorder && window.recorder.state === 'recording') {
         window.recorder.addEventListener('stop', e => {
             const blob = new Blob(window.chunks, { type: 'audio/ogg; codecs=opus' })
             const url = URL.createObjectURL(blob)
-            window.audio = new Audio(url)  
+            window.audio = new Audio(url)
         })
         window.recorder.start()
     })
@@ -473,7 +473,7 @@ if (window.recorder && window.recorder.state === 'recording') {
         window.audio.play()
     })
     window.recorder.stop()
-    return true    
+    return true
 }
 window.audio.play()
 return true
@@ -504,7 +504,7 @@ console.log('Dynamic compression added')
         keyboard = ui.keyboard(on_key=on_key)
         nonlocal state
         shortcuts = '''
-v / t -- Toggle player | 
+v / t -- Toggle player |
 w -- Replay current line |
 q -- Play previous line |
 f -- Play next line |
@@ -557,7 +557,7 @@ def main(reload=False):
     # app.on_startup(lambda: create_ui(args,))
     create_ui(args)
     ui.run(title='herken', native=False, show=False, reload=reload)
-    
+
 
 if __name__ in {'__main__', '__mp_main__'}:
     main(reload=True)
