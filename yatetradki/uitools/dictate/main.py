@@ -11,11 +11,11 @@ from groq import Groq
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 BASE = expanduser(expandvars("$HOME/.config/dictate"))
 
-def slurp_lines(filename):
+def slurp(filename):
     full = join(BASE, filename)
-    if not os.path.exists(full): return []
+    if not os.path.exists(full): return ''
     with open(full) as f:
-        return [line.strip() for line in f.readlines() if line.strip()]
+        return f.read().strip()
 
 def spit(filename, data):
     print(f"Saving to {filename} with {data}")
@@ -26,11 +26,9 @@ def state_save(state): spit("state", state)
 def state_save_idle(): state_save("I")
 def state_save_recording(): state_save("R")
 def state_save_transcribing(): state_save("T")
-def models(): return slurp_lines("models")
-def model_current(): return slurp_lines("model")[0] or models()[0]
-def langs(): return slurp_lines("langs")
-def lang_current(): return slurp_lines("lang")[0] or langs()[0]
-def prompt_current(): return slurp_lines("prompt")[0]
+def model_current(): return slurp("model")
+def lang_current(): return slurp("lang")
+def prompt_current(): return slurp("prompt")
 
 def record_audio(sample_rate=16000, channels=1, chunk=1024):
     p = pyaudio.PyAudio()
