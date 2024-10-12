@@ -46,7 +46,7 @@ class App:
         self.recording_icon = QIcon("record.png")
         self.transcribe_icon = QIcon("transcribe.png")
         self.tray.setIcon(self.idle_icon)
-        self.tray.setToolTip("dictate")
+        self.tray.setToolTip("dictate (using groq + whisper)")
 
         menu = QMenu()
         self.model = model_current()

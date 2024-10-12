@@ -181,6 +181,7 @@ def main():
 
     widget = QWidget()
     trayIcon = SystemTrayIcon(app, widget, window, QIcon(ICON_FILENAME), widget)
+    trayIcon.setToolTip('OCR: TextMarksWoman')
 
     dog.observe(lambda: trayIcon.myCapture.emit())
 
