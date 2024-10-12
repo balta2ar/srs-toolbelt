@@ -4,6 +4,8 @@ from PySide6 import QtGui
 from PySide6.QtGui import QIcon, QPixmap, QAction, QPainter, QColor, QBrush, QActionGroup
 from os.path import join, dirname, expanduser, expandvars
 import signal
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 BASE = expanduser(expandvars("$HOME/.config/dictate"))
 
@@ -17,6 +19,8 @@ def spit(filename, data):
     print(f"Saving to {filename} with {data}")
     with open(join(BASE, filename), "w") as f:
         f.write(data)
+
+def state(): return slurp_lines("state")[0]
 
 class Models:
     @staticmethod
@@ -34,13 +38,24 @@ class Langs:
     @staticmethod
     def save(lang): spit("lang", lang)
 
+class OneFile(FileSystemEventHandler):
+    def __init__(self, target, update_callback):
+        super().__init__()
+        self.target = target
+        self.update_callback = update_callback
+
+    def on_modified(self, event):
+        if event.src_path == self.target:
+            self.update_callback()
+
 class App:
     def __init__(self):
         self.app = QApplication(sys.argv)
         self.tray = QSystemTrayIcon()
-        self.blue_icon = QIcon("letter-d.png")
-        self.red_icon = QIcon("letter-r.png")
-        self.tray.setIcon(self.blue_icon)
+        self.idle_icon = QIcon("idle.png")
+        self.recording_icon = QIcon("record.png")
+        self.transcribe_icon = QIcon("transcribe.png")
+        self.tray.setIcon(self.idle_icon)
         self.tray.setToolTip("dictate")
 
         menu = QMenu()
@@ -70,6 +85,20 @@ class App:
         exit.triggered.connect(self.exit)
         self.tray.setContextMenu(menu)
         self.tray.show()
+
+        self.observer = Observer()
+        event_handler = OneFile(join(BASE, "state"), self.update_icon)
+        self.observer.schedule(event_handler, path=BASE, recursive=False)
+        self.observer.start()
+
+    def update_icon(self):
+        s = state()
+        match s:
+            case "I": self.tray.setIcon(self.idle_icon)
+            case "R": self.tray.setIcon(self.recording_icon)
+            case "T": self.tray.setIcon(self.transcribe_icon)
+            case _: print(f"Unknown state: {state()}")
+        print(f"Updated icon to {s}")
 
     def set_model(self, model):
         Models.save(model)
