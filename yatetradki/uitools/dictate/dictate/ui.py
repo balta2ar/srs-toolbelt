@@ -49,7 +49,7 @@ class App:
         self.app = QApplication(sys.argv)
         self.tray = QSystemTrayIcon()
         self.idle_icon = icon("idle.png")
-        self.recording_icon = icon("recording.png")
+        self.record_icon = icon("record.png")
         self.transcribe_icon = icon("transcribe.png")
         self.tray.setIcon(self.idle_icon)
         self.tray.setToolTip("dictate (using groq + whisper)")
@@ -91,7 +91,7 @@ class App:
         s = state()
         match s:
             case "I": self.tray.setIcon(self.idle_icon)
-            case "R": self.tray.setIcon(self.recording_icon)
+            case "R": self.tray.setIcon(self.record_icon)
             case "T": self.tray.setIcon(self.transcribe_icon)
             case _: print(f"Unknown state: {state()}")
         print(f"Updated icon to {s}")

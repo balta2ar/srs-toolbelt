@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
 
 srst-groq-whisper-ui &
-sudo -E srst-groq-whisper-backend
+UI_PID=$!
+sudo -E srst-groq-whisper-backend &
+BACKEND_PID=$!
+wait $UI_PID
+echo "UI has exited. Terminating the backend..."
+sudo kill $BACKEND_PID
+wait $BACKEND_PID
+echo "Backend terminated."

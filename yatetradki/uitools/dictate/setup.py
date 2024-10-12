@@ -21,4 +21,5 @@ setuptools.setup(
             'srst-groq-whisper-ui=dictate.ui:main',
         ],
     },
+    scripts=['scripts/srst-groq-whisper'],
 )
