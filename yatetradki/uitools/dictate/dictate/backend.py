@@ -8,6 +8,14 @@ import pyautogui
 import pyperclip
 from groq import Groq
 
+def loadenv(filename):
+    with open(expanduser(expandvars(filename))) as f:
+        for line in f.readlines():
+            key, value = line.strip().split("=")
+            os.environ[key] = value.strip('"\'')
+
+if "GROQ_API_KEY" not in os.environ:
+    loadenv("/etc/dictate.env")
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 BASE = expanduser(expandvars("$HOME/.config/dictate"))
 

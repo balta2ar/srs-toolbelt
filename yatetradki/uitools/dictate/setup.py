@@ -10,11 +10,15 @@ setuptools.setup(
     name='srst-groq-whisper',
     version='1.0',
     packages=setuptools.find_packages(),
+    include_package_data=True,
+    package_data={
+        'dictate': ['icons/*.png'],
+    },
     install_requires=backend_requirements + ui_requirements,
     entry_points={
         'console_scripts': [
-            'srst-groq-whisper-backend=yatetradki.uitools.dictate.backend:main',
-            'srst-groq-whisper-ui=yatetradki.uitools.dictate.ui:main',
+            'srst-groq-whisper-backend=dictate.backend:main',
+            'srst-groq-whisper-ui=dictate.ui:main',
         ],
     },
 )

@@ -6,8 +6,14 @@ from os.path import join, dirname, expanduser, expandvars
 import signal
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from importlib.resources import path
 
 BASE = expanduser(expandvars("$HOME/.config/dictate"))
+
+def icon(filename):
+    with path("dictate.icons", filename) as full:
+        print(f"Loading icon from {full}")
+        return QIcon(str(full))
 
 def slurp_lines(filename):
     full = join(BASE, filename)
@@ -42,9 +48,9 @@ class App:
     def __init__(self):
         self.app = QApplication(sys.argv)
         self.tray = QSystemTrayIcon()
-        self.idle_icon = QIcon("idle.png")
-        self.recording_icon = QIcon("record.png")
-        self.transcribe_icon = QIcon("transcribe.png")
+        self.idle_icon = icon("idle.png")
+        self.recording_icon = icon("recording.png")
+        self.transcribe_icon = icon("transcribe.png")
         self.tray.setIcon(self.idle_icon)
         self.tray.setToolTip("dictate (using groq + whisper)")
 
