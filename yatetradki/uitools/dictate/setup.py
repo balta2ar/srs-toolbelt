@@ -1,10 +1,10 @@
 import setuptools
 
 with open('requirements-backend.txt') as f:
-    backend_requirements = f.read().splitlines()
+    backend_requirements = [line.strip() for line in f.readlines()]
 
 with open('requirements-ui.txt') as f:
-    ui_requirements = f.read().splitlines()
+    ui_requirements = [line.strip() for line in f.readlines()]
 
 setuptools.setup(
     name='srst-groq-whisper',
