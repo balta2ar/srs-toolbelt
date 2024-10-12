@@ -1,4 +1,4 @@
-import sys, os, tempfile, threading
+import sys, os, tempfile
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
 from PySide6 import QtGui
 from PySide6.QtGui import QIcon, QPixmap, QAction, QPainter, QColor, QBrush, QActionGroup
@@ -105,11 +105,10 @@ class App:
     def run(self):
         sys.exit(self.app.exec())
 
-def handler_sigterm(signum, frame):
-    app.exit()
-
-if __name__ == "__main__":
-    # signal.signal(signal.SIGTERM, handler_sigterm)
+def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     app = App()
     app.run()
+
+if __name__ == "__main__":
+    main()
