@@ -117,7 +117,7 @@ from asyncio import Queue as AQueue
 import time
 from functools import wraps
 import socket
-from telnetlib import Telnet
+# from telnetlib import Telnet
 
 from requests.exceptions import HTTPError, ReadTimeout, ConnectionError
 from bs4 import BeautifulSoup
@@ -1916,22 +1916,22 @@ def load_env(filename):
             key, value = line.strip().split('=', 1)
             environ[key] = value
 
-def track_history(source_signal):
-    load_env('~/.telegram')
-    channel_id = int(must_env('TELEGRAM_ORDBOK_ID'))
-    logging.info('Starting Telegram logger')
-    channel_id = int(channel_id)
-    tg = TdlibClient(TDLIB)
-    wl = WordLogger(tg, channel_id)
-    @pyqtSlot(str)
-    def on_translate(word):
-        logging.info('Telegram: add word to history: %s', word)
-        wl.add(word)
-    def start():
-        pass
-        #tg.idle()
-    source_signal.connect(on_translate)
-    Thread(target=start, daemon=True).start()
+# def track_history(source_signal):
+#     load_env('~/.telegram')
+#     channel_id = int(must_env('TELEGRAM_ORDBOK_ID'))
+#     logging.info('Starting Telegram logger')
+#     channel_id = int(channel_id)
+#     tg = TdlibClient(TDLIB)
+#     wl = WordLogger(tg, channel_id)
+#     @pyqtSlot(str)
+#     def on_translate(word):
+#         logging.info('Telegram: add word to history: %s', word)
+#         wl.add(word)
+#     def start():
+#         pass
+#         #tg.idle()
+#     source_signal.connect(on_translate)
+#     Thread(target=start, daemon=True).start()
 
 def main():
     logging.info('cache location: "%s"', CACHE_DIR)
