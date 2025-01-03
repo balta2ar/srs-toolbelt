@@ -17,7 +17,9 @@ USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Ge
 
 def is_interactive():
     import __main__ as main
-    return not hasattr(main, '__file__')
+    result = not hasattr(main, '__file__')
+    print('is_interactive:', result)
+    return result
 
 def http_post(url, data):
     with urlopen(url, data) as resp:
@@ -52,11 +54,14 @@ class WatchDog:
         self.on_show_callback = None
     def start(self):
         try:
+            print(f'Starting watchdog: {self.host}:{self.port}')
             self.server = WatchDog.Server(self.host, self.port, self._call_on_show)
             self.thread = Thread(target=self.server.serve_forever, daemon=True)
             self.thread.start()
+            print('start: Watchdog started')
             return True
-        except OSError:
+        except OSError as e:
+            print('start: Watchdog already running:', e)
             return False
     def show(self):
         print('Watchdog already running, showing previous instance')
