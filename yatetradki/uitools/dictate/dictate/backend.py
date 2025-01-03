@@ -92,6 +92,7 @@ def transcribe_audio(audio_file_path):
                 response_format="text",
                 language=lang,
             )
+            transcription = str(transcription).strip()
         return transcription  # This is now directly the transcription text
     except Exception as e:
         print(f"An error occurred: {str(e)}")
