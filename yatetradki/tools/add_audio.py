@@ -1,8 +1,10 @@
 import re
 import sys
 import argparse
+from shutil import which
 from os import getenv
 from os.path import expanduser, expandvars
+from subprocess import run
 
 #sys.path.insert(0, '/usr/share/anki')
 try:
@@ -11,10 +13,10 @@ except ImportError:
     from anki import Collection
 
 from yatetradki.tools.log import get_logger
-from yatetradki.tools.anki_control import anki_is_running
+#from yatetradki.tools.anki_control import anki_is_running
 from yatetradki.tools.pronunciation import Pronunciation
-from yatetradki.tools.anki_sync_anki_connect import web_sync
-from yatetradki.tools.telega import notify
+#from yatetradki.tools.anki_sync_anki_connect import web_sync
+#from yatetradki.tools.telega import notify
 from yatetradki.utils import cleanup_query
 from yatetradki.utils import mute_networking_logging
 from yatetradki.utils import must_env
@@ -26,6 +28,12 @@ ERROR_ANKI_ALREADY_RUNNING = 2
 
 COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/share/Anki2/bz/collection.anki2')))
 _logger = get_logger('add_audio')
+
+def web_sync(col):
+    user = getenv('ANKIWEB_USER')
+    password = getenv('ANKIWEB_PASSWORD')
+    auth_key = col.sync_login(user, password, None)
+    col.sync_collection(auth_key, sync_media=True)
 
 def cleanup_html(text):
     def nowhite(text):
@@ -93,17 +101,22 @@ def cleanup_fields(deck, deck_name, model_name, field_names, col, allowed):
         notify('Fixed html in {0} fields'.format(len(added)))
 
 def add_audio(args):
-    if anki_is_running():
-        _logger.info('Anki is already running (must have started manually), skipping sync to avoid conflicts')
-        return ERROR_ANKI_ALREADY_RUNNING
+    # if anki_is_running():
+    #     _logger.info('Anki is already running (must have started manually), skipping sync to avoid conflicts')
+    #     return ERROR_ANKI_ALREADY_RUNNING
 
     must_env('TELEGRAM_ACCESS_TOKEN')
     must_env('TELEGRAM_CHAT_ID')
     must_env('AZURE_KEY')
     must_env('AZURE_REGION')
+    must_env('ANKIWEB_USER')
+    must_env('ANKIWEB_PASSWORD')
 
     #col = Collection(COLLECTION, log=True)
     col = Collection(COLLECTION)
+    if args.sync:
+        web_sync(col)
+
     pronunciation = Pronunciation(args.audio)
 
     modelBasic = col.models.by_name(args.model)
@@ -147,13 +160,21 @@ def add_audio(args):
             body = body[:400] + '...'
         notify('Language: {0}\nAdded audio for ({1}):\n{2}'.format(
             args.audio, len(added), body))
-        # if args.update:
-        #     web_sync()
+        if args.sync:
+            web_sync(col)
         return ERROR_OK_FOUND_CHANGES
     return ERROR_OK_NO_CHANGES
 
+def must_bin(name, comment='Please install it'):
+    if which(name) is None:
+        raise RuntimeError("{} is not installed. {}".format(name, comment))
+
+def notify(message):
+    run(['telegram-notify', message])
 
 def main():
+    must_bin('telegram-notify')
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--deck", help="Deck name to import to", required=True)
     parser.add_argument("--model", help="Model to use (card type)", required=True)
