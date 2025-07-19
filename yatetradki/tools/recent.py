@@ -165,7 +165,7 @@ def odd(x):
 def grey(x):
     return '[on grey30]{}[/]'.format(x)
 
-def show_recent_from_collection(queries, header_width):
+def show_recent_from_collection(queries, header_width, color=False):
     col = Collection(COLLECTION)
     #padding = ' ' * 10
     #from rich import print as pprint
@@ -176,8 +176,9 @@ def show_recent_from_collection(queries, header_width):
         #header = '>>> %s (%s)' % (query, field)
         #header = header.ljust(header_width, COLUMN_SEPARATOR)
         words = show_recent(col, query, field)
-        words = [w.replace('<b>', '[bold green]').replace('</b>', '[/bold green]') for w in words]
-        words = [w.replace('<strong>', '[bold green]').replace('</strong>', '[/bold green]') for w in words]
+        if color:
+            words = [w.replace('<b>', '[bold green]').replace('</b>', '[/bold green]') for w in words]
+            words = [w.replace('<strong>', '[bold green]').replace('</strong>', '[/bold green]') for w in words]
         table = Table(box=None, padding=(0,), row_styles=['none', bg])
         table.add_column('')
         [table.add_row(w) for w in words]
@@ -218,6 +219,8 @@ def main():
     parser.add_argument('--width', type=int, required=False, default=None,
                         help='Minimal header width (words are formatted into columns '
                         'to fill this width)')
+    parser.add_argument('--color', action='store_true',
+                        help='Use color in output', default=False)
     # parser.add_argument('--field', type=str, required=True,
     #                     help='Field name to print')
     args = parser.parse_args()
@@ -237,7 +240,7 @@ def main():
             width = args.width
         else:
             width = get_terminal_width()
-    show_recent_from_collection(queries, width)
+    show_recent_from_collection(queries, width, args.color)
 
 
 if __name__ == '__main__':
