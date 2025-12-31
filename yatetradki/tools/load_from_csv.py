@@ -44,13 +44,16 @@ def load_from_csv(args):
     col.decks.select(deck['id'])
     col.decks.current()['mid'] = modelBasic['id']
 
+    header = '\t'.join(args.fields)
     query_template = 'deck:"%s" note:"%s" word:"%s"'
     for line in io.open(join(cwd, args.csv), encoding='utf8'):
-        word, example, meaning = line.split('\t')
+        line = line.strip('\r\n')
+        word, example, meaning, summary = line.split('\t')
         query = query_template % (args.deck, args.model, escape(word))
-        # _logger.info('>>> QUERY: %s', query)
-        found_notes = col.find_notes(query)
+        _logger.debug('>>> QUERY: %s', query)
+        if line == header: print('header'); continue # Skip header
 
+        found_notes = col.find_notes(query)
         if found_notes:
             _logger.debug('Duplicate notes (%s) for word %s: %s',
                           len(found_notes), word, found_notes)
@@ -68,6 +71,7 @@ def load_from_csv(args):
             'Word': word,
             'Example': example,
             'Description': meaning,
+            'Summary': summary,
         }
         _logger.debug('Fields to set: %s', fields)
 
@@ -101,7 +105,7 @@ def main():
     parser.add_argument("--csv", help="File to import data from (it actually splits by TAB, to it's a TSV file)", required=False)
     parser.add_argument("--deck", help="Deck name to import to", required=True)
     parser.add_argument("--model", help="Model to use (card type)", required=True)
-    parser.add_argument("--fields", help="List of fields of the model", required=True)
+    parser.add_argument("--fields", help="List of fields of the model, e.g. Word,Example,Description,Summary", required=True)
     parser.add_argument("--update", help="True if existing notes should be updated",
         default=False, action='store_true')
     parser.add_argument("--audio", choices=['none', 'norwegian', 'korean', 'english'],
