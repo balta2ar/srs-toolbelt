@@ -31,6 +31,8 @@ def web_sync(col):
     auth_key = col.sync_login(user, password, None)
     col.sync_collection(auth_key, sync_media=True)
 
+def escape(s): return s.replace('"', '\\"')
+
 def load_from_csv(args):
     cwd = getcwd()
     col = Collection(COLLECTION)
@@ -43,26 +45,20 @@ def load_from_csv(args):
     col.decks.current()['mid'] = modelBasic['id']
 
     query_template = 'deck:"%s" note:"%s" word:"%s"'
-
     for line in io.open(join(cwd, args.csv), encoding='utf8'):
         word, example, meaning = line.split('\t')
-        query = cleanup_query(query_template % (args.deck, args.model, word))
-        _logger.info('>>> QUERY: %s', query)
+        query = query_template % (args.deck, args.model, escape(word))
+        # _logger.info('>>> QUERY: %s', query)
         found_notes = col.find_notes(query)
-        # import ipdb; ipdb.set_trace()
-        # deck:english::lingvo-online epiphany
-        # print(query)
-        # print(found_notes)
-        # continue
 
         if found_notes:
-            _logger.info('Duplicate notes (%s) for word %s: %s',
+            _logger.debug('Duplicate notes (%s) for word %s: %s',
                           len(found_notes), word, found_notes)
             if not args.update:
-                _logger.info('Skipping word %s', word)
+                _logger.debug('Skipping word %s', word)
                 continue
-            _logger.info('Updating note %s', found_notes[0])
-            note = col.getNote(found_notes[0])
+            _logger.debug('Updating note %s', found_notes[0])
+            note = col.get_note(found_notes[0])
         else:
             _logger.info('Notes not found for word %s, creating new one', word)
             note = col.newNote()
@@ -73,10 +69,16 @@ def load_from_csv(args):
             'Example': example,
             'Description': meaning,
         }
-        print(fields)
+        _logger.debug('Fields to set: %s', fields)
 
-        if args.audio:
+        if args.audio and args.audio != 'none':
             pronunciation.fill(word, col, fields)
+
+        current, new = [], []
+        for field, value in fields.items():
+            current.append(note.fields[args.fields.index(field)])
+            new.append(value)
+        if current == new: continue
 
         for field, value in fields.items():
             note.fields[args.fields.index(field)] = value
@@ -87,7 +89,7 @@ def load_from_csv(args):
             col.addNote(note)
             _logger.info('Added: %s', word)
 
-        note.flush()
+        # note.flush()
         col.update_note(note)
 
     if args.sync:
@@ -96,7 +98,7 @@ def load_from_csv(args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--csv", help="File to import data from", required=False)
+    parser.add_argument("--csv", help="File to import data from (it actually splits by TAB, to it's a TSV file)", required=False)
     parser.add_argument("--deck", help="Deck name to import to", required=True)
     parser.add_argument("--model", help="Model to use (card type)", required=True)
     parser.add_argument("--fields", help="List of fields of the model", required=True)
