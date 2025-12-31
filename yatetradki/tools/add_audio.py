@@ -7,10 +7,7 @@ from os.path import expanduser, expandvars
 from subprocess import run
 
 #sys.path.insert(0, '/usr/share/anki')
-try:
-    from anki.collection import Collection
-except ImportError:
-    from anki import Collection
+from anki.collection import Collection
 
 from yatetradki.tools.log import get_logger
 #from yatetradki.tools.anki_control import anki_is_running
