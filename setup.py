@@ -10,7 +10,7 @@ import sys
 from shutil import rmtree
 
 from setuptools import find_packages, setup, Command
-import pip
+#import pip
 
 # Save ~200ms on script startup time
 # See https://github.com/ninjaaron/fast-entry_points

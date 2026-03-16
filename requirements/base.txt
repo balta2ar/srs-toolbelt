@@ -14,4 +14,4 @@ azure-cognitiveservices-speech==1.44.0
 pydub==0.25.1
 rich==14.0.0
 unidecode==1.4.0
-pyaudio==0.2.13
+pyaudio==0.2.14

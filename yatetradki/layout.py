@@ -51,7 +51,7 @@ class StraightLayout(object):
             convert = _words
 
         words = convert(relevant_words)
-        xs = filter(lambda (n, word): n < max_length,
+        xs = filter(lambda n, word: n < max_length,
                     [(len(u', '.join(words[:i + 1])), i + 1)
                      for i in range(len(relevant_words))])
         return relevant_words[:xs[-1][1]] if xs else [relevant_words[0]]
