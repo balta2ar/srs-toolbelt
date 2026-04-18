@@ -10,18 +10,18 @@ import sys
 from shutil import rmtree
 
 from setuptools import find_packages, setup, Command
-#import pip
+# import pip
 
 # Save ~200ms on script startup time
 # See https://github.com/ninjaaron/fast-entry_points
-#import fastentrypoints
+# import fastentrypoints
 
 # Package meta-data.
-NAME = 'srs-toolbelt'
+NAME = "srs-toolbelt"
 DESCRIPTION = "Toolkit to power up your language learning using Spaced Repetition tools"
-URL = 'https://github.com/balta2ar/srs-toolbelt'
-EMAIL = 'baltazar.bz@gmail.com'
-AUTHOR = 'Yuri Bochkarev'
+URL = "https://github.com/balta2ar/srs-toolbelt"
+EMAIL = "baltazar.bz@gmail.com"
+AUTHOR = "Yuri Bochkarev"
 
 
 # What packages are required for this module to be executed?
@@ -31,7 +31,7 @@ REQUIRED = [
 # requirements = list(pip.req.parse_requirements(
 #     'requirements.txt', session=pip.download.PipSession()))
 # REQUIRED = [requirement.name for requirement in requirements]
-REQUIRED = [line.strip() for line in open('requirements/base.txt').readlines()]
+REQUIRED = [line.strip() for line in open("requirements/base.txt").readlines()]
 
 # The rest you shouldn't have to touch too much :)
 # ------------------------------------------------
@@ -46,31 +46,33 @@ here = os.path.abspath(os.path.dirname(__file__))
 #     long_description = '\n' + f.read()
 
 try:
-    #import pypandoc
-    #long_description = pypandoc.convert_file("README.md", "rst")
-    with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
-        long_description = '\n' + f.read()
+    # import pypandoc
+    # long_description = pypandoc.convert_file("README.md", "rst")
+    with io.open(os.path.join(here, "README.md"), encoding="utf-8") as f:
+        long_description = "\n" + f.read()
 except ImportError:
-    print('WARNING: description is empty, consider installing pypandoc: pip install --user pypandoc')
-    long_description = ''
+    print(
+        "WARNING: description is empty, consider installing pypandoc: pip install --user pypandoc"
+    )
+    long_description = ""
 
 # Load the package's __version__.py module as a dictionary.
 about = {}
-#with open(os.path.join(here, NAME, '__version__.py')) as f:
-with open(os.path.join(here, '__version__.py')) as f:
+# with open(os.path.join(here, NAME, '__version__.py')) as f:
+with open(os.path.join(here, "__version__.py")) as f:
     exec(f.read(), about)
 
 
 class UploadCommand(Command):
     """Support setup.py upload."""
 
-    description = 'Build and publish the package.'
+    description = "Build and publish the package."
     user_options = []
 
     @staticmethod
     def status(s):
         """Prints things in bold."""
-        print('\033[1m{0}\033[0m'.format(s))
+        print("\033[1m{0}\033[0m".format(s))
 
     def initialize_options(self):
         pass
@@ -80,16 +82,16 @@ class UploadCommand(Command):
 
     def run(self):
         try:
-            self.status('Removing previous builds…')
-            rmtree(os.path.join(here, 'dist'))
+            self.status("Removing previous builds…")
+            rmtree(os.path.join(here, "dist"))
         except OSError:
             pass
 
-        self.status('Building Source and Wheel (universal) distribution…')
-        os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
+        self.status("Building Source and Wheel (universal) distribution…")
+        os.system("{0} setup.py sdist bdist_wheel --universal".format(sys.executable))
 
-        self.status('Uploading the package to PyPi via Twine…')
-        os.system('twine upload dist/*')
+        self.status("Uploading the package to PyPi via Twine…")
+        os.system("twine upload dist/*")
 
         sys.exit()
 
@@ -97,22 +99,20 @@ class UploadCommand(Command):
 packages = find_packages(
     # where='brotab',
     # exclude=('brotab.tests', 'firefox_extension', 'firefox_mediator')
-    #exclude=('tests', 'firefox_extension', 'firefox_mediator')
-    include=(
-        'yatetradki',
-    ),
-    #exclude=('firefox_extension', 'firefox_mediator')
+    # exclude=('tests', 'firefox_extension', 'firefox_mediator')
+    include=("yatetradki",),
+    # exclude=('firefox_extension', 'firefox_mediator')
 )
-print('>>', packages)
+print(">>", packages)
 
 
 # Where the magic happens:
 setup(
     name=NAME,
-    version=about['__version__'],
+    version=about["__version__"],
     description=DESCRIPTION,
     long_description=long_description,
-    long_description_content_type='text/markdown',
+    long_description_content_type="text/markdown",
     author=AUTHOR,
     author_email=EMAIL,
     url=URL,
@@ -128,48 +128,48 @@ setup(
     ],
     # If your package is a single module, use this instead of 'packages':
     # py_modules=['mypackage'],
-
     scripts=[
-        'yatetradki/scripts/srst-sync-new-words.sh',
-        'yatetradki/scripts/srst-show-browser-history.sh',
-        'yatetradki/scripts/srst-get-words-from-browser-history.sh',
-        'yatetradki/scripts/srst-dsl-english.sh',
-        'yatetradki/scripts/srst-dsl-norwegian.sh',
+        "yatetradki/scripts/srst-sync-new-words.sh",
+        "yatetradki/scripts/srst-show-browser-history.sh",
+        "yatetradki/scripts/srst-get-words-from-browser-history.sh",
+        "yatetradki/scripts/srst-dsl-english.sh",
+        "yatetradki/scripts/srst-dsl-norwegian.sh",
     ],
     entry_points={
-        'console_scripts': [
-            'srst-load-from-csv=yatetradki.tools.load_from_csv:main',
-            'srst-anki-sync-anki-connect=yatetradki.tools.anki_sync_anki_connect:main',
-            'srst-parse-url-query=yatetradki.tools.parse_url_query:main',
-            'srst-anki-sync-notion=yatetradki.tools.anki_notion:main',
-            'srst-add-audio=yatetradki.tools.add_audio:main',
-            'srst-ordbok=yatetradki.uitools.ordbok.ordbok:main',
+        "console_scripts": [
+            "srst-load-from-csv=yatetradki.tools.load_from_csv:main",
+            "srst-anki-sync-anki-connect=yatetradki.tools.anki_sync_anki_connect:main",
+            "srst-parse-url-query=yatetradki.tools.parse_url_query:main",
+            "srst-anki-sync-notion=yatetradki.tools.anki_notion:main",
+            "srst-add-audio=yatetradki.tools.add_audio:main",
+            "srst-ordbok=yatetradki.uitools.ordbok.ordbok:main",
             #'srst-harken=yatetradki.uitools.harken.harken:main',
-            'srst-dehyphen=yatetradki.uitools.dehyphen.dehyphen:main',
-            'srst-sayit=yatetradki.uitools.sayit.sayit:main',
-            'srst-textmarksman=yatetradki.uitools.textmarksman.textmarksman:main',
-            'srst-textmarkswoman=yatetradki.uitools.textmarksman.textmarkswoman:main',
-            'generate-digraph=yatetradki.uitools.mindmap.digraph:main',
-            'generate-mindmap=yatetradki.uitools.mindmap.mindmap:main',
+            "srst-dehyphen=yatetradki.uitools.dehyphen.dehyphen:main",
+            "srst-sayit=yatetradki.uitools.sayit.sayit:main",
+            "srst-textmarksman=yatetradki.uitools.textmarksman.textmarksman:main",
+            "srst-textmarkswoman=yatetradki.uitools.textmarksman.textmarkswoman:main",
+            "srst-recent=yatetradki.tools.recent:main",
+            "generate-digraph=yatetradki.uitools.mindmap.digraph:main",
+            "generate-mindmap=yatetradki.uitools.mindmap.mindmap:main",
         ],
     },
     install_requires=REQUIRED,
     include_package_data=True,
-    license='MIT',
+    license="MIT",
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: Implementation :: CPython'
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: Implementation :: CPython",
     ],
     # $ setup.py publish support.
     cmdclass={
-        'upload': UploadCommand,
+        "upload": UploadCommand,
     },
 )
