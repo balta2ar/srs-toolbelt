@@ -12,8 +12,6 @@ import string
 import logging
 import argparse
 import subprocess
-import time
-import threading
 
 from pprint import pformat
 from shutil import copy2, move
@@ -454,29 +452,15 @@ class AzureCognitiveSpeechEnglishService(WordTable):
 
 class GeminiNordnorskService(WordTable):
     """Generates Northern Norwegian (nordnorsk) audio via the external
-    ``tts-gemini-flash`` CLI, which outputs an OGG/Opus file. Calls are
-    throttled to at most one per second (the CLI hits the Gemini TTS API)."""
+    ``tts-gemini-flash`` CLI, which outputs an OGG/Opus file. Rate limiting
+    (and cross-process serialization) is handled by the CLI itself."""
 
     BINARY = 'tts-gemini-flash'
     PROMPT = '#nordnorsk'
-    MIN_INTERVAL = 1.0  # seconds between calls (max 1 per second)
-
-    _throttle_lock = threading.Lock()
-    _last_call = 0.0
-
-    @classmethod
-    def _throttle(cls):
-        with cls._throttle_lock:
-            elapsed = time.monotonic() - cls._last_call
-            wait = cls.MIN_INTERVAL - elapsed
-            if wait > 0:
-                time.sleep(wait)
-            cls._last_call = time.monotonic()
 
     def lookup(self, value):
         logger = logging.getLogger()
         filename = 'gemini_nordnorsk_%s.ogg' % self._make_random_filename()
-        self._throttle()
         logger.info('word: %s, calling %s', value, self.BINARY)
         subprocess.run(
             [self.BINARY, value, '--prompt', self.PROMPT, '--output', filename],
