@@ -11,6 +11,9 @@ import random
 import string
 import logging
 import argparse
+import subprocess
+import time
+import threading
 
 from pprint import pformat
 from shutil import copy2, move
@@ -260,6 +263,15 @@ def create_azure_english_table():
     return ComposedWordTable([azure_english_caching_table])
 
 
+def create_nordnorsk_gemini_table():
+    cache_dir = 'gemini_cache_nordnorsk'
+    prefix = cache_dir + '_'
+    gemini_table = GeminiNordnorskService()
+    gemini_caching_table = CachingPrefixedWordTable(
+        MEDIA_DIR, cache_dir, prefix, gemini_table, ext='.ogg')
+    return ComposedWordTable([gemini_caching_table])
+
+
 def create_korean_table():
     """
     Master table chains 4 audio sources:
@@ -356,13 +368,14 @@ class CachingPrefixedWordTable(WordTable):
     Yeah, I know...
     """
     MAX_CHARACTERS = 30 # 100
-    def __init__(self, media_dir, cache_dir, prefix, upstream):
+    def __init__(self, media_dir, cache_dir, prefix, upstream, ext='.mp3'):
         super(CachingPrefixedWordTable, self).__init__()
 
         self._media_dir = media_dir
         self._cache_dir = cache_dir
         self._prefix = prefix
         self._upstream = upstream
+        self._ext = ext
         self._logger = logging.getLogger(self.__class__.__name__)
 
     def _mkpath(self, path):
@@ -374,7 +387,7 @@ class CachingPrefixedWordTable(WordTable):
         return value[:self.MAX_CHARACTERS] + '_' + hash
 
     def lookup(self, value):
-        basename = self.limit(cleanup_filename(value)) + '.mp3'
+        basename = self.limit(cleanup_filename(value)) + self._ext
         filename = join(self._cache_dir, basename)
         prefixed = self._prefix + basename
         full_prefixed = join(self._media_dir, prefixed)
@@ -439,10 +452,42 @@ class AzureCognitiveSpeechEnglishService(WordTable):
         return [self._make_default_entry(filename, filename)]
 
 
+class GeminiNordnorskService(WordTable):
+    """Generates Northern Norwegian (nordnorsk) audio via the external
+    ``tts-gemini-flash`` CLI, which outputs an OGG/Opus file. Calls are
+    throttled to at most one per second (the CLI hits the Gemini TTS API)."""
+
+    BINARY = 'tts-gemini-flash'
+    PROMPT = '#nordnorsk'
+    MIN_INTERVAL = 1.0  # seconds between calls (max 1 per second)
+
+    _throttle_lock = threading.Lock()
+    _last_call = 0.0
+
+    @classmethod
+    def _throttle(cls):
+        with cls._throttle_lock:
+            elapsed = time.monotonic() - cls._last_call
+            wait = cls.MIN_INTERVAL - elapsed
+            if wait > 0:
+                time.sleep(wait)
+            cls._last_call = time.monotonic()
+
+    def lookup(self, value):
+        logger = logging.getLogger()
+        filename = 'gemini_nordnorsk_%s.ogg' % self._make_random_filename()
+        self._throttle()
+        logger.info('word: %s, calling %s', value, self.BINARY)
+        subprocess.run(
+            [self.BINARY, value, '--prompt', self.PROMPT, '--output', filename],
+            check=True)
+        logger.info('word: %s, Gemini nordnorsk result: %s', value, filename)
+        return [self._make_default_entry(filename, filename)]
+
+
 class NeoSpeechService(WordTable):
     def lookup(self, value):
         import service
-
         #word = '색인'
         logger = logging.getLogger()
         neospeech = service.neospeech.NeoSpeech(
