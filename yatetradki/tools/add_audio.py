@@ -5,6 +5,7 @@ from shutil import which
 from os import getenv
 from os.path import expanduser, expandvars
 from subprocess import run
+from subprocess import CalledProcessError
 
 #sys.path.insert(0, '/usr/share/anki')
 from anki.collection import Collection
@@ -141,7 +142,16 @@ def add_audio(args):
                   for field in args.fields}
         word = fields[args.word_field]
         audio = fields[args.audio_field]
-        if pronunciation.fill(html_to_text(word), col, fields, args.audio_field):
+        try:
+            filled = pronunciation.fill(html_to_text(word), col, fields, args.audio_field)
+        except CalledProcessError as e:
+            # An audio backend (e.g. tts-gemini-flash) failed for this word.
+            # Stop processing but keep everything added so far (already saved).
+            _logger.warning(
+                'Audio backend failed (exit %s) for word "%s"; stopping. '
+                'Keeping %d note(s) added so far.', e.returncode, word, len(added))
+            break
+        if filled:
             new_audio = fields[args.audio_field]
             if audio != new_audio: # audio field value has changed
                 added.append(word)
