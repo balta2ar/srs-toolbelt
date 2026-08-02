@@ -22,8 +22,8 @@ _logger = get_logger('pronunciation')
 class Pronunciation:
     def __init__(self, audio_type):
         self._audio_type = audio_type
-    def fill(self, word, col, fields):
-        return fill_pronunciation(self._audio_type, word, col, fields)
+    def fill(self, word, col, fields, audio_field='Audio'):
+        return fill_pronunciation(self._audio_type, word, col, fields, audio_field)
 
 
 def get_norwegian_pronunciation(word):
@@ -64,7 +64,7 @@ def get_nordnorsk_gemini_pronunciation(word):
     return results[0].mp3from
 
 
-def fill_pronunciation(audio_type, word, col, fields):
+def fill_pronunciation(audio_type, word, col, fields, audio_field='Audio'):
     TABLE = {
         'norwegian': get_norwegian_pronunciation,
         'english': get_english_pronunciation,
@@ -83,6 +83,6 @@ def fill_pronunciation(audio_type, word, col, fields):
     else:
         _logger.debug('Adding audio for word %s: %s', word, audio)
         col.media.add_file(audio)
-        fields['Audio'] = '[sound:%s]' % basename(audio)
+        fields[audio_field] = '[sound:%s]' % basename(audio)
     return True
 

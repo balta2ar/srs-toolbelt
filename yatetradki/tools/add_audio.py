@@ -141,7 +141,7 @@ def add_audio(args):
                   for field in args.fields}
         word = fields[args.word_field]
         audio = fields[args.audio_field]
-        if pronunciation.fill(html_to_text(word), col, fields):
+        if pronunciation.fill(html_to_text(word), col, fields, args.audio_field):
             new_audio = fields[args.audio_field]
             if audio != new_audio: # audio field value has changed
                 added.append(word)
