@@ -29,6 +29,7 @@ Usage:
 
 import argparse
 import os
+import threading
 from os.path import expanduser, expandvars, isfile
 
 from anki.collection import Collection
@@ -77,16 +78,34 @@ def web_sync(collection, user, password):
             'Missing AnkiWeb credentials. Set ANKIWEB_USER and '
             'ANKIWEB_PASSWORD in the environment or in the env file '
             '(default ~/.anki).')
-    _logger.info('Opening collection: %s', collection)
-    col = Collection(collection)
-    try:
-        _logger.info('Logging in to AnkiWeb as %s', user)
-        auth = col.sync_login(user, password, None)
-        _logger.info('Syncing collection (with media)...')
-        col.sync_collection(auth, sync_media=True)
-        _logger.info('Sync finished.')
-    finally:
-        col.close()
+    # Anki's backend prints a noisy "blocked main thread for ..." traceback
+    # whenever a slow command runs on the main thread. Sync is always slow, so
+    # we run it in a worker thread to keep that warning quiet.
+    def _run():
+        _logger.info('Opening collection: %s', collection)
+        col = Collection(collection)
+        try:
+            _logger.info('Logging in to AnkiWeb as %s', user)
+            auth = col.sync_login(user, password, None)
+            _logger.info('Syncing collection (with media)...')
+            col.sync_collection(auth, sync_media=True)
+            _logger.info('Sync finished.')
+        finally:
+            col.close()
+
+    error = []
+
+    def _target():
+        try:
+            _run()
+        except BaseException as exc:  # noqa: BLE001 - re-raised on main thread
+            error.append(exc)
+
+    worker = threading.Thread(target=_target)
+    worker.start()
+    worker.join()
+    if error:
+        raise error[0]
 
 
 def main():
