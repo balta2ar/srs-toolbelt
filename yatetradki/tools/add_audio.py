@@ -11,6 +11,7 @@ from subprocess import CalledProcessError
 from anki.collection import Collection
 
 from yatetradki.tools.log import get_logger
+from yatetradki.tools.anki_backend import sync_open_collection
 #from yatetradki.tools.anki_control import anki_is_running
 from yatetradki.tools.pronunciation import Pronunciation
 #from yatetradki.tools.anki_sync_anki_connect import web_sync
@@ -28,10 +29,7 @@ COLLECTION = expandvars(expanduser(getenv('SRS_ANKI_COLLECTION', '$HOME/.local/s
 _logger = get_logger('add_audio')
 
 def web_sync(col):
-    user = getenv('ANKIWEB_USER')
-    password = getenv('ANKIWEB_PASSWORD')
-    auth_key = col.sync_login(user, password, None)
-    col.sync_collection(auth_key, sync_media=True)
+    sync_open_collection(col)
 
 def cleanup_html(text):
     def nowhite(text):

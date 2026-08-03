@@ -15,6 +15,7 @@ import sys
 #sys.path.insert(0, '/usr/share/anki')
 
 from anki.collection import Collection
+from yatetradki.tools.anki_backend import sync_open_collection
 from yatetradki.tools.log import get_logger
 from yatetradki.tools.pronunciation import Pronunciation
 from yatetradki.utils import cleanup_query
@@ -26,10 +27,7 @@ _logger = get_logger('load_from_csv')
 COLLECTION = '/home/bz/.local/share/Anki2/bz/collection.anki2'
 
 def web_sync(col):
-    user = getenv('ANKIWEB_USER')
-    password = getenv('ANKIWEB_PASSWORD')
-    auth_key = col.sync_login(user, password, None)
-    col.sync_collection(auth_key, sync_media=True)
+    sync_open_collection(col)
 
 def escape(s): return s.replace('"', '\\"')
 
